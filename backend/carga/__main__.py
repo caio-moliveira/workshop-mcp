@@ -5,11 +5,20 @@ estado inicial" nunca divirjam (ADR 0001).
 """
 
 import os
+import random
 import sys
 from pathlib import Path
 
 import psycopg
+from faker import Faker
 from psycopg import sql
+
+from carga.calendario import Calendario
+from carga.catalogo import gerar_catalogo
+from carga.comercial import gerar_comercial
+from carga.configuracao import Configuracao, ler_configuracao
+from carga.gravacao import gravar
+from carga.impressao_digital import impressao_digital
 
 DIRETORIO_SQL = Path(__file__).resolve().parent / "sql"
 
@@ -40,19 +49,49 @@ def _recriar_banco(banco: str) -> None:
         conexao.execute(sql.SQL("create database {}").format(nome))
 
 
-def _aplicar_estrutura(banco: str) -> None:
+def _aplicar_estrutura(conexao: psycopg.Connection) -> None:
+    for arquivo in sorted(DIRETORIO_SQL.glob("*.sql")):
+        print(f"carga: aplicando {arquivo.name}")
+        conexao.execute(arquivo.read_text(encoding="utf-8"))
+
+
+def _gerar_dados(conexao: psycopg.Connection, configuracao: Configuracao) -> None:
+    rng = random.Random(configuracao.semente)
+    fake = Faker("pt_BR")
+    fake.seed_instance(configuracao.semente)
+    calendario = Calendario(configuracao.data_referencia)
+
+    comercial = gerar_comercial(rng, fake, calendario)
+    gravar(conexao, "lojista", comercial.lojistas)
+    gravar(conexao, "lead", comercial.leads)
+
+    catalogo = gerar_catalogo(rng, comercial.lojistas)
+    gravar(conexao, "categoria", catalogo.categorias)
+    gravar(conexao, "produto", catalogo.produtos)
+
+
+def _carregar(banco: str, configuracao: Configuracao) -> None:
+    """Estrutura e dados entram em uma única transação: ou tudo, ou nada."""
     with _conectar(banco) as conexao:
-        for arquivo in sorted(DIRETORIO_SQL.glob("*.sql")):
-            print(f"carga: aplicando {arquivo.name}")
-            conexao.execute(arquivo.read_text(encoding="utf-8"))
+        _aplicar_estrutura(conexao)
+        print(
+            f"carga: gerando dados com semente {configuracao.semente}"
+            f" e data de referência {configuracao.data_referencia}"
+        )
+        _gerar_dados(conexao, configuracao)
+        impressao = impressao_digital(conexao)
+    # Só imprime depois do commit, para a impressão digital corresponder ao banco gravado.
+    for tabela, valor in impressao.items():
+        print(f"carga: impressão digital {tabela} {valor}")
 
 
 def main() -> int:
     banco = _variavel("BANCO")
+    configuracao = ler_configuracao()
     try:
         print(f"carga: recriando o banco {banco}")
         _recriar_banco(banco)
-        _aplicar_estrutura(banco)
+        _carregar(banco, configuracao)
     except psycopg.Error as erro:
         print(f"carga: falhou: {erro}", file=sys.stderr)
         return 1

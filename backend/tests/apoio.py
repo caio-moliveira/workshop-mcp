@@ -2,6 +2,7 @@
 
 import os
 import subprocess
+from datetime import date
 from pathlib import Path
 
 import psycopg
@@ -48,3 +49,59 @@ def compose(*argumentos: str) -> subprocess.CompletedProcess[str]:
         encoding="utf-8",
         check=False,
     )
+
+
+PREFIXO_DA_IMPRESSAO_DIGITAL = "carga: impressão digital "
+
+
+def rodar_carga(*variaveis: str) -> dict[str, str]:
+    """Roda a carga pelo comando do desenvolvedor e devolve a impressão digital por tabela.
+
+    Cada variável vem no formato NOME=valor e sobrepõe a configuração só nesta execução.
+    """
+    opcoes = [opcao for variavel in variaveis for opcao in ("-e", variavel)]
+    resultado = compose("run", "--rm", *opcoes, "carga")
+    assert resultado.returncode == 0, resultado.stderr
+    impressao: dict[str, str] = {}
+    for linha in resultado.stdout.splitlines():
+        if linha.startswith(PREFIXO_DA_IMPRESSAO_DIGITAL):
+            tabela, valor = linha.removeprefix(PREFIXO_DA_IMPRESSAO_DIGITAL).split()
+            impressao[tabela] = valor
+    return impressao
+
+
+def contar(conexao: psycopg.Connection, tabela: str) -> int:
+    """Quantidade de linhas de uma tabela dos dados de origem."""
+    return conexao.execute(f"select count(*) from dados_de_origem.{tabela}").fetchone()[0]
+
+
+def tabelas_dos_dados_de_origem(conexao: psycopg.Connection) -> set[str]:
+    """Nomes de todas as tabelas dos dados de origem."""
+    return {
+        linha[0]
+        for linha in conexao.execute(
+            "select table_name from information_schema.tables"
+            " where table_schema = 'dados_de_origem'"
+        )
+    }
+
+
+def intervalo_de_datas(conexao: psycopg.Connection) -> tuple[date, date]:
+    """A menor e a maior data em todas as colunas de data dos dados de origem."""
+    colunas = conexao.execute(
+        """
+        select table_name, column_name from information_schema.columns
+        where table_schema = 'dados_de_origem'
+            and data_type in ('date', 'timestamp without time zone', 'timestamp with time zone')
+        order by table_name, column_name
+        """
+    ).fetchall()
+    assert colunas, "nenhuma coluna de data nos dados de origem"
+    partes = [
+        f"select min({coluna}::date) as menor, max({coluna}::date) as maior"
+        f" from dados_de_origem.{tabela}"
+        for tabela, coluna in colunas
+    ]
+    return conexao.execute(
+        f"select min(menor), max(maior) from ({' union all '.join(partes)}) datas"
+    ).fetchone()
