@@ -1,0 +1,244 @@
+# Roadmap de entregas
+
+Este documento define quais são as entregas do projeto e em que ordem. Ele não substitui as specs: o detalhe de cada entrega é decidido no ciclo dela, com `/grill-with-docs`, `/to-spec` e `/to-tickets`.
+
+Fontes dos requisitos:
+
+- `docs/PRD.md`: identificadores RF, RS, RNF e CA.
+- `docs/PRD_frontend.md`: não tem identificadores; é citado como "FE §n" (número da seção).
+- `docs/PRD_dados.md`: não tem identificadores; é citado como "PD" seguido da seção.
+
+## Regras do fatiamento
+
+- Cada entrega deixa algo funcionando de ponta a ponta e demonstrável sozinho.
+- Um único perfil (Vendas) atravessa todas as camadas antes de os outros três entrarem.
+- Requisitos de segurança e testes de isolamento entram junto com a funcionalidade que protegem.
+- O PRD de frontend é aplicado em cada entrega, como especificação visual. Não há etapa de frontend com dados fictícios (FE §14 não é seguido ao pé da letra), e o banco populado vem antes de qualquer tela.
+- Este roadmap não define nomes de tabelas, rotas ou arquivos.
+
+## Ordem
+
+| # | Entrega | Depende de | Situação |
+| --- | --- | --- | --- |
+| 1 | Fundação de dados | — | Livre |
+| 2 | Login e perfil | 1 | Livre |
+| 3 | Vendas na tela | 2 | Livre |
+| 4a | Servidor MCP de Vendas | 3 | Livre |
+| V1 | Verificação com túnel: Claude e ChatGPT | 4a | Livre |
+| 4b | Auditoria e limite de frequência | 4a | Livre |
+| 5a | Chat de Vendas no painel lateral | 4b | Depende de decisões (ver final) |
+| 5b | Chat expandido, rastreio e histórico | 5a | Livre |
+| 8 | Perfil Produtos | 5b | Livre |
+| 9 | Perfil Comercial | 8 | Livre |
+| 10 | Perfil Diretoria | 9 | Livre |
+| 6 | Ambiente público | 4a | Bloqueada: nuvem e domínio |
+| 7 | Claude e ChatGPT no ambiente público | 6, V1 | Bloqueada pela 6 |
+| 11 | Painel de demonstração e aceite final | 7, 10 | Bloqueada pela 7 |
+
+As entregas 6 e 7 mantêm seus números, mas ficam para depois: a decisão de nuvem e domínio foi adiada. As entregas 8 a 10 não dependem delas e seguem enquanto isso. A verificação V1 antecipa o maior risco da 7 sem depender da nuvem.
+
+## Entregas
+
+### 1. Fundação de dados
+
+- **O que passa a funcionar:** o ambiente sobe em contêineres com o banco preenchido pelo script gerador de dados sintéticos e com a camada de leitura de Vendas, acessível só pela credencial desse perfil.
+- **Como demonstrar:**
+  - O ambiente sobe do zero com um comando.
+  - Rodar o gerador duas vezes produz exatamente o mesmo banco, e o comando de recarga devolve o estado inicial.
+  - Os dados terminam na data de referência configurada no gerador (valor inicial: 30 de novembro de 2026), independentemente do dia da execução.
+  - Testes automatizados verificam os seis padrões do PRD de dados, os volumes aproximados, a coerência das datas e a existência de uma única avaliação maliciosa.
+  - A credencial de Vendas lê a própria camada e é recusada nas tabelas de origem.
+  - A integração contínua roda em um pull request.
+- **Depende de:** nada.
+- **Cobre:** RF-01, RF-02 (Vendas), RF-03 (no banco), RF-05 (Vendas), RS-04 (Vendas), RS-09, RNF-01, RNF-04, RNF-07, CA-08; PD inteiro (volumes, conteúdo por área, padrões 1 a 6, regras).
+
+### 2. Login e perfil
+
+- **O que passa a funcionar:** cada um dos quatro usuários de demonstração faz login e vê a estrutura da aplicação com seu nome e perfil. A sessão expira.
+- **Como demonstrar:**
+  - Entrar com os quatro usuários e ver o perfil correto.
+  - A API recusa requisição sem token, com token vencido e com token emitido para outro serviço.
+  - O provedor de identidade sobe já configurado, sem passo manual.
+- **Depende de:** 1.
+- **Cobre:** RF-06 (tela), RF-07, RF-08, RF-09 (API), RS-01, RS-02, RS-03 (API), RNF-03; FE §1 a §5, §9 (login), §12 (estrutura global).
+
+### 3. Vendas na tela
+
+- **O que passa a funcionar:** o usuário de Vendas vê o painel com indicadores, gráficos, tabela e filtro de período. Os outros três perfis recebem negação.
+- **Como demonstrar:**
+  - Painel de Vendas com os dados do banco.
+  - Teste automatizado dos quatro perfis contra as rotas de Vendas, com sucesso só para Vendas.
+  - A negação não indica se o dado existe nem revela nomes internos.
+  - Tempo de resposta medido contra a meta do RNF-05.
+- **Depende de:** 2.
+- **Cobre:** RF-03, RF-10, RF-11, RF-13 (o mecanismo compartilhado nasce aqui), RS-05, RS-06, RS-08 (rotas), RNF-05, CA-01 e CA-02 (parciais); FE §6 (Vendas), §7, §10, §11, §12 (componentes de painel).
+
+### 4a. Servidor MCP de Vendas
+
+- **O que passa a funcionar:** um cliente MCP autenticado como Vendas lista e chama as ferramentas de Vendas. Qualquer outro perfil recebe lista vazia e negação na chamada direta.
+- **Como demonstrar:**
+  - Teste automatizado dos quatro perfis contra todas as ferramentas, com sucesso só para Vendas.
+  - Chamada direta a uma ferramenta não listada é negada.
+  - Token emitido para outra aplicação é recusado; token vencido também.
+  - Parâmetro fora do previsto é recusado.
+- **Depende de:** 3 (reusa o mecanismo de acesso a dados).
+- **Cobre:** RF-06 (MCP), RF-09 (MCP), RF-13, RF-19 a RF-26, RS-01, RS-02, RS-03, RS-05, RS-08 (ferramentas), CA-02 (ferramentas), CA-03.
+
+### V1. Verificação com túnel: Claude e ChatGPT
+
+- **O que passa a funcionar:** com o ambiente local exposto por um túnel, o Claude e o ChatGPT se registram no servidor MCP, iniciam o login do usuário e chamam uma ferramenta de Vendas.
+- **Como demonstrar:**
+  - Roteiro manual: conectar cada cliente, fazer login como Vendas e obter uma resposta.
+  - Registro do que precisou ser ajustado no provedor de identidade e no servidor para cada cliente.
+- **Depende de:** 4a.
+- **Cobre:** RF-27 e RF-28 (verificação antecipada; o fechamento é na entrega 7).
+- **Observação:** é uma verificação de risco, não o ambiente definitivo. Se ela mostrar que o fluxo de autorização exige mudanças, elas entram antes da 4b.
+
+### 4b. Auditoria e limite de frequência
+
+- **O que passa a funcionar:** toda chamada de ferramenta, permitida ou negada, fica registrada, e um usuário que chama demais é contido.
+- **Como demonstrar:**
+  - Toda chamada feita nos testes da 4a aparece na auditoria com usuário, perfil, ferramenta, parâmetros, resultado e horário.
+  - Nenhuma ferramenta consegue ler a auditoria.
+  - O limite de frequência dispara para um usuário sem afetar outro.
+- **Depende de:** 4a.
+- **Cobre:** RF-30, RF-31, RF-32, RS-11, CA-07.
+
+### 5a. Chat de Vendas no painel lateral
+
+- **O que passa a funcionar:** o usuário de Vendas pergunta em linguagem natural no painel lateral e recebe a resposta em tempo real, obtida só pelas ferramentas do MCP e com a identidade dele.
+- **Como demonstrar:**
+  - A pergunta sugerida de Vendas é respondida com dados do banco.
+  - Pedidos para ignorar as regras ou mostrar dados de outro perfil não retornam esses dados; o chat informa que não tem acesso.
+  - As chamadas do chat aparecem na auditoria com o usuário logado, não com uma conta de serviço.
+  - A troca de modelo é feita só por configuração.
+- **Depende de:** 4b.
+- **Cobre:** RF-12, RF-14, RF-15, RF-16, RF-17, RS-03 (modelo), RS-06, CA-04; FE §8 (chat lateral), §6 (pergunta sugerida de Vendas).
+
+### 5b. Chat expandido, rastreio e histórico
+
+- **O que passa a funcionar:** o chat ganha o modo expandido, o bloco "Como esta resposta foi obtida" e o histórico de conversa, isolado por usuário.
+- **Como demonstrar:**
+  - Uma resposta longa é lida no modo expandido, com o bloco de rastreio mostrando ferramenta, status e tempo.
+  - Dois usuários, do mesmo perfil e de perfis diferentes, não veem o histórico um do outro.
+  - Uma pergunta é acompanhada nos logs até as consultas feitas no banco.
+- **Depende de:** 5a.
+- **Cobre:** RF-18, RNF-06; FE §8 (chat expandido e bloco de rastreio).
+
+### 6. Ambiente público
+
+- **O que passa a funcionar:** aplicação, API, servidor MCP e provedor de identidade ficam acessíveis por endereços públicos próprios com HTTPS. O banco fica só na rede interna.
+- **Como demonstrar:**
+  - Login e painel de Vendas pelo endereço público.
+  - O banco não responde de fora da rede interna.
+- **Depende de:** 4a (tecnicamente); na prática entra quando a decisão de nuvem e domínio for tomada.
+- **Cobre:** RS-10, RNF-02.
+- **Bloqueada por:** provedor de nuvem e domínio.
+
+### 7. Claude e ChatGPT no ambiente público
+
+- **O que passa a funcionar:** o usuário conecta o servidor MCP público no Claude e no ChatGPT, faz login pelo fluxo do protocolo e obtém os mesmos dados da aplicação.
+- **Como demonstrar:**
+  - Roteiro com a mesma pergunta na aplicação, no Claude e no ChatGPT, com o mesmo resultado.
+  - Um usuário de outro perfil conectado não vê as ferramentas que não são dele.
+- **Depende de:** 6 e V1.
+- **Cobre:** RF-06 (cliente externo), RF-27, RF-28, RF-29, CA-06.
+
+### 8. Perfil Produtos
+
+- **O que passa a funcionar:** o usuário de Produtos tem camada de leitura, painel, ferramentas e chat próprios.
+- **Como demonstrar:**
+  - A matriz de isolamento cruza dois perfis reais nos dois sentidos, em rotas, ferramentas e credenciais do banco.
+  - A avaliação maliciosa presente nos dados não altera o comportamento do agente.
+  - A pergunta sugerida de Produtos é respondida.
+- **Depende de:** 5b.
+- **Cobre:** RF-02, RF-05, RF-10, RF-20, RS-04 (Produtos), RS-07, CA-05, CA-01 e CA-02 (ampliados); FE §6 (Produtos).
+
+### 9. Perfil Comercial
+
+- **O que passa a funcionar:** o usuário Comercial consulta o funil de lojistas na tela, nas ferramentas e no chat.
+- **Como demonstrar:**
+  - Matriz de isolamento com três perfis.
+  - A pergunta sugerida do Comercial é respondida.
+- **Depende de:** 8.
+- **Cobre:** RF-02, RF-10, RF-20, RS-04 (Comercial), CA-01 e CA-02 (ampliados); FE §6 (Comercial).
+
+### 10. Perfil Diretoria
+
+- **O que passa a funcionar:** a Diretoria consulta indicadores consolidados na tela e no chat, sem acesso a registros individuais dos outros perfis.
+- **Como demonstrar:**
+  - Matriz de isolamento completa, quatro perfis contra todas as rotas e ferramentas.
+  - A credencial da Diretoria é recusada nas camadas dos outros perfis.
+  - Nenhum registro individual nem dado pessoal aparece na camada da Diretoria.
+  - A pergunta "Por que os clientes compram uma vez e não voltam?" é respondida a partir dos indicadores consolidados.
+- **Depende de:** 9.
+- **Cobre:** RF-02, RF-04, RF-05, RS-04 (completos), CA-01, CA-02 (completos); FE §6 (Diretoria).
+
+### 11. Painel de demonstração e aceite final
+
+- **O que passa a funcionar:** o apresentador vê a matriz de cenários de segurança, com permitidos e negados, e os oito critérios de aceite rodam em um roteiro único.
+- **Como demonstrar:**
+  - Painel com os resultados dos testes de isolamento.
+  - Roteiro de CA-01 a CA-08 passando.
+  - CA-06 repetido para os quatro perfis no Claude e no ChatGPT.
+  - Revisão dos critérios de aceite visuais.
+- **Depende de:** 7 e 10.
+- **Cobre:** CA-01 a CA-08 (fechamento), RNF-05 (medição final); FE §9 (painel de segurança), §13.
+
+## Verificação de cobertura
+
+Todos os requisitos com identificador aparecem em alguma entrega.
+
+| Requisitos | Entregas |
+| --- | --- |
+| RF-01 a RF-05 | 1, 3, 8, 9, 10 |
+| RF-06 a RF-09 | 2, 4a, 7 |
+| RF-10 a RF-13 | 3, 4a, 5a, 8, 9 |
+| RF-14 a RF-18 | 5a, 5b |
+| RF-19 a RF-26 | 4a, 8, 9 |
+| RF-27 a RF-29 | V1, 7 |
+| RF-30 a RF-32 | 4b |
+| RS-01 a RS-03 | 2, 4a, 5a |
+| RS-04 | 1, 8, 9, 10 |
+| RS-05, RS-06, RS-08 | 3, 4a, 5a |
+| RS-07 | 8 |
+| RS-09 | 1 |
+| RS-10 | 6 |
+| RS-11 | 4b |
+| RNF-01, RNF-04, RNF-07 | 1 |
+| RNF-02 | 6 |
+| RNF-03 | 2 |
+| RNF-05 | 3, 11 |
+| RNF-06 | 5b |
+| CA-01, CA-02 | 3, 4a, 8, 9, 10, 11 |
+| CA-03 | 4a |
+| CA-04 | 5a |
+| CA-05 | 8 |
+| CA-06 | 7, 11 |
+| CA-07 | 4b |
+| CA-08 | 1 |
+| FE §1 a §13 | 2, 3, 5a, 5b, 8, 9, 10, 11 |
+| PD inteiro | 1 |
+
+Fica de fora:
+
+- **FE §14** (prompt de implementação com dados fictícios): contraria o fatiamento de ponta a ponta. O restante do PRD de frontend é aplicado em cada entrega.
+
+## Decisões em aberto
+
+Questões listadas em `docs/PRD.md`:
+
+| Decisão | Bloqueia |
+| --- | --- |
+| Provedor de modelo padrão do chat | 5a (só o valor padrão; o modelo é trocável por configuração) |
+| Provedor de nuvem e domínio | 6 e, por consequência, 7 e 11. Adiada. |
+| Como o agente obtém um token aceito pelo MCP: dois destinatários ou troca de token | 5a. Convém decidir no ciclo da 4a, porque afeta a validação de destinatário. |
+| Meta de 3 segundos do RNF-05 | Nenhuma. É medida na 3 e confirmada na 11. |
+| Limite de chamadas por usuário do RS-11 | 4b (só o valor; o mecanismo pode nascer configurável) |
+
+Lacunas que os PRDs não listam:
+
+| Lacuna | Bloqueia |
+| --- | --- |
+| Definição dos indicadores da Diretoria (recompra, retenção, satisfação, fatores correlacionados à recompra). O PRD de dados diz que derivam das três áreas, mas não define cada um. | 10 |
+| Painel de segurança: de onde vêm os resultados (execução ao vivo ou último resultado dos testes) e quem pode acessá-lo. | 11 |
