@@ -44,6 +44,9 @@ services:
       KC_HEALTH_ENABLED: "true"
     volumes:
       - ./keycloak/realm:/opt/keycloak/data/import:ro
+      # Tema de login do pulso. (FE §9), escolhido no realm. Em start-dev o Keycloak não guarda
+      # temas em cache: uma mudança aparece ao recarregar a tela, sem reiniciar.
+      - ./keycloak/temas/pulso:/opt/keycloak/themes/pulso:ro
     ports:
       - "127.0.0.1:8080:8080"
     healthcheck:

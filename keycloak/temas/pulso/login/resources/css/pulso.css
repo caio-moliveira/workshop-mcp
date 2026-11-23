@@ -1,0 +1,424 @@
+/* Tela de login do pulso. (FE §9). Os tokens repetem os valores de frontend/src/estilos/tokens.css
+   (FE §2 a §4): o tema é servido pelo Keycloak e não enxerga o build do frontend. Ao mudar um, mude
+   o outro. As fontes são os mesmos arquivos do @fontsource que o frontend usa, só o subconjunto
+   latino. */
+
+@font-face {
+  font-family: "Geist Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url(../fontes/geist-latin-wght-normal.woff2) format("woff2-variations");
+}
+
+@font-face {
+  font-family: "Instrument Sans";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 500;
+  src: url(../fontes/instrument-sans-latin-500-normal.woff2) format("woff2");
+}
+
+@font-face {
+  font-family: "Instrument Sans";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 600;
+  src: url(../fontes/instrument-sans-latin-600-normal.woff2) format("woff2");
+}
+
+:root {
+  --bg-app: #f7f8f5;
+  --surface: #ffffff;
+  --surface-muted: #f0f3ee;
+  --brand-ink: #202c29;
+  --text-primary: #222a26;
+  --text-secondary: #69756e;
+  --text-tertiary: #89948c;
+  --border: #e2e8e1;
+  --accent-lime: #d4f379;
+  --erro: #b64b4b;
+  --sucesso: #228061;
+  --atencao: #b77932;
+  --informacao: #4968c9;
+
+  --fonte-texto: "Geist Variable", "Geist", "Inter", system-ui, sans-serif;
+  --fonte-marca: "Instrument Sans", "Geist Variable", "Geist", system-ui, sans-serif;
+  --peso-regular: 400;
+  --peso-medio: 500;
+  --peso-semibold: 600;
+  --texto-titulo-pagina: 32px;
+  --texto-corpo: 14.5px;
+  --texto-label: 12.5px;
+
+  --espaco-1: 4px;
+  --espaco-2: 8px;
+  --espaco-3: 12px;
+  --espaco-4: 16px;
+  --espaco-6: 24px;
+  --espaco-8: 32px;
+  --espaco-10: 40px;
+  --espaco-12: 48px;
+
+  --raio-botao: 10px;
+  --altura-botao: 42px;
+  --altura-input: 42px;
+  --transicao-rapida: 140ms ease;
+  --anel-de-foco: 0 0 0 2px var(--surface), 0 0 0 4px var(--brand-ink);
+
+  /* Só do painel da marca: texto claro sobre o verde-escuro. */
+  --marca-texto: #f7f8f5;
+  --marca-texto-secundario: #b9c4bd;
+  --marca-linha: #4a5a55;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  background: var(--surface);
+  color: var(--text-primary);
+  font-family: var(--fonte-texto);
+  font-size: var(--texto-corpo);
+  font-weight: var(--peso-regular);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+p {
+  margin: 0;
+}
+
+a {
+  color: var(--brand-ink);
+  text-underline-offset: 3px;
+}
+
+:focus-visible {
+  outline: none;
+  box-shadow: var(--anel-de-foco);
+}
+
+/* Composição assimétrica 55/45. */
+.pulso-tela {
+  display: grid;
+  grid-template-columns: 55fr 45fr;
+  min-height: 100vh;
+}
+
+/* Painel da marca */
+.pulso-painel-da-marca {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--espaco-12);
+  padding: var(--espaco-12);
+  background: var(--brand-ink);
+  color: var(--marca-texto);
+}
+
+.pulso-marca {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espaco-2);
+}
+
+.pulso-monograma {
+  width: 32px;
+  height: 32px;
+  flex: none;
+}
+
+.pulso-nome {
+  font-family: var(--fonte-marca);
+  font-size: 22px;
+  font-weight: var(--peso-semibold);
+  letter-spacing: -0.02em;
+}
+
+.pulso-proposta {
+  max-width: 30rem;
+}
+
+.pulso-frase {
+  font-family: var(--fonte-marca);
+  font-size: var(--texto-titulo-pagina);
+  font-weight: var(--peso-semibold);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.pulso-apoio {
+  margin-top: var(--espaco-4);
+  color: var(--marca-texto-secundario);
+  font-size: 15px;
+}
+
+.pulso-detalhe {
+  width: 240px;
+  height: 72px;
+}
+
+.pulso-detalhe-regua {
+  stroke: var(--marca-linha);
+  stroke-width: 1;
+}
+
+.pulso-detalhe-linha {
+  fill: none;
+  stroke: var(--marca-texto-secundario);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.pulso-detalhe-ponto {
+  fill: var(--accent-lime);
+}
+
+/* Lado do formulário */
+.pulso-lado-do-formulario {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--espaco-12) var(--espaco-8);
+}
+
+.pulso-cartao {
+  width: 100%;
+  max-width: 380px;
+}
+
+.pulso-cabecalho {
+  margin-bottom: var(--espaco-8);
+}
+
+#kc-page-title {
+  font-family: var(--fonte-marca);
+  font-size: 26px;
+  font-weight: var(--peso-semibold);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: var(--brand-ink);
+}
+
+.pulso-instrucao,
+.pulso-obrigatorios {
+  margin-top: var(--espaco-2);
+  color: var(--text-secondary);
+}
+
+.pulso-campo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco-2);
+  margin-bottom: var(--espaco-4);
+}
+
+.pulso-campo:empty {
+  display: none;
+}
+
+/* O grupo de opções que vem antes (lembrar-me, esqueci a senha) fica vazio neste realm e já
+   deixa o respiro antes do botão. */
+#kc-form-buttons {
+  margin-bottom: 0;
+}
+
+.pulso-rotulo {
+  font-size: var(--texto-label);
+  font-weight: var(--peso-medio);
+  color: var(--text-secondary);
+}
+
+.pulso-entrada {
+  width: 100%;
+  height: var(--altura-input);
+  padding: 0 var(--espaco-3);
+  border: 1px solid var(--border);
+  border-radius: var(--raio-botao);
+  background: var(--surface);
+  color: var(--text-primary);
+  font: inherit;
+  transition: border-color var(--transicao-rapida);
+}
+
+.pulso-entrada:hover {
+  border-color: var(--text-tertiary);
+}
+
+.pulso-entrada:focus-visible {
+  border-color: var(--brand-ink);
+}
+
+.pulso-entrada[aria-invalid="true"] {
+  border-color: var(--erro);
+}
+
+.pulso-entrada-com-botao {
+  position: relative;
+}
+
+.pulso-entrada-com-botao .pulso-entrada {
+  padding-right: var(--espaco-12);
+}
+
+.pulso-mostrar-senha {
+  position: absolute;
+  top: 50%;
+  right: var(--espaco-1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  transform: translateY(-50%);
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background-color var(--transicao-rapida);
+}
+
+.pulso-mostrar-senha:hover {
+  background: var(--surface-muted);
+}
+
+.pulso-icone-mostrar,
+.pulso-icone-ocultar {
+  display: block;
+  width: 18px;
+  height: 18px;
+  background: currentColor;
+  -webkit-mask: var(--icone) center / contain no-repeat;
+  mask: var(--icone) center / contain no-repeat;
+}
+
+.pulso-icone-mostrar {
+  --icone: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z'/%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3C/svg%3E");
+}
+
+.pulso-icone-ocultar {
+  --icone: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10.6 5.1A10.6 10.6 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-2.2 3.2M6.6 6.6C3.7 8.4 2 12 2 12s3.5 7 10 7a9.7 9.7 0 0 0 5.4-1.6M9.9 9.9a3 3 0 0 0 4.2 4.2M3 3l18 18'/%3E%3C/svg%3E");
+}
+
+.pulso-erro-do-campo {
+  color: var(--erro);
+  font-size: var(--texto-label);
+  font-weight: var(--peso-medio);
+}
+
+.pulso-botao {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: var(--altura-botao);
+  padding: 0 var(--espaco-4);
+  border: 1px solid var(--border);
+  border-radius: var(--raio-botao);
+  background: var(--surface);
+  color: var(--text-primary);
+  font: inherit;
+  font-weight: var(--peso-medio);
+  cursor: pointer;
+  transition: background-color var(--transicao-rapida);
+}
+
+.pulso-botao-principal {
+  border-color: var(--brand-ink);
+  background: var(--brand-ink);
+  color: var(--marca-texto);
+}
+
+.pulso-botao-principal:hover {
+  background: #2d3d39;
+}
+
+.pulso-botao:disabled {
+  opacity: 0.7;
+  cursor: progress;
+}
+
+/* Avisos das outras telas (sessão expirada, erro, informação). */
+.pulso-aviso {
+  margin-bottom: var(--espaco-6);
+  padding: var(--espaco-3) var(--espaco-4);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--informacao);
+  border-radius: var(--raio-botao);
+  background: var(--surface-muted);
+}
+
+.pulso-aviso.alert-error {
+  border-left-color: var(--erro);
+}
+
+.pulso-aviso.alert-warning {
+  border-left-color: var(--atencao);
+}
+
+.pulso-aviso.alert-success {
+  border-left-color: var(--sucesso);
+}
+
+#kc-username {
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+#kc-attempted-username {
+  font-weight: var(--peso-medio);
+}
+
+#kc-info {
+  margin-top: var(--espaco-6);
+  color: var(--text-secondary);
+}
+
+/* Celular: os blocos empilham e o painel da marca fica só com a marca e a frase. */
+@media (max-width: 767px) {
+  .pulso-tela {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+
+  .pulso-painel-da-marca {
+    gap: var(--espaco-6);
+    padding: var(--espaco-6) var(--espaco-4);
+  }
+
+  .pulso-frase {
+    font-size: 20px;
+  }
+
+  .pulso-apoio,
+  .pulso-detalhe {
+    display: none;
+  }
+
+  .pulso-lado-do-formulario {
+    align-items: flex-start;
+    padding: var(--espaco-8) var(--espaco-4);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+  }
+}
