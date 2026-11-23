@@ -1,0 +1,29 @@
+# Sobe o ambiente e carrega o banco do zero: docker compose run --rm --build carga
+# O mesmo comando é a recarga (ADR 0001).
+name: workshop-mcp
+
+services:
+  postgres:
+    image: postgres:18.1-alpine
+    env_file: backend/.env
+    ports:
+      # Só a máquina local alcança o banco.
+      - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$$POSTGRES_USER\" -d postgres"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  # Roda uma vez e termina; sobe o Postgres antes, pela dependência.
+  carga:
+    build:
+      context: backend
+      dockerfile: carga/Dockerfile
+    env_file: backend/.env
+    environment:
+      POSTGRES_HOST: postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
