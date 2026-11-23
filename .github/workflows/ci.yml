@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [homolog, main]
+
+jobs:
+  verificacao:
+    name: Estilo e testes
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - uses: astral-sh/setup-uv@v10.4.0
+        with:
+          version: "0.6.9"
+
+      - name: Instalar dependências travadas
+        run: uv sync --locked
+
+      - name: Estilo
+        run: |
+          uv run ruff check
+          uv run ruff format --check
+
+      - name: Configuração de ambiente de teste
+        run: cp .env.example .env
+
+      - name: Subir o ambiente e rodar a carga
+        run: docker compose run --rm --build carga
+
+      - name: Testes
+        run: uv run pytest
+
+      - name: Logs do ambiente em caso de falha
+        if: failure()
+        run: docker compose logs
