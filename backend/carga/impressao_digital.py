@@ -2,11 +2,18 @@
 
 Duas cargas são "o mesmo banco" quando as impressões digitais coincidem. O hash cobre o
 conteúdo das linhas, ordenadas pela chave primária, e não detalhes físicos do Postgres.
+
+Executado como módulo, mostra a impressão digital do banco como ele está, sem recarregar:
+
+    docker compose run --rm carga python -m carga.impressao_digital
 """
+
+import sys
 
 import psycopg
 from psycopg import sql
 
+from carga.conexao import conectar, variavel
 from carga.gravacao import ESQUEMA
 
 _TABELAS_E_CHAVES = """
@@ -36,3 +43,22 @@ def impressao_digital(conexao: psycopg.Connection) -> dict[str, str]:
         )
         impressao[tabela] = conexao.execute(consulta).fetchone()[0]
     return impressao
+
+
+def imprimir(impressao: dict[str, str]) -> None:
+    for tabela, hash_da_tabela in impressao.items():
+        print(f"carga: impressão digital {tabela} {hash_da_tabela}")
+
+
+def main() -> int:
+    try:
+        with conectar(variavel("BANCO")) as conexao:
+            imprimir(impressao_digital(conexao))
+    except psycopg.Error as erro:
+        print(f"carga: falhou: {erro}", file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -69,13 +69,24 @@ def rodar_carga(*variaveis: str) -> dict[str, str]:
     Cada variável vem no formato NOME=valor e sobrepõe a configuração só nesta execução.
     """
     opcoes = [opcao for variavel in variaveis for opcao in ("-e", variavel)]
-    resultado = compose("run", "--rm", *opcoes, "carga")
+    return _impressao_da_saida(compose("run", "--rm", *opcoes, "carga"))
+
+
+def impressao_digital_atual() -> dict[str, str]:
+    """A impressão digital do banco como ele está agora, sem recarregar."""
+    return _impressao_da_saida(
+        compose("run", "--rm", "carga", "python", "-m", "carga.impressao_digital")
+    )
+
+
+def _impressao_da_saida(resultado: subprocess.CompletedProcess[str]) -> dict[str, str]:
     assert resultado.returncode == 0, resultado.stderr
     impressao: dict[str, str] = {}
     for linha in resultado.stdout.splitlines():
         if linha.startswith(PREFIXO_DA_IMPRESSAO_DIGITAL):
-            tabela, valor = linha.removeprefix(PREFIXO_DA_IMPRESSAO_DIGITAL).split()
-            impressao[tabela] = valor
+            tabela, hash_da_tabela = linha.removeprefix(PREFIXO_DA_IMPRESSAO_DIGITAL).split()
+            impressao[tabela] = hash_da_tabela
+    assert impressao, resultado.stdout
     return impressao
 
 

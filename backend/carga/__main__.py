@@ -4,7 +4,6 @@ A recarga é esta mesma execução, para que "subir do zero" e "voltar ao
 estado inicial" nunca divirjam (ADR 0001).
 """
 
-import os
 import random
 import sys
 from pathlib import Path
@@ -17,31 +16,13 @@ from carga.avaliacoes import gerar_avaliacoes
 from carga.calendario import Calendario
 from carga.catalogo import gerar_catalogo
 from carga.comercial import gerar_comercial
+from carga.conexao import conectar, variavel
 from carga.configuracao import Configuracao, ler_configuracao
 from carga.gravacao import gravar
-from carga.impressao_digital import impressao_digital
+from carga.impressao_digital import impressao_digital, imprimir
 from carga.vendas import gerar_vendas
 
 DIRETORIO_SQL = Path(__file__).resolve().parent / "sql"
-
-
-def _variavel(nome: str) -> str:
-    valor = os.environ.get(nome)
-    if not valor:
-        raise SystemExit(f"carga: variável de ambiente {nome} ausente")
-    return valor
-
-
-def _conectar(banco: str, *, autocommit: bool = False) -> psycopg.Connection:
-    return psycopg.connect(
-        host=_variavel("POSTGRES_HOST"),
-        port=int(os.environ.get("POSTGRES_INTERNAL_PORT", "5432")),
-        user=_variavel("POSTGRES_USER"),
-        password=_variavel("POSTGRES_PASSWORD"),
-        dbname=banco,
-        connect_timeout=10,
-        autocommit=autocommit,
-    )
 
 
 # O papel de cada perfil e a variável de ambiente com a senha da sua credencial.
@@ -55,7 +36,7 @@ def _recriar_papeis(conexao: psycopg.Connection, banco: str) -> None:
         conexao.execute(sql.SQL("drop role if exists {}").format(nome))
         conexao.execute(
             sql.SQL("create role {} login password {}").format(
-                nome, sql.Literal(_variavel(variavel_da_senha))
+                nome, sql.Literal(variavel(variavel_da_senha))
             )
         )
         # Defesa extra, não a garantia: a sessão começa somente leitura, mas pode pedir
@@ -81,7 +62,7 @@ def _restringir_outros_bancos_do_servidor(conexao: psycopg.Connection, banco: st
 
 
 def _recriar_banco(banco: str) -> None:
-    with _conectar("postgres", autocommit=True) as conexao:
+    with conectar("postgres", autocommit=True) as conexao:
         nome = sql.Identifier(banco)
         conexao.execute(sql.SQL("drop database if exists {} with (force)").format(nome))
         conexao.execute(sql.SQL("create database {}").format(nome))
@@ -128,7 +109,7 @@ def _gerar_dados(conexao: psycopg.Connection, configuracao: Configuracao) -> Non
 
 def _carregar(banco: str, configuracao: Configuracao) -> None:
     """Estrutura e dados entram em uma única transação: ou tudo, ou nada."""
-    with _conectar(banco) as conexao:
+    with conectar(banco) as conexao:
         _aplicar_estrutura(conexao)
         print(
             f"carga: gerando dados com semente {configuracao.semente}"
@@ -139,12 +120,11 @@ def _carregar(banco: str, configuracao: Configuracao) -> None:
         conexao.execute("analyze")
         impressao = impressao_digital(conexao)
     # Só imprime depois do commit, para a impressão digital corresponder ao banco gravado.
-    for tabela, valor in impressao.items():
-        print(f"carga: impressão digital {tabela} {valor}")
+    imprimir(impressao)
 
 
 def main() -> int:
-    banco = _variavel("BANCO")
+    banco = variavel("BANCO")
     configuracao = ler_configuracao()
     try:
         print(f"carga: recriando o banco {banco}")
