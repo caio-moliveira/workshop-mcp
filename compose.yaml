@@ -27,3 +27,57 @@ services:
       postgres:
         condition: service_healthy
     restart: "no"
+
+  # Provedor de identidade. Sem estado persistente: a cada subida, importa o realm versionado
+  # (ADR 0004). As senhas dos usuários de demonstração entram pelos placeholders do arquivo.
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.4.2
+    # O emissor (iss) é sempre o endereço público, venha a requisição de onde vier.
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - KC_HOSTNAME="$$ENDERECO_PUBLICO_DO_PROVEDOR" exec /opt/keycloak/bin/kc.sh start-dev --import-realm
+    env_file: backend/.env
+    environment:
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      KC_HEALTH_ENABLED: "true"
+    volumes:
+      - ./keycloak/realm:/opt/keycloak/data/import:ro
+    ports:
+      - "127.0.0.1:8080:8080"
+    healthcheck:
+      # A imagem não tem curl: consulta a prontidão pela porta de gerenciamento.
+      test:
+        - CMD-SHELL
+        - >-
+          exec 3<>/dev/tcp/127.0.0.1/9000 &&
+          printf 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 &&
+          grep -q '"UP"' <&3
+      interval: 3s
+      timeout: 3s
+      retries: 60
+
+  # API das telas. Valida o token: emissor público, chaves buscadas pela rede interna.
+  api:
+    build:
+      context: backend
+      dockerfile: api/Dockerfile
+    env_file: backend/.env
+    environment:
+      ENDERECO_INTERNO_DO_PROVEDOR: http://keycloak:8080
+    ports:
+      - "127.0.0.1:${API_PORT:-8000}:8000"
+    depends_on:
+      keycloak:
+        condition: service_healthy
+      # A API só sobe com o banco carregado: assim `up --wait` termina com tudo pronto.
+      carga:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request as u; u.urlopen('http://127.0.0.1:8000/docs', timeout=2)"
+      interval: 2s
+      timeout: 3s
+      retries: 30
