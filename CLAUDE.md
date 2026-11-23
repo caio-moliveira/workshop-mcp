@@ -1,3 +1,10 @@
+## Fluxo de branches
+
+- Toda branch de trabalho é criada a partir de `homolog`.
+- Todo pull request de branch de trabalho tem `homolog` como destino (`gh pr create --base homolog`).
+- Somente `homolog` abre pull request para `main`.
+- Nunca fazer commit ou push direto em `main` ou `homolog`.
+
 ## Agent skills
 
 ### Issue tracker
