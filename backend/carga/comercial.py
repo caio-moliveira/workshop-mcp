@@ -53,6 +53,11 @@ class Comercial:
     leads: list[Lead]
     lojistas: list[Lojista]
 
+    @property
+    def leads_fechados(self) -> list[Lead]:
+        """Os leads que viraram lojistas, na ordem dos leads."""
+        return [lead for lead in self.leads if lead.lojista_id is not None]
+
 
 def _sem_acento(texto: str) -> str:
     return unicodedata.normalize("NFKD", texto).encode("ascii", "ignore").decode()
