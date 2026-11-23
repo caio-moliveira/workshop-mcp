@@ -31,8 +31,10 @@ export default defineConfig(({ mode }) => {
   >;
   return {
     plugins: [react(), configuracaoDeDesenvolvimento(ambiente)],
-    // O provedor só devolve o usuário para http://localhost:5173 (ENDERECO_DO_FRONTEND).
-    server: { host: "localhost", port: 5173, strictPort: true },
+    // Mesmo endereço e porta do contêiner do frontend: com os dois no ar, o Vite recusa subir em
+    // vez de dividir `localhost` com o nginx (IPv6 de um lado, IPv4 do outro). Abra
+    // http://localhost:5173, o único retorno que o provedor aceita (ENDERECO_DO_FRONTEND).
+    server: { host: "127.0.0.1", port: 5173, strictPort: true },
     build: {
       rollupOptions: {
         input: {
