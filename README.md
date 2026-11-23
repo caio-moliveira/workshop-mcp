@@ -35,6 +35,13 @@ docker compose run --rm --build carga
 
 O comando sobe o Postgres, espera ele ficar pronto e roda a carga, que recria o banco do zero. Ele termina com código diferente de zero se a carga falhar. O Postgres continua rodando, publicado só em `127.0.0.1:5433`; para usar outra porta, defina `POSTGRES_PORT` antes do comando.
 
+## Credenciais do banco
+
+- `dono` (`POSTGRES_USER`): usado pela carga; recria o banco inteiro.
+- `vendas` (`SENHA_DO_PAPEL_VENDAS`): lê apenas o esquema `vendas`, a camada de leitura do perfil Vendas, e é recusado nos dados de origem (ADR 0002).
+
+As senhas ficam em `backend/.env`, que não é versionado.
+
 ## Recarga
 
 A recarga é o mesmo comando da subida: ele derruba o banco e o recria (ADR 0001).
