@@ -21,4 +21,7 @@ def configuracao_do_ambiente() -> ConfiguracaoDeAcesso:
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    uvicorn.run(criar_aplicacao(configuracao_do_ambiente()), host="0.0.0.0", port=8000)
+    aplicacao = criar_aplicacao(
+        configuracao_do_ambiente(), origem_do_frontend=os.environ["ENDERECO_DO_FRONTEND"]
+    )
+    uvicorn.run(aplicacao, host="0.0.0.0", port=8000)

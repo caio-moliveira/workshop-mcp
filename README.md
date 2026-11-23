@@ -12,6 +12,7 @@ Consulta de dados por perfil com servidor MCP. Os requisitos estão em `docs/PRD
 │   ├── acesso/       # valida o token e extrai o perfil (compartilhado com o futuro MCP)
 │   ├── api/          # API das telas (FastAPI)
 │   └── tests/
+├── frontend/         # aplicação no navegador (React + TypeScript + Vite), servida por nginx
 ├── keycloak/realm/   # configuração versionada do provedor de identidade
 ├── docs/             # PRDs, roadmap e ADRs
 └── GLOSSARY.md       # termos do domínio
@@ -21,6 +22,7 @@ Consulta de dados por perfil com servidor MCP. Os requisitos estão em `docs/PRD
 
 - Docker com Docker Compose
 - [uv](https://docs.astral.sh/uv/), para rodar os testes
+- Node.js 24, para desenvolver o frontend fora do contêiner
 
 ## Subir o ambiente
 
@@ -36,13 +38,14 @@ Depois, na raiz do projeto:
 docker compose up -d --build --wait
 ```
 
-O comando sobe o Postgres, roda a carga (que recria o banco do zero), sobe o Keycloak com o realm importado e, por último, a API. Ele só termina quando tudo está pronto, e termina com código diferente de zero se algo falhar, inclusive a carga.
+O comando sobe o Postgres, roda a carga (que recria o banco do zero), sobe o Keycloak com o realm importado, a API e, por último, o frontend. Ele só termina quando tudo está pronto, e termina com código diferente de zero se algo falhar, inclusive a carga.
 
 | Serviço | Endereço local | Porta configurável por |
 | --- | --- | --- |
 | Postgres | `127.0.0.1:5433` | `POSTGRES_PORT` |
 | Keycloak | `http://localhost:8080` | (fixa: é o emissor dos tokens) |
 | API | `http://127.0.0.1:8000` | `API_PORT` |
+| Frontend | `http://localhost:5173` | (fixa: é o retorno do login, `ENDERECO_DO_FRONTEND`) |
 
 Todos ficam presos à máquina local.
 
@@ -64,6 +67,34 @@ O perfil vem do grupo do usuário no realm e viaja no token como a claim `perfil
 ## API
 
 - `GET /eu`: o nome e o perfil do usuário do token. Qualquer problema com o token (ausente, vencido, de outro serviço, assinatura, emissor, perfil) recebe `401` com a mesma resposta; o motivo fica só no log da API.
+
+## Frontend
+
+Abra `http://localhost:5173`. A aplicação leva ao login do Keycloak (fluxo de código com PKCE pelo cliente público `pulso-web`, ADR 0004), volta com o token só em memória e chama `GET /eu`; o nome e o perfil mostrados vêm dessa resposta. O token é renovado em silêncio antes de vencer, recarregar a página volta sem pedir senha enquanto a sessão do provedor estiver ativa, e uma renovação que falha ou um `401` da API levam de volta ao login. O botão **Sair** encerra a sessão também no Keycloak.
+
+**Configuração.** O build não carrega endereço nenhum. O navegador busca `/configuracao.json` ao abrir a aplicação:
+
+- No compose, o nginx monta esse arquivo ao subir o contêiner (`frontend/nginx/default.conf.template`), com `ENDERECO_PUBLICO_DO_PROVEDOR` do `backend/.env` e `ENDERECO_DA_API` do `compose.yaml`. Mudar um endereço pede só reiniciar o contêiner, sem rebuild.
+- No servidor de desenvolvimento, o Vite serve o mesmo arquivo a partir do `backend/.env` (`frontend/vite.config.ts`).
+
+A API só aceita chamadas do navegador vindas de `ENDERECO_DO_FRONTEND` (CORS).
+
+**Desenvolvimento com recarga automática.** O servidor do Vite usa a mesma porta do contêiner, então pare o contêiner do frontend antes e deixe o resto do ambiente no ar:
+
+```
+docker compose stop frontend
+cd frontend
+npm ci
+npm run dev
+```
+
+Checagens (as mesmas da CI):
+
+```
+npm run typecheck
+npm run lint
+npm run build
+```
 
 ## Credenciais do banco
 

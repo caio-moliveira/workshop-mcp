@@ -1,0 +1,100 @@
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  width: var(--largura-sidebar);
+  height: 100dvh;
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+}
+
+.topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--altura-topbar);
+  padding: 0 var(--espaco-6);
+}
+
+.fechar {
+  display: none;
+  place-items: center;
+  width: var(--altura-botao);
+  height: var(--altura-botao);
+  border: 0;
+  border-radius: var(--raio-botao);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background var(--transicao-rapida);
+}
+
+.fechar:hover {
+  background: var(--surface-muted);
+}
+
+.navegacao {
+  flex: 1;
+  padding: var(--espaco-4) var(--espaco-3);
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--espaco-3);
+  height: var(--altura-botao);
+  padding: 0 var(--espaco-3);
+  border-radius: var(--raio-botao);
+  color: var(--text-secondary);
+  font-weight: var(--peso-medio);
+  text-decoration: none;
+  transition:
+    background var(--transicao-rapida),
+    color var(--transicao-rapida);
+}
+
+.item:hover {
+  background: var(--surface-muted);
+  color: var(--text-primary);
+}
+
+.item[aria-current="page"] {
+  background: var(--surface-muted);
+  color: var(--text-primary);
+}
+
+.icone {
+  display: inline-flex;
+  color: var(--cor-do-perfil);
+}
+
+.rodape {
+  padding: var(--espaco-4) var(--espaco-6) var(--espaco-6);
+  border-top: 1px solid var(--border);
+}
+
+/* Celular e tablet: gaveta sobre o conteúdo (FE §5 e §11). */
+@media (max-width: 1023px) {
+  .sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 20;
+    width: min(var(--largura-sidebar), 86vw);
+    box-shadow: var(--sombra-flutuante);
+    transform: translateX(-100%);
+    visibility: hidden;
+    transition:
+      transform 200ms ease,
+      visibility 200ms;
+  }
+
+  .sidebar[data-aberta="true"] {
+    transform: none;
+    visibility: visible;
+  }
+
+  .fechar {
+    display: grid;
+  }
+}

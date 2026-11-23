@@ -5,7 +5,7 @@ from dataclasses import replace
 
 import psycopg
 import pytest
-from apoio import conectar_como_dono
+from apoio import conectar_como_dono, variavel
 from fastapi.testclient import TestClient
 from provedor import DESTINATARIO_DA_API, emissor, url_das_chaves
 
@@ -25,6 +25,7 @@ def criar_cliente_da_api() -> Callable[..., TestClient]:
     """Cria a API pela fábrica, dentro do processo, validando tokens do provedor real.
 
     Cada parâmetro da configuração de acesso pode ser trocado: o relógio, as chaves, o emissor.
+    A origem do frontend liberada pelo CORS é a do ambiente.
     """
 
     def criar(**sobreposicoes) -> TestClient:
@@ -33,7 +34,11 @@ def criar_cliente_da_api() -> Callable[..., TestClient]:
             destinatario=DESTINATARIO_DA_API,
             chaves=ChavesDoProvedor(url_das_chaves()),
         )
-        return TestClient(criar_aplicacao(replace(configuracao, **sobreposicoes)))
+        aplicacao = criar_aplicacao(
+            replace(configuracao, **sobreposicoes),
+            origem_do_frontend=variavel("ENDERECO_DO_FRONTEND"),
+        )
+        return TestClient(aplicacao)
 
     return criar
 

@@ -1,0 +1,19 @@
+.marca {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espaco-2);
+}
+
+.monograma {
+  width: 28px;
+  height: 28px;
+  flex: none;
+}
+
+.nome {
+  font-family: var(--fonte-marca);
+  font-size: 19px;
+  font-weight: var(--peso-semibold);
+  letter-spacing: -0.02em;
+  color: var(--brand-ink);
+}

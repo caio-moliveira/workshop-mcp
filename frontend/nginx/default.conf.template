@@ -1,0 +1,22 @@
+# A imagem do nginx troca as variáveis de ambiente ${...} deste arquivo ao subir o contêiner.
+server {
+    listen 80;
+    root /usr/share/nginx/html;
+
+    # Configuração da aplicação no navegador: os endereços vêm do ambiente, não do build.
+    location = /configuracao.json {
+        default_type application/json;
+        add_header Cache-Control "no-store";
+        return 200 '{"enderecoDoProvedor":"${ENDERECO_PUBLICO_DO_PROVEDOR}","enderecoDaApi":"${ENDERECO_DA_API}"}';
+    }
+
+    # Arquivos com hash no nome podem ficar em cache para sempre.
+    location /assets/ {
+        add_header Cache-Control "public, max-age=31536000, immutable";
+    }
+
+    location / {
+        add_header Cache-Control "no-cache";
+        try_files $uri /index.html;
+    }
+}
