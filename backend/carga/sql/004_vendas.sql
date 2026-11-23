@@ -28,7 +28,9 @@ create table dados_de_origem.item_pedido (
     produto_id integer not null references dados_de_origem.produto (id),
     quantidade smallint not null check (quantidade > 0),
     preco_unitario numeric(12, 2) not null check (preco_unitario > 0),
-    primary key (pedido_id, numero)
+    primary key (pedido_id, numero),
+    -- Um produto aparece uma vez por pedido: a avaliação aponta para ele.
+    unique (pedido_id, produto_id)
 );
 
 create index on dados_de_origem.item_pedido (produto_id);

@@ -6,15 +6,12 @@ O deslocamento da janela com outra data de referência é testado em test_determ
 
 import math
 
+from apoio import valor
 from referencias import REGIAO_POR_UF
 
 
-def _um(conexao, consulta: str):
-    return conexao.execute(consulta).fetchone()[0]
-
-
 def test_padrao_1_recompra_baixa(conexao_dono):
-    recompra = _um(
+    recompra = valor(
         conexao_dono,
         """
         select avg((aprovados >= 2)::int) from (
@@ -30,7 +27,7 @@ def test_padrao_1_recompra_baixa(conexao_dono):
 
 
 def test_padrao_2_cerca_de_10_por_cento_dos_pedidos_entregues_atrasam(conexao_dono):
-    taxa = _um(
+    taxa = valor(
         conexao_dono,
         """
         select avg((situacao = 'Entregue com atraso')::int) from dados_de_origem.entrega
@@ -42,7 +39,7 @@ def test_padrao_2_cerca_de_10_por_cento_dos_pedidos_entregues_atrasam(conexao_do
 
 
 def _parcela_dos_atrasos_no_decil_superior(conexao, agrupamento: str, juncao: str) -> float:
-    return _um(
+    return valor(
         conexao,
         f"""
         with atrasos as (

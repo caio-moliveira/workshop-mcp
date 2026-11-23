@@ -13,6 +13,7 @@ import psycopg
 from faker import Faker
 from psycopg import sql
 
+from carga.avaliacoes import gerar_avaliacoes
 from carga.calendario import Calendario
 from carga.catalogo import gerar_catalogo
 from carga.comercial import gerar_comercial
@@ -121,6 +122,9 @@ def _gerar_dados(conexao: psycopg.Connection, configuracao: Configuracao) -> Non
     gravar(conexao, "pagamento", vendas.pagamentos)
     gravar(conexao, "entrega", vendas.entregas)
 
+    avaliacoes = gerar_avaliacoes(rng, vendas, configuracao.data_referencia)
+    gravar(conexao, "avaliacao", avaliacoes)
+
 
 def _carregar(banco: str, configuracao: Configuracao) -> None:
     """Estrutura e dados entram em uma única transação: ou tudo, ou nada."""
@@ -131,6 +135,8 @@ def _carregar(banco: str, configuracao: Configuracao) -> None:
             f" e data de referência {configuracao.data_referencia}"
         )
         _gerar_dados(conexao, configuracao)
+        # Estatísticas prontas: sem elas, as primeiras consultas após a carga são lentas.
+        conexao.execute("analyze")
         impressao = impressao_digital(conexao)
     # Só imprime depois do commit, para a impressão digital corresponder ao banco gravado.
     for tabela, valor in impressao.items():
