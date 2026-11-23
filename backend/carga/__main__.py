@@ -16,7 +16,7 @@ from carga.avaliacoes import gerar_avaliacoes
 from carga.calendario import Calendario
 from carga.catalogo import gerar_catalogo
 from carga.comercial import gerar_comercial
-from carga.conexao import conectar, variavel
+from carga.conexao import conectar, variavel_obrigatoria
 from carga.configuracao import Configuracao, ler_configuracao
 from carga.gravacao import gravar
 from carga.impressao_digital import impressao_digital, imprimir
@@ -36,7 +36,7 @@ def _recriar_papeis(conexao: psycopg.Connection, banco: str) -> None:
         conexao.execute(sql.SQL("drop role if exists {}").format(nome))
         conexao.execute(
             sql.SQL("create role {} login password {}").format(
-                nome, sql.Literal(variavel(variavel_da_senha))
+                nome, sql.Literal(variavel_obrigatoria(variavel_da_senha))
             )
         )
         # Defesa extra, não a garantia: a sessão começa somente leitura, mas pode pedir
@@ -124,7 +124,7 @@ def _carregar(banco: str, configuracao: Configuracao) -> None:
 
 
 def main() -> int:
-    banco = variavel("BANCO")
+    banco = variavel_obrigatoria("BANCO")
     configuracao = ler_configuracao()
     try:
         print(f"carga: recriando o banco {banco}")

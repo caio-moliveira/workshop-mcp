@@ -68,7 +68,7 @@ def test_mudar_a_data_de_referencia_desloca_todas_as_datas(recarga_ao_final):
     assert 72 <= antes_da_janela <= 88
 
 
-def test_recarga_devolve_o_banco_alterado_ao_estado_inicial():
+def test_recarga_devolve_o_banco_alterado_ao_estado_inicial(recarga_ao_final):
     inicial = rodar_carga()
     assert impressao_digital_atual() == inicial
 

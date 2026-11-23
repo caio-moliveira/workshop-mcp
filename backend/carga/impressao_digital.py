@@ -13,7 +13,7 @@ import sys
 import psycopg
 from psycopg import sql
 
-from carga.conexao import conectar, variavel
+from carga.conexao import conectar, variavel_obrigatoria
 from carga.gravacao import ESQUEMA
 
 _TABELAS_E_CHAVES = """
@@ -46,13 +46,14 @@ def impressao_digital(conexao: psycopg.Connection) -> dict[str, str]:
 
 
 def imprimir(impressao: dict[str, str]) -> None:
+    """Imprime uma linha por tabela, no formato que os testes e o roteiro leem."""
     for tabela, hash_da_tabela in impressao.items():
         print(f"carga: impressão digital {tabela} {hash_da_tabela}")
 
 
 def main() -> int:
     try:
-        with conectar(variavel("BANCO")) as conexao:
+        with conectar(variavel_obrigatoria("BANCO")) as conexao:
             imprimir(impressao_digital(conexao))
     except psycopg.Error as erro:
         print(f"carga: falhou: {erro}", file=sys.stderr)

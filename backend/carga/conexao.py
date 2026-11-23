@@ -5,7 +5,7 @@ import os
 import psycopg
 
 
-def variavel(nome: str) -> str:
+def variavel_obrigatoria(nome: str) -> str:
     """Uma variável de ambiente obrigatória."""
     valor = os.environ.get(nome)
     if not valor:
@@ -16,10 +16,10 @@ def variavel(nome: str) -> str:
 def conectar(banco: str, *, autocommit: bool = False) -> psycopg.Connection:
     """Conecta com o papel dono, o único que a carga usa."""
     return psycopg.connect(
-        host=variavel("POSTGRES_HOST"),
+        host=variavel_obrigatoria("POSTGRES_HOST"),
         port=int(os.environ.get("POSTGRES_INTERNAL_PORT", "5432")),
-        user=variavel("POSTGRES_USER"),
-        password=variavel("POSTGRES_PASSWORD"),
+        user=variavel_obrigatoria("POSTGRES_USER"),
+        password=variavel_obrigatoria("POSTGRES_PASSWORD"),
         dbname=banco,
         connect_timeout=10,
         autocommit=autocommit,
