@@ -25,7 +25,8 @@ INDISPONIVEL = {"erro": "Serviço indisponível."}
 
 def criar_aplicacao(configuracao: ConfiguracaoDeAcesso, origem_do_frontend: str) -> FastAPI:
     """A API valida tokens pela configuração dada e só aceita o navegador vindo do frontend."""
-    aplicacao = FastAPI(title="pulso.")
+    # Sem /docs, /redoc nem /openapi.json: a API não descreve as próprias rotas a ninguém.
+    aplicacao = FastAPI(title="pulso.", docs_url=None, redoc_url=None, openapi_url=None)
     # O token vai no cabeçalho Authorization, nunca em cookie: não há credenciais de navegador.
     aplicacao.add_middleware(
         CORSMiddleware,

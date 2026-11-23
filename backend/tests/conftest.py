@@ -21,7 +21,7 @@ def conexao_dono() -> Iterator[psycopg.Connection]:
 
 
 @pytest.fixture
-def criar_cliente_da_api() -> Callable[..., TestClient]:
+def criar_api() -> Callable[..., TestClient]:
     """Cria a API pela fábrica, dentro do processo, validando tokens do provedor real.
 
     Cada parâmetro da configuração de acesso pode ser trocado: o relógio, as chaves, o emissor.
@@ -44,6 +44,6 @@ def criar_cliente_da_api() -> Callable[..., TestClient]:
 
 
 @pytest.fixture
-def cliente_da_api(criar_cliente_da_api) -> TestClient:
+def api(criar_api) -> TestClient:
     """A API com a configuração de produção, apontada para o provedor real."""
-    return criar_cliente_da_api()
+    return criar_api()

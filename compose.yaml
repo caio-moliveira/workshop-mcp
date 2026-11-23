@@ -1,5 +1,5 @@
-# Sobe o ambiente e carrega o banco do zero: docker compose run --rm --build carga
-# O mesmo comando é a recarga (ADR 0001).
+# Sobe o ambiente inteiro, com o banco carregado do zero: docker compose up -d --build --wait
+# Recarga, só do banco, com o resto no ar: docker compose run --rm --build carga (ADR 0001).
 name: workshop-mcp
 
 services:
@@ -78,11 +78,23 @@ services:
       carga:
         condition: service_completed_successfully
     healthcheck:
+      # A consulta prévia do navegador vindo do frontend: responde 200 sem token nem provedor, e
+      # não deixa no log uma recusa a cada verificação. A API não publica /docs.
       test:
         - CMD
         - python
         - -c
-        - "import urllib.request as u; u.urlopen('http://127.0.0.1:8000/docs', timeout=2)"
+        - |
+          import os, urllib.request
+          pedido = urllib.request.Request(
+              "http://127.0.0.1:8000/eu",
+              method="OPTIONS",
+              headers={
+                  "Origin": os.environ["ENDERECO_DO_FRONTEND"],
+                  "Access-Control-Request-Method": "GET",
+              },
+          )
+          urllib.request.urlopen(pedido, timeout=2)
       interval: 2s
       timeout: 3s
       retries: 30

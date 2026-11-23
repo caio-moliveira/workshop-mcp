@@ -120,8 +120,8 @@
             "multivalued": "false",
             "aggregate.attrs": "false",
             "access.token.claim": "true",
-            "id.token.claim": "true",
-            "userinfo.token.claim": "true",
+            "id.token.claim": "false",
+            "userinfo.token.claim": "false",
             "introspection.token.claim": "true"
           }
         }
