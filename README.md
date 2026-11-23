@@ -129,7 +129,10 @@ Os testes rodam contra o Postgres e o Keycloak reais, sem mocks. Os da API criam
 
 ## Demonstração
 
-O roteiro da entrega 1, com comandos e resultados esperados, está em `docs/demonstracao/entrega-1.md`.
+Os roteiros, com comandos e resultados esperados, estão em `docs/demonstracao/`:
+
+- Entrega 1, fundação de dados: `docs/demonstracao/entrega-1.md`.
+- Entrega 2, login e perfil: `docs/demonstracao/entrega-2.md`.
 
 ## Parar o ambiente
 
