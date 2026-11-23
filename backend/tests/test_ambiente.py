@@ -1,6 +1,6 @@
 """O ambiente sobe com um comando e a carga deixa o banco pronto."""
 
-from apoio import compose, conectar_como_dono
+from apoio import compose, conectar_como_dono, tabelas_dos_dados_de_origem
 
 
 def test_banco_carregado_tem_o_esquema_dos_dados_de_origem(conexao_dono):
@@ -27,11 +27,7 @@ def test_rodar_a_carga_de_novo_derruba_e_recria_tudo():
 
     assert resultado.returncode == 0, resultado.stderr
     with conectar_como_dono() as conexao:
-        tabelas = conexao.execute(
-            "select table_name from information_schema.tables"
-            " where table_schema = 'dados_de_origem'"
-        ).fetchall()
-    assert tabelas == []
+        assert "resto_de_outra_execucao" not in tabelas_dos_dados_de_origem(conexao)
 
 
 def test_banco_so_e_publicado_no_endereco_local():

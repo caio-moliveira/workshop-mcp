@@ -1,0 +1,6 @@
+# Configuração do gerador de dados sintéticos (PRD de dados).
+# A mesma semente e a mesma data de referência produzem sempre o mesmo banco.
+# Para um teste pontual, SEMENTE e DATA_REFERENCIA no ambiente sobrepõem estes valores.
+
+semente = 20261130
+data_referencia = 2026-11-30
