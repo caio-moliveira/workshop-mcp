@@ -7,9 +7,12 @@ Consulta de dados por perfil com servidor MCP. Os requisitos estão em `docs/PRD
 ```
 /
 ├── compose.yaml      # ambiente completo em contêineres
-├── backend/          # projeto Python (uv): carga do banco e testes
+├── backend/          # projeto Python (uv)
 │   ├── carga/        # recria o banco a partir do nada
+│   ├── acesso/       # valida o token e extrai o perfil (compartilhado com o futuro MCP)
+│   ├── api/          # API das telas (FastAPI)
 │   └── tests/
+├── keycloak/realm/   # configuração versionada do provedor de identidade
 ├── docs/             # PRDs, roadmap e ADRs
 └── GLOSSARY.md       # termos do domínio
 ```
@@ -30,10 +33,37 @@ cp backend/.env.example backend/.env
 Depois, na raiz do projeto:
 
 ```
-docker compose run --rm --build carga
+docker compose up -d --build --wait
 ```
 
-O comando sobe o Postgres, espera ele ficar pronto e roda a carga, que recria o banco do zero. Ele termina com código diferente de zero se a carga falhar. O Postgres continua rodando, publicado só em `127.0.0.1:5433`; para usar outra porta, defina `POSTGRES_PORT` antes do comando.
+O comando sobe o Postgres, roda a carga (que recria o banco do zero), sobe o Keycloak com o realm importado e, por último, a API. Ele só termina quando tudo está pronto, e termina com código diferente de zero se algo falhar, inclusive a carga.
+
+| Serviço | Endereço local | Porta configurável por |
+| --- | --- | --- |
+| Postgres | `127.0.0.1:5433` | `POSTGRES_PORT` |
+| Keycloak | `http://localhost:8080` | (fixa: é o emissor dos tokens) |
+| API | `http://127.0.0.1:8000` | `API_PORT` |
+
+Todos ficam presos à máquina local.
+
+## Provedor de identidade
+
+O Keycloak não guarda estado: a cada subida, importa `keycloak/realm/pulso.json` (ADR 0004). Mudanças no realm são feitas nesse arquivo, não no console. Reiniciar o Keycloak encerra as sessões.
+
+Usuários de demonstração, um por perfil, com as senhas em `backend/.env`:
+
+| Usuário | Nome | Perfil | Senha |
+| --- | --- | --- | --- |
+| `ana.vendas` | Ana Ribeiro | Vendas | `SENHA_DO_USUARIO_VENDAS` |
+| `bruno.produtos` | Bruno Costa | Produtos | `SENHA_DO_USUARIO_PRODUTOS` |
+| `carla.comercial` | Carla Mendes | Comercial | `SENHA_DO_USUARIO_COMERCIAL` |
+| `diego.diretoria` | Diego Almeida | Diretoria | `SENHA_DO_USUARIO_DIRETORIA` |
+
+O perfil vem do grupo do usuário no realm e viaja no token como a claim `perfil`.
+
+## API
+
+- `GET /eu`: o nome e o perfil do usuário do token. Qualquer problema com o token (ausente, vencido, de outro serviço, assinatura, emissor, perfil) recebe `401` com a mesma resposta; o motivo fica só no log da API.
 
 ## Credenciais do banco
 
@@ -44,7 +74,7 @@ As senhas ficam em `backend/.env`, que não é versionado.
 
 ## Recarga
 
-A recarga é o mesmo comando da subida: ele derruba o banco e o recria (ADR 0001).
+A recarga roda só a carga, que derruba o banco e o recria (ADR 0001). Os outros serviços continuam no ar.
 
 ```
 docker compose run --rm --build carga
@@ -61,7 +91,7 @@ uv run ruff check
 uv run ruff format --check
 ```
 
-Os testes rodam contra o Postgres real, sem mocks.
+Os testes rodam contra o Postgres e o Keycloak reais, sem mocks. Os da API criam a aplicação dentro do processo e obtêm tokens pelo mesmo fluxo de login do navegador (código + PKCE).
 
 ## Demonstração
 

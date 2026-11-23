@@ -29,8 +29,8 @@ jobs:
       - name: Configuração de ambiente de teste
         run: cp .env.example .env
 
-      - name: Subir o ambiente e rodar a carga
-        run: docker compose run --rm --build carga
+      - name: Subir o ambiente (banco carregado, provedor de identidade e API)
+        run: docker compose up -d --build --wait
 
       - name: Testes
         run: uv run pytest

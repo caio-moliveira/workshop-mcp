@@ -5,7 +5,10 @@ description = "Consulta de dados por perfil com servidor MCP"
 requires-python = ">=3.13,<3.14"
 dependencies = [
     "faker>=40.63.0",
+    "fastapi>=0.165.0",
     "psycopg[binary]>=3.3.9",
+    "pyjwt[crypto]>=2.15.1",
+    "uvicorn>=0.54.0",
 ]
 
 [tool.uv]
@@ -20,9 +23,11 @@ select = ["E", "F", "I", "B", "UP", "SIM"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
 
 [dependency-groups]
 dev = [
+    "httpx>=0.28.1",
     "pytest>=9.2.0",
     "python-dotenv>=1.2.4",
     "ruff>=0.17.6",
