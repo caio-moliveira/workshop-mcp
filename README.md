@@ -14,6 +14,7 @@ Consulta de dados por perfil com servidor MCP. Os requisitos estão em `docs/PRD
 │   └── tests/
 ├── frontend/         # aplicação no navegador (React + TypeScript + Vite), servida por nginx
 ├── keycloak/realm/   # configuração versionada do provedor de identidade
+├── keycloak/temas/   # tema da tela de login (FE §9)
 ├── docs/             # PRDs, roadmap e ADRs
 └── GLOSSARY.md       # termos do domínio
 ```
@@ -52,6 +53,8 @@ Todos ficam presos à máquina local.
 ## Provedor de identidade
 
 O Keycloak não guarda estado: a cada subida, importa `keycloak/realm/pulso.json` (ADR 0004). Mudanças no realm são feitas nesse arquivo, não no console. Reiniciar o Keycloak encerra as sessões.
+
+A tela de login usa o tema `pulso`, em `keycloak/temas/pulso/login/`: herda os templates do tema `base` do Keycloak e troca a moldura (`template.ftl`), o estilo (`resources/css/pulso.css`, com os mesmos tokens de `frontend/src/estilos/tokens.css`) e os textos. Em modo de desenvolvimento o Keycloak não guarda temas em cache: uma mudança no tema aparece ao recarregar a tela.
 
 Usuários de demonstração, um por perfil, com as senhas em `backend/.env`:
 

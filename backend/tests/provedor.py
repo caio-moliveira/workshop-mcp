@@ -70,51 +70,84 @@ class LoginRecusado(Exception):
     """O provedor não devolveu um código de autorização para o usuário e a senha dados."""
 
 
+def _retorno() -> str:
+    return f"{variavel('ENDERECO_DO_FRONTEND')}/"
+
+
+def _base() -> str:
+    return f"{emissor()}/protocol/openid-connect"
+
+
+def _abrir_tela_de_login(navegador: httpx.Client, desafio: str) -> httpx.Response:
+    """Pede a autorização como a aplicação faria e devolve a tela de login do provedor."""
+    pagina = navegador.get(
+        f"{_base()}/auth",
+        params={
+            "client_id": APLICACAO,
+            "response_type": "code",
+            "scope": "openid",
+            "redirect_uri": _retorno(),
+            "state": secrets.token_urlsafe(16),
+            "code_challenge": desafio,
+            "code_challenge_method": "S256",
+        },
+    )
+    pagina.raise_for_status()
+    return pagina
+
+
+def _enviar_credenciais(
+    navegador: httpx.Client, desafio: str, usuario: str, senha: str
+) -> httpx.Response:
+    """Preenche o formulário da tela de login e devolve a resposta do provedor, sem segui-la."""
+    pagina = _abrir_tela_de_login(navegador, desafio)
+    acao = re.search(r'<form[^>]*id="kc-form-login"[^>]*action="([^"]+)"', pagina.text)
+    assert acao, "a página de login não tem o formulário esperado"
+    # O provedor marca os cookies como Secure. Navegadores os enviam em localhost mesmo sem
+    # HTTPS; o cookiejar do Python não, então o cabeçalho é montado aqui.
+    cookies = "; ".join(f"{c.name}={c.value}" for c in pagina.cookies.jar)
+    return navegador.post(
+        html.unescape(acao.group(1)),
+        data={"username": usuario, "password": senha},
+        headers={"Cookie": cookies},
+    )
+
+
+def tela_de_login() -> str:
+    """O HTML da tela de login, como o navegador o recebe ao entrar na aplicação."""
+    with httpx.Client(timeout=10) as navegador:
+        return _abrir_tela_de_login(navegador, secrets.token_urlsafe(43)).text
+
+
+def tela_apos_credenciais(usuario: str, senha: str) -> str:
+    """O HTML que o provedor devolve depois de um envio de credenciais que não entra."""
+    with httpx.Client(timeout=10) as navegador:
+        resposta = _enviar_credenciais(navegador, secrets.token_urlsafe(43), usuario, senha)
+        assert resposta.status_code == 200, "o provedor aceitou as credenciais"
+        return resposta.text
+
+
 def token_pelo_fluxo_de_codigo(usuario: str, senha: str) -> str:
     """Faz login como um navegador, pelo fluxo de código com PKCE, e devolve o token de acesso."""
-    retorno = f"{variavel('ENDERECO_DO_FRONTEND')}/"
     verificador = secrets.token_urlsafe(48)
     desafio = (
         base64.urlsafe_b64encode(hashlib.sha256(verificador.encode()).digest())
         .rstrip(b"=")
         .decode()
     )
-    base = f"{emissor()}/protocol/openid-connect"
     with httpx.Client(timeout=10) as navegador:
-        pagina = navegador.get(
-            f"{base}/auth",
-            params={
-                "client_id": APLICACAO,
-                "response_type": "code",
-                "scope": "openid",
-                "redirect_uri": retorno,
-                "state": secrets.token_urlsafe(16),
-                "code_challenge": desafio,
-                "code_challenge_method": "S256",
-            },
-        )
-        pagina.raise_for_status()
-        acao = re.search(r'<form[^>]*id="kc-form-login"[^>]*action="([^"]+)"', pagina.text)
-        assert acao, "a página de login não tem o formulário esperado"
-        # O provedor marca os cookies como Secure. Navegadores os enviam em localhost mesmo sem
-        # HTTPS; o cookiejar do Python não, então o cabeçalho é montado aqui.
-        cookies = "; ".join(f"{c.name}={c.value}" for c in pagina.cookies.jar)
-        resposta = navegador.post(
-            html.unescape(acao.group(1)),
-            data={"username": usuario, "password": senha},
-            headers={"Cookie": cookies},
-        )
+        resposta = _enviar_credenciais(navegador, desafio, usuario, senha)
         destino = resposta.headers.get("location", "")
-        if resposta.status_code != 302 or not destino.startswith(retorno):
+        if resposta.status_code != 302 or not destino.startswith(_retorno()):
             raise LoginRecusado(usuario)
         codigo = parse_qs(urlparse(destino).query)["code"][0]
         token = navegador.post(
-            f"{base}/token",
+            f"{_base()}/token",
             data={
                 "grant_type": "authorization_code",
                 "client_id": APLICACAO,
                 "code": codigo,
-                "redirect_uri": retorno,
+                "redirect_uri": _retorno(),
                 "code_verifier": verificador,
             },
         )
