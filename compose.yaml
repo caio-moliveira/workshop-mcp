@@ -38,6 +38,8 @@ services:
       - KC_HOSTNAME="$$ENDERECO_PUBLICO_DO_PROVEDOR" exec /opt/keycloak/bin/kc.sh start-dev --import-realm
     env_file: backend/.env
     environment:
+      # Banco em memória: nada sobrevive a um reinício, nem o realm importado.
+      KC_DB: dev-mem
       KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
       KC_HEALTH_ENABLED: "true"
     volumes:

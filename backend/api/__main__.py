@@ -6,21 +6,16 @@ import os
 import uvicorn
 
 from acesso import ChavesDoProvedor, ConfiguracaoDeAcesso
+from acesso.provedor import DESTINATARIO_DA_API, emissor_em, url_das_chaves_em
 from api import criar_aplicacao
-
-REALM = "pulso"
-DESTINATARIO = "pulso-api"
 
 
 def configuracao_do_ambiente() -> ConfiguracaoDeAcesso:
     """O emissor é o endereço público do provedor; as chaves vêm pela rede interna."""
     return ConfiguracaoDeAcesso(
-        emissor=f"{os.environ['ENDERECO_PUBLICO_DO_PROVEDOR']}/realms/{REALM}",
-        destinatario=DESTINATARIO,
-        chaves=ChavesDoProvedor(
-            f"{os.environ['ENDERECO_INTERNO_DO_PROVEDOR']}/realms/{REALM}"
-            "/protocol/openid-connect/certs"
-        ),
+        emissor=emissor_em(os.environ["ENDERECO_PUBLICO_DO_PROVEDOR"]),
+        destinatario=DESTINATARIO_DA_API,
+        chaves=ChavesDoProvedor(url_das_chaves_em(os.environ["ENDERECO_INTERNO_DO_PROVEDOR"])),
     )
 
 

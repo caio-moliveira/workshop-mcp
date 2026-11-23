@@ -1,7 +1,7 @@
 """Auxiliares dos testes: tokens reais do provedor de identidade.
 
-Os tokens vêm do fluxo de código de autorização com PKCE, percorrido por HTTP como um navegador
-faria. Nenhum cliente do realm aceita senha direto para servir aos testes (ADR 0004).
+Os tokens da aplicação vêm do fluxo de código de autorização com PKCE, percorrido por HTTP como
+um navegador faria: o cliente `pulso-web` não aceita senha direto (ADR 0004).
 """
 
 import base64
@@ -9,46 +9,70 @@ import hashlib
 import html
 import re
 import secrets
+from dataclasses import dataclass
 from urllib.parse import parse_qs, urlparse
 
 import httpx
-from apoio import _variavel
+from apoio import variavel
 
-REALM = "pulso"
-CLIENTE_DA_APLICACAO = "pulso-web"
-DESTINATARIO_DA_API = "pulso-api"
+from acesso import Perfil
+from acesso.provedor import DESTINATARIO_DA_API, emissor_em, url_das_chaves_em
 
-# Nome de usuário, variável da senha, nome de exibição e perfil de cada usuário de demonstração.
+__all__ = ["DESTINATARIO_DA_API"]
+
+APLICACAO = "pulso-web"
+
+
+@dataclass(frozen=True)
+class UsuarioDeDemonstracao:
+    usuario: str
+    variavel_da_senha: str
+    nome: str
+    perfil: Perfil
+
+    def senha(self) -> str:
+        return variavel(self.variavel_da_senha)
+
+
 USUARIOS_DE_DEMONSTRACAO = [
-    ("ana.vendas", "SENHA_DO_USUARIO_VENDAS", "Ana Ribeiro", "vendas"),
-    ("bruno.produtos", "SENHA_DO_USUARIO_PRODUTOS", "Bruno Costa", "produtos"),
-    ("carla.comercial", "SENHA_DO_USUARIO_COMERCIAL", "Carla Mendes", "comercial"),
-    ("diego.diretoria", "SENHA_DO_USUARIO_DIRETORIA", "Diego Almeida", "diretoria"),
+    UsuarioDeDemonstracao("ana.vendas", "SENHA_DO_USUARIO_VENDAS", "Ana Ribeiro", Perfil.VENDAS),
+    UsuarioDeDemonstracao(
+        "bruno.produtos", "SENHA_DO_USUARIO_PRODUTOS", "Bruno Costa", Perfil.PRODUTOS
+    ),
+    UsuarioDeDemonstracao(
+        "carla.comercial", "SENHA_DO_USUARIO_COMERCIAL", "Carla Mendes", Perfil.COMERCIAL
+    ),
+    UsuarioDeDemonstracao(
+        "diego.diretoria", "SENHA_DO_USUARIO_DIRETORIA", "Diego Almeida", Perfil.DIRETORIA
+    ),
 ]
 
 
+def endereco_do_provedor() -> str:
+    """O endereço público do provedor, como o navegador o alcança."""
+    return variavel("ENDERECO_PUBLICO_DO_PROVEDOR")
+
+
 def emissor() -> str:
-    """O emissor dos tokens: o endereço público do provedor, no realm do projeto."""
-    return f"{_variavel('ENDERECO_PUBLICO_DO_PROVEDOR')}/realms/{REALM}"
+    return emissor_em(endereco_do_provedor())
 
 
 def url_das_chaves() -> str:
     """Onde o provedor publica as chaves públicas, alcançado da máquina local."""
-    return f"{emissor()}/protocol/openid-connect/certs"
+    return url_das_chaves_em(endereco_do_provedor())
 
 
 def senha_de(usuario: str) -> str:
-    variavel = next(v for u, v, _, _ in USUARIOS_DE_DEMONSTRACAO if u == usuario)
-    return _variavel(variavel)
+    return next(u for u in USUARIOS_DE_DEMONSTRACAO if u.usuario == usuario).senha()
 
 
 class LoginRecusado(Exception):
-    """O provedor não devolveu um código de autorização para as credenciais dadas."""
+    """O provedor não devolveu um código de autorização para o usuário e a senha dados."""
 
 
 def token_pelo_fluxo_de_codigo(usuario: str, senha: str) -> str:
     """Faz login como um navegador, pelo fluxo de código com PKCE, e devolve o token de acesso."""
-    retorno = f"{_variavel('ENDERECO_DO_FRONTEND')}/"
+    retorno = f"{variavel('ENDERECO_DO_FRONTEND')}/"
     verificador = secrets.token_urlsafe(48)
     desafio = (
         base64.urlsafe_b64encode(hashlib.sha256(verificador.encode()).digest())
@@ -60,7 +84,7 @@ def token_pelo_fluxo_de_codigo(usuario: str, senha: str) -> str:
         pagina = navegador.get(
             f"{base}/auth",
             params={
-                "client_id": CLIENTE_DA_APLICACAO,
+                "client_id": APLICACAO,
                 "response_type": "code",
                 "scope": "openid",
                 "redirect_uri": retorno,
@@ -88,7 +112,7 @@ def token_pelo_fluxo_de_codigo(usuario: str, senha: str) -> str:
             f"{base}/token",
             data={
                 "grant_type": "authorization_code",
-                "client_id": CLIENTE_DA_APLICACAO,
+                "client_id": APLICACAO,
                 "code": codigo,
                 "redirect_uri": retorno,
                 "code_verifier": verificador,
@@ -101,7 +125,9 @@ def token_pelo_fluxo_de_codigo(usuario: str, senha: str) -> str:
 def token_de_outro_servico(usuario: str, senha: str) -> str:
     """Um token do mesmo provedor e do mesmo usuário, mas emitido para outro serviço.
 
-    O `admin-cli` existe em todo realm e não traz a API entre os destinatários.
+    O `admin-cli` existe em todo realm, aceita senha direto e não traz a API entre os
+    destinatários. É a única exceção ao fluxo de código, e serve só para obter um token realista
+    de "mesmo provedor, outro serviço" sem criar no realm um cliente só para os testes.
     """
     resposta = httpx.post(
         f"{emissor()}/protocol/openid-connect/token",

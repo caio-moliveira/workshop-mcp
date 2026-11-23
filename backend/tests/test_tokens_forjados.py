@@ -11,7 +11,7 @@ import time
 import jwt
 import pytest
 from chaves_locais import ChavesLocais, assinar, conteudo_valido, nova_chave
-from recusa import assert_recusado
+from recusa import assert_recusado, pedir_eu
 
 CHAVE = nova_chave()
 
@@ -19,10 +19,6 @@ CHAVE = nova_chave()
 @pytest.fixture
 def cliente(criar_cliente_da_api):
     return criar_cliente_da_api(chaves=ChavesLocais(CHAVE))
-
-
-def pedir_eu(cliente, token: str):
-    return cliente.get("/eu", headers={"Authorization": f"Bearer {token}"})
 
 
 def test_token_assinado_pela_chave_confiavel_e_aceito(cliente):

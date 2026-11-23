@@ -30,10 +30,16 @@ class TokenRecusado(Exception):
     """O token não prova quem é o usuário. O motivo é só para o log, nunca para quem chamou."""
 
 
+class ProvedorIndisponivel(Exception):
+    """As chaves do provedor não puderam ser buscadas. Não diz nada sobre o token."""
+
+
 class OrigemDeChaves(Protocol):
     """De onde vem a chave pública que confere a assinatura de um token."""
 
-    def chave_para(self, token: str): ...
+    def chave_para(self, token: str):
+        """A chave pública que confere o token. Levanta ProvedorIndisponivel se não houver como
+        buscá-la, e jwt.PyJWTError se o token não indicar uma chave conhecida."""
 
 
 class ChavesDoProvedor:
@@ -44,7 +50,10 @@ class ChavesDoProvedor:
         self._cliente = jwt.PyJWKClient(url, cache_keys=True, timeout=5)
 
     def chave_para(self, token: str):
-        return self._cliente.get_signing_key_from_jwt(token).key
+        try:
+            return self._cliente.get_signing_key_from_jwt(token).key
+        except jwt.PyJWKClientConnectionError as erro:
+            raise ProvedorIndisponivel(str(erro)) from erro
 
 
 @dataclass(frozen=True)
