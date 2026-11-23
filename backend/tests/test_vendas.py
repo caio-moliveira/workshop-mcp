@@ -3,12 +3,8 @@
 from decimal import Decimal
 
 import pytest
-from apoio import contar
+from apoio import contar, valor
 from referencias import REGIAO_POR_UF, cpf_valido
-
-
-def _um(conexao, consulta: str):
-    return conexao.execute(consulta).fetchone()[0]
 
 
 @pytest.mark.parametrize(("tabela", "previsto"), [("cliente", 28500), ("pedido", 30000)])
@@ -17,7 +13,7 @@ def test_volume_fica_dentro_de_10_por_cento_do_previsto(conexao_dono, tabela, pr
 
 
 def test_todo_pedido_tem_um_lojista_um_pagamento_e_ao_menos_um_item(conexao_dono):
-    incompletos = _um(
+    incompletos = valor(
         conexao_dono,
         """
         select count(*) from dados_de_origem.pedido p
@@ -31,7 +27,7 @@ def test_todo_pedido_tem_um_lojista_um_pagamento_e_ao_menos_um_item(conexao_dono
 
 
 def test_itens_sao_produtos_do_lojista_do_pedido(conexao_dono):
-    de_outro_lojista = _um(
+    de_outro_lojista = valor(
         conexao_dono,
         """
         select count(*) from dados_de_origem.item_pedido i
@@ -45,7 +41,7 @@ def test_itens_sao_produtos_do_lojista_do_pedido(conexao_dono):
 
 
 def test_pedido_so_existe_depois_do_fechamento_do_lead_do_lojista(conexao_dono):
-    antes_do_fechamento = _um(
+    antes_do_fechamento = valor(
         conexao_dono,
         """
         select count(*) from dados_de_origem.pedido p
@@ -63,7 +59,7 @@ def test_pagamento_tem_forma_e_parcelas_coerentes(conexao_dono):
             "select forma, max(parcelas) from dados_de_origem.pagamento group by forma"
         ).fetchall()
     )
-    parcelas_invalidas = _um(
+    parcelas_invalidas = valor(
         conexao_dono,
         """
         select count(*) from dados_de_origem.pagamento
@@ -77,7 +73,7 @@ def test_pagamento_tem_forma_e_parcelas_coerentes(conexao_dono):
 
 
 def test_poucos_por_cento_dos_pagamentos_sao_recusados(conexao_dono):
-    proporcao = _um(
+    proporcao = valor(
         conexao_dono,
         "select avg((situacao = 'Recusado')::int) from dados_de_origem.pagamento",
     )
@@ -86,7 +82,7 @@ def test_poucos_por_cento_dos_pagamentos_sao_recusados(conexao_dono):
 
 
 def test_pagamento_recusado_nao_gera_entrega_e_aprovado_gera(conexao_dono):
-    incoerentes = _um(
+    incoerentes = valor(
         conexao_dono,
         """
         select count(*) from dados_de_origem.pagamento g
@@ -99,7 +95,7 @@ def test_pagamento_recusado_nao_gera_entrega_e_aprovado_gera(conexao_dono):
 
 
 def test_entrega_real_e_posterior_a_compra(conexao_dono):
-    antes_da_compra = _um(
+    antes_da_compra = valor(
         conexao_dono,
         """
         select count(*) from dados_de_origem.entrega e
@@ -114,7 +110,7 @@ def test_entrega_real_e_posterior_a_compra(conexao_dono):
 
 def test_situacao_da_entrega_corresponde_as_datas(conexao_dono):
     # Com a data de referência inicial, 30/11/2026.
-    incoerentes = _um(
+    incoerentes = valor(
         conexao_dono,
         """
         select count(*) from dados_de_origem.entrega
@@ -174,7 +170,7 @@ def test_clientes_estao_em_estados_reais_com_mais_volume_no_sudeste(conexao_dono
 
 def test_documentos_e_emails_de_clientes_sao_ficticios(conexao_dono):
     cpfs = [linha[0] for linha in conexao_dono.execute("select cpf from dados_de_origem.cliente")]
-    emails_fora_do_dominio_reservado = _um(
+    emails_fora_do_dominio_reservado = valor(
         conexao_dono,
         "select count(*) from dados_de_origem.cliente where email not like '%.example'",
     )

@@ -79,6 +79,11 @@ def rodar_carga(*variaveis: str) -> dict[str, str]:
     return impressao
 
 
+def valor(conexao: psycopg.Connection, consulta: str):
+    """O único valor que uma consulta devolve."""
+    return conexao.execute(consulta).fetchone()[0]
+
+
 def contar(conexao: psycopg.Connection, tabela: str) -> int:
     """Quantidade de linhas de uma tabela dos dados de origem."""
     return conexao.execute(f"select count(*) from dados_de_origem.{tabela}").fetchone()[0]
