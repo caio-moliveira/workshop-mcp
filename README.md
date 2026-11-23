@@ -63,6 +63,10 @@ uv run ruff format --check
 
 Os testes rodam contra o Postgres real, sem mocks.
 
+## Demonstração
+
+O roteiro da entrega 1, com comandos e resultados esperados, está em `docs/demonstracao/entrega-1.md`.
+
 ## Parar o ambiente
 
 ```

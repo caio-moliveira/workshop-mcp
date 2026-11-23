@@ -20,7 +20,7 @@ Fontes dos requisitos:
 
 | # | Entrega | Depende de | Situação |
 | --- | --- | --- | --- |
-| 1 | Fundação de dados | — | Livre |
+| 1 | Fundação de dados | — | Concluída |
 | 2 | Login e perfil | 1 | Livre |
 | 3 | Vendas na tela | 2 | Livre |
 | 4a | Servidor MCP de Vendas | 3 | Livre |

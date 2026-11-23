@@ -5,6 +5,7 @@ from datetime import date
 import pytest
 from apoio import (
     conectar_como_dono,
+    impressao_digital_atual,
     intervalo_de_datas,
     rodar_carga,
     tabelas_dos_dados_de_origem,
@@ -65,3 +66,17 @@ def test_mudar_a_data_de_referencia_desloca_todas_as_datas(recarga_ao_final):
     assert date(2025, 11, 1) <= maior <= date(2025, 11, 30)
     assert menor >= date(2023, 9, 1)
     assert 72 <= antes_da_janela <= 88
+
+
+def test_recarga_devolve_o_banco_alterado_ao_estado_inicial(recarga_ao_final):
+    inicial = rodar_carga()
+    assert impressao_digital_atual() == inicial
+
+    with conectar_como_dono() as conexao:
+        conexao.execute("delete from dados_de_origem.avaliacao where nota = 1")
+        conexao.execute("update dados_de_origem.pedido set valor_frete = 0 where id <= 100")
+    alterada = impressao_digital_atual()
+    assert alterada["avaliacao"] != inicial["avaliacao"]
+    assert alterada["pedido"] != inicial["pedido"]
+
+    assert rodar_carga() == inicial
