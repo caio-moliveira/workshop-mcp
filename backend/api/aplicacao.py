@@ -4,6 +4,7 @@ import logging
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from acesso import (
@@ -22,8 +23,16 @@ RECUSA = {"erro": "Não autenticado."}
 INDISPONIVEL = {"erro": "Serviço indisponível."}
 
 
-def criar_aplicacao(configuracao: ConfiguracaoDeAcesso) -> FastAPI:
+def criar_aplicacao(configuracao: ConfiguracaoDeAcesso, origem_do_frontend: str) -> FastAPI:
+    """A API valida tokens pela configuração dada e só aceita o navegador vindo do frontend."""
     aplicacao = FastAPI(title="pulso.")
+    # O token vai no cabeçalho Authorization, nunca em cookie: não há credenciais de navegador.
+    aplicacao.add_middleware(
+        CORSMiddleware,
+        allow_origins=[origem_do_frontend],
+        allow_methods=["GET"],
+        allow_headers=["Authorization"],
+    )
 
     @aplicacao.exception_handler(TokenRecusado)
     def recusar(_: Request, erro: TokenRecusado) -> JSONResponse:

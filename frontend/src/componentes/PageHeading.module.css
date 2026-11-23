@@ -1,0 +1,28 @@
+.cabecalho {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco-2);
+}
+
+.contexto {
+  color: var(--text-secondary);
+  font-size: var(--texto-label);
+  font-weight: var(--peso-medio);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.titulo {
+  color: var(--brand-ink);
+  font-family: var(--fonte-marca);
+  font-size: var(--texto-titulo-pagina);
+  font-weight: var(--peso-semibold);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.subtitulo {
+  max-width: 62ch;
+  color: var(--text-secondary);
+  font-size: 15px;
+}

@@ -29,7 +29,7 @@ jobs:
       - name: Configuração de ambiente de teste
         run: cp .env.example .env
 
-      - name: Subir o ambiente (banco carregado, provedor de identidade e API)
+      - name: Subir o ambiente (banco carregado, provedor de identidade, API e frontend)
         run: docker compose up -d --build --wait
 
       - name: Testes
@@ -38,3 +38,30 @@ jobs:
       - name: Logs do ambiente em caso de falha
         if: failure()
         run: docker compose logs
+
+  frontend:
+    name: Frontend (tipos, lint e build)
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: "24.22.3"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instalar dependências travadas
+        run: npm ci
+
+      - name: Checagem de tipos
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
