@@ -20,3 +20,16 @@ def cnpj_valido(cnpj: str) -> bool:
         if numeros[tamanho] != (0 if resto < 2 else 11 - resto):
             return False
     return True
+
+
+def cpf_valido(cpf: str) -> bool:
+    """Validação oficial dos dois dígitos verificadores do CPF."""
+    if len(cpf) != 11 or not cpf.isdigit():
+        return False
+    numeros = [int(c) for c in cpf]
+    for tamanho in (9, 10):
+        soma = sum(n * p for n, p in zip(numeros[:tamanho], range(tamanho + 1, 1, -1), strict=True))
+        digito = (soma * 10) % 11 % 10
+        if numeros[tamanho] != digito:
+            return False
+    return True

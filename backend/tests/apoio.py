@@ -86,15 +86,22 @@ def tabelas_dos_dados_de_origem(conexao: psycopg.Connection) -> set[str]:
     }
 
 
+# Datas que são compromissos, e não eventos: podem estar depois da data de referência.
+# A entrega prometida de um pedido em trânsito ainda não chegou.
+COLUNAS_DE_COMPROMISSO = ("data_prometida",)
+
+
 def intervalo_de_datas(conexao: psycopg.Connection) -> tuple[date, date]:
-    """A menor e a maior data em todas as colunas de data dos dados de origem."""
+    """A menor e a maior data de evento em todas as colunas de data dos dados de origem."""
     colunas = conexao.execute(
         """
         select table_name, column_name from information_schema.columns
         where table_schema = 'dados_de_origem'
             and data_type in ('date', 'timestamp without time zone', 'timestamp with time zone')
+            and column_name <> all(%s)
         order by table_name, column_name
-        """
+        """,
+        (list(COLUNAS_DE_COMPROMISSO),),
     ).fetchall()
     assert colunas, "nenhuma coluna de data nos dados de origem"
     partes = [

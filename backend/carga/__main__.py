@@ -19,6 +19,7 @@ from carga.comercial import gerar_comercial
 from carga.configuracao import Configuracao, ler_configuracao
 from carga.gravacao import gravar
 from carga.impressao_digital import impressao_digital
+from carga.vendas import gerar_vendas
 
 DIRETORIO_SQL = Path(__file__).resolve().parent / "sql"
 
@@ -47,6 +48,10 @@ def _recriar_banco(banco: str) -> None:
         nome = sql.Identifier(banco)
         conexao.execute(sql.SQL("drop database if exists {} with (force)").format(nome))
         conexao.execute(sql.SQL("create database {}").format(nome))
+        # Datas e momentos de compra são lidos no fuso de Brasília, como no negócio.
+        conexao.execute(
+            sql.SQL("alter database {} set timezone to 'America/Sao_Paulo'").format(nome)
+        )
 
 
 def _aplicar_estrutura(conexao: psycopg.Connection) -> None:
@@ -68,6 +73,13 @@ def _gerar_dados(conexao: psycopg.Connection, configuracao: Configuracao) -> Non
     catalogo = gerar_catalogo(rng, comercial.lojistas)
     gravar(conexao, "categoria", catalogo.categorias)
     gravar(conexao, "produto", catalogo.produtos)
+
+    vendas = gerar_vendas(rng, fake, calendario, comercial, catalogo)
+    gravar(conexao, "cliente", vendas.clientes)
+    gravar(conexao, "pedido", vendas.pedidos)
+    gravar(conexao, "item_pedido", vendas.itens)
+    gravar(conexao, "pagamento", vendas.pagamentos)
+    gravar(conexao, "entrega", vendas.entregas)
 
 
 def _carregar(banco: str, configuracao: Configuracao) -> None:

@@ -21,3 +21,16 @@ def cnpj_ficticio(rng: random.Random) -> str:
     errado = (correto + rng.randint(1, 9)) % 10
     segundo = _digito_verificador([*base, errado], _PESOS_SEGUNDO_DIGITO)
     return "".join(str(d) for d in [*base, errado, segundo])
+
+
+_PESOS_DO_CPF_PRIMEIRO = (10, 9, 8, 7, 6, 5, 4, 3, 2)
+_PESOS_DO_CPF_SEGUNDO = (11, *_PESOS_DO_CPF_PRIMEIRO)
+
+
+def cpf_ficticio(rng: random.Random) -> str:
+    """Um CPF de 11 dígitos com o primeiro dígito verificador errado de propósito."""
+    base = [rng.randint(0, 9) for _ in range(9)]
+    correto = _digito_verificador(base, _PESOS_DO_CPF_PRIMEIRO)
+    errado = (correto + rng.randint(1, 9)) % 10
+    segundo = _digito_verificador([*base, errado], _PESOS_DO_CPF_SEGUNDO)
+    return "".join(str(d) for d in [*base, errado, segundo])
