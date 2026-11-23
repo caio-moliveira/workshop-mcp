@@ -26,17 +26,26 @@ def _variavel(nome: str) -> str:
     return valor
 
 
-def conectar_como_dono() -> psycopg.Connection:
-    """Abre uma conexão com o banco carregado usando o papel dono."""
+def _conectar(usuario: str, senha: str, banco: str | None) -> psycopg.Connection:
     return psycopg.connect(
         host="127.0.0.1",
         port=int(os.environ.get("POSTGRES_PORT", PORTA_PADRAO)),
-        user=_variavel("POSTGRES_USER"),
-        password=_variavel("POSTGRES_PASSWORD"),
-        dbname=_variavel("BANCO"),
+        user=usuario,
+        password=senha,
+        dbname=banco or _variavel("BANCO"),
         connect_timeout=5,
         autocommit=True,
     )
+
+
+def conectar_como_dono(banco: str | None = None) -> psycopg.Connection:
+    """Abre uma conexão usando o papel dono (por padrão, no banco carregado)."""
+    return _conectar(_variavel("POSTGRES_USER"), _variavel("POSTGRES_PASSWORD"), banco)
+
+
+def conectar_como_vendas(banco: str | None = None) -> psycopg.Connection:
+    """Abre uma conexão usando a credencial do papel de Vendas (por padrão, no banco carregado)."""
+    return _conectar("vendas", _variavel("SENHA_DO_PAPEL_VENDAS"), banco)
 
 
 def compose(*argumentos: str) -> subprocess.CompletedProcess[str]:

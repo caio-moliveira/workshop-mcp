@@ -43,6 +43,42 @@ def _conectar(banco: str, *, autocommit: bool = False) -> psycopg.Connection:
     )
 
 
+# O papel de cada perfil e a variável de ambiente com a senha da sua credencial.
+VARIAVEL_DA_SENHA_POR_PAPEL = {"vendas": "SENHA_DO_PAPEL_VENDAS"}
+
+
+def _recriar_papeis(conexao: psycopg.Connection, banco: str) -> None:
+    """Papéis existem fora do banco: a carga os derruba e recria junto com ele (ADR 0001)."""
+    for papel, variavel_da_senha in VARIAVEL_DA_SENHA_POR_PAPEL.items():
+        nome = sql.Identifier(papel)
+        conexao.execute(sql.SQL("drop role if exists {}").format(nome))
+        conexao.execute(
+            sql.SQL("create role {} login password {}").format(
+                nome, sql.Literal(_variavel(variavel_da_senha))
+            )
+        )
+        # Defesa extra, não a garantia: a sessão começa somente leitura, mas pode pedir
+        # uma transação de escrita. Quem barra a escrita são os privilégios.
+        conexao.execute(
+            sql.SQL("alter role {} set default_transaction_read_only = on").format(nome)
+        )
+        conexao.execute(
+            sql.SQL("grant connect on database {} to {}").format(sql.Identifier(banco), nome)
+        )
+
+
+def _restringir_outros_bancos_do_servidor(conexao: psycopg.Connection, banco: str) -> None:
+    """Os outros bancos do servidor (postgres, templates, o banco padrão do usuário) não
+    aceitam conexão, tabela temporária nem criação de objetos por permissão padrão."""
+    outros = conexao.execute(
+        "select datname from pg_database where datname <> %s order by datname", (banco,)
+    ).fetchall()
+    for (outro,) in outros:
+        conexao.execute(
+            sql.SQL("revoke all on database {} from public").format(sql.Identifier(outro))
+        )
+
+
 def _recriar_banco(banco: str) -> None:
     with _conectar("postgres", autocommit=True) as conexao:
         nome = sql.Identifier(banco)
@@ -52,6 +88,10 @@ def _recriar_banco(banco: str) -> None:
         conexao.execute(
             sql.SQL("alter database {} set timezone to 'America/Sao_Paulo'").format(nome)
         )
+        # Ninguém conecta, cria objetos ou tabelas temporárias sem permissão explícita.
+        conexao.execute(sql.SQL("revoke all on database {} from public").format(nome))
+        _restringir_outros_bancos_do_servidor(conexao, banco)
+        _recriar_papeis(conexao, banco)
 
 
 def _aplicar_estrutura(conexao: psycopg.Connection) -> None:
