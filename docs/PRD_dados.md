@@ -15,7 +15,7 @@ Um marketplace brasileiro que conecta lojistas a clientes finais, com
 ## Volumes aproximados
 
 - 300 lojistas, 2 mil produtos em cerca de 20 categorias
-- 25 mil clientes, 30 mil pedidos
+- 28,5 mil clientes, 30 mil pedidos
 - 20 mil avaliações, com nota de 1 a 5 e comentário em parte delas
 - 1.500 leads de lojistas no funil comercial, dos quais cerca de 300
   viraram lojistas
