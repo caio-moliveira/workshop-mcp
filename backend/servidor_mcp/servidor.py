@@ -36,7 +36,7 @@ from acesso import (
     autenticar,
     mensagens,
 )
-from auditoria import Auditoria, AuditoriaIndisponivel, Resultado
+from auditoria import Auditoria, AuditoriaIndisponivel, Chamada, Resultado
 from consultas import AcessoNegado, ConsultaFalhou, ExecutorDeConsultas, ParametroInvalido
 from servidor_mcp.ferramentas import FERRAMENTAS, Ferramenta
 from servidor_mcp.limite import LimiteDeFrequencia
@@ -49,16 +49,14 @@ CAMINHO_DA_SAUDE = "/saude"
 
 
 class ErroDaChamada(ToolError):
-    """Um erro de ferramenta com mensagem genérica e o desfecho que vai para a auditoria."""
+    """Um erro de ferramenta com mensagem genérica e o desfecho que vai para a auditoria.
+
+    Quem o levanta já pôs o motivo no log: por isso o FastMCP não o loga de novo.
+    """
 
     def __init__(self, mensagem: str, resultado: Resultado) -> None:
         super().__init__(mensagem, log_level=logging.DEBUG)
         self.resultado = resultado
-
-
-def _erro(mensagem: str, resultado: Resultado) -> ErroDaChamada:
-    """Um erro de ferramenta com mensagem genérica. O motivo já foi para o log daqui."""
-    return ErroDaChamada(mensagem, resultado)
 
 
 class TokenDoUsuario(AccessToken):
@@ -199,16 +197,18 @@ class FerramentaDeConsulta(Tool):
             )
         except AcessoNegado as erro:
             registro.warning("acesso negado: %s", erro)
-            raise _erro(mensagens.FERRAMENTA_DESCONHECIDA, Resultado.NEGADA) from erro
+            raise ErroDaChamada(mensagens.FERRAMENTA_DESCONHECIDA, Resultado.NEGADA) from erro
         except ParametroInvalido as erro:
             registro.info("parâmetro inválido em %s: %s", self.name, erro)
-            raise _erro(mensagens.PARAMETRO_INVALIDO, Resultado.PARAMETRO_INVALIDO) from erro
+            raise ErroDaChamada(
+                mensagens.PARAMETRO_INVALIDO, Resultado.PARAMETRO_INVALIDO
+            ) from erro
         except ConsultaFalhou as erro:
             registro.error("consulta falhou: %s", erro)
-            raise _erro(mensagens.SERVICO_INDISPONIVEL, Resultado.FALHA) from erro
+            raise ErroDaChamada(mensagens.SERVICO_INDISPONIVEL, Resultado.FALHA) from erro
         except Exception as erro:
             registro.error("erro inesperado em %s: %s", self.name, erro, exc_info=erro)
-            raise _erro(mensagens.ERRO_INTERNO, Resultado.FALHA) from erro
+            raise ErroDaChamada(mensagens.ERRO_INTERNO, Resultado.FALHA) from erro
         return ToolResult(structured_content=resultado)
 
 
@@ -241,7 +241,7 @@ class FerramentasDoPerfil(Middleware):
                 usuario.perfil if usuario else None,
                 context.message.name,
             )
-            raise _erro(mensagens.FERRAMENTA_DESCONHECIDA, Resultado.NEGADA)
+            raise ErroDaChamada(mensagens.FERRAMENTA_DESCONHECIDA, Resultado.NEGADA)
         return await call_next(context)
 
 
@@ -303,22 +303,28 @@ class AuditoriaDasChamadas(Middleware):
     ) -> None:
         usuario = _usuario_do_token()
         if usuario is None:
-            return
+            # O token é conferido na chegada: sem usuário, algo saiu do lugar. Sem ele não há
+            # registro, e nenhuma chamada é respondida sem registro (ADR 0008).
+            registro.error(
+                "chamada %s a %r sem usuário autenticado: recusada sem registro",
+                resultado,
+                context.message.name,
+            )
+            raise ErroDaChamada(mensagens.ERRO_INTERNO, Resultado.FALHA)
+        chamada = Chamada(
+            usuario=usuario,
+            ferramenta=context.message.name,
+            argumentos=context.message.arguments or {},
+            resultado=resultado,
+            horario=chegada,
+        )
         try:
             # A gravação bloqueia numa conexão do pool: fora do laço de eventos.
-            await anyio.to_thread.run_sync(
-                lambda: self._auditoria.registrar(
-                    usuario,
-                    context.message.name,
-                    context.message.arguments or {},
-                    resultado,
-                    chegada,
-                )
-            )
+            await anyio.to_thread.run_sync(self._auditoria.registrar, chamada)
         except AuditoriaIndisponivel as erro:
             # Nenhuma chamada é respondida sem registro, nem a que deu certo (ADR 0008).
             registro.error("auditoria indisponível, chamada %s recusada: %s", resultado, erro)
-            raise ToolError(mensagens.SERVICO_INDISPONIVEL, log_level=logging.DEBUG) from erro
+            raise ErroDaChamada(mensagens.SERVICO_INDISPONIVEL, Resultado.FALHA) from erro
 
 
 def criar_servidor(
@@ -326,13 +332,13 @@ def criar_servidor(
     consultas: ExecutorDeConsultas,
     auditoria: Auditoria,
     endereco_publico: str,
-    limite: LimiteDeFrequencia | None = None,
+    limite: LimiteDeFrequencia,
 ) -> FastMCP:
     """O servidor MCP com as ferramentas do registro. Só ferramentas: sem recursos nem prompts.
 
-    Toda chamada fica na `auditoria`, e cada usuário cabe no `limite` de frequência (sem ele, o
-    padrão de 30 chamadas por minuto). O `endereco_publico` é onde quem está fora do ambiente
-    alcança o servidor (sem o `/mcp`): é o recurso anunciado nos metadados de recurso protegido.
+    Toda chamada fica na `auditoria`, e cada usuário cabe no `limite` de frequência. O
+    `endereco_publico` é onde quem está fora do ambiente alcança o servidor (sem o `/mcp`): é o
+    recurso anunciado nos metadados de recurso protegido.
     """
     servidor = FastMCP(
         "pulso.",
@@ -344,7 +350,7 @@ def criar_servidor(
         # O primeiro da lista é o mais externo.
         middleware=[
             AuditoriaDasChamadas(auditoria),
-            LimiteDasChamadas(limite or LimiteDeFrequencia()),
+            LimiteDasChamadas(limite),
             FerramentasDoPerfil(consultas),
         ],
         # Rede de segurança: uma exceção que escape não leva o próprio texto a quem chamou.
@@ -365,12 +371,12 @@ def criar_aplicacao(
     consultas: ExecutorDeConsultas,
     auditoria: Auditoria,
     endereco_publico: str,
-    limite: LimiteDeFrequencia | None = None,
+    limite: LimiteDeFrequencia,
 ) -> Starlette:
     """A aplicação HTTP do servidor MCP: streamable HTTP sem estado, em `/mcp` (RF-26).
 
-    Valida tokens pela configuração dada, lê o banco só pelo executor de consultas e grava cada
-    chamada na auditoria. Publica os metadados de recurso protegido em
+    Valida tokens pela configuração dada, lê o banco só pelo executor de consultas, grava cada
+    chamada na auditoria e barra quem passa do limite. Publica os metadados de recurso protegido em
     `/.well-known/oauth-protected-resource/mcp`.
     """
     return criar_servidor(configuracao, consultas, auditoria, endereco_publico, limite).http_app(

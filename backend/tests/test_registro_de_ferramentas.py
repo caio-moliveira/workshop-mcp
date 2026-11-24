@@ -6,7 +6,7 @@ um cliente MCP o vê.
 """
 
 import pytest
-from apoio import variavel
+from apoio import limite_que_nao_barra, variavel
 from chaves_locais import ChavesLocais, assinar, conteudo_valido, nova_chave
 from cliente_mcp import (
     FERRAMENTA_DESCONHECIDA,
@@ -154,7 +154,11 @@ def test_uma_ferramenta_fora_do_registro_nao_e_publicada(executor_de_consultas, 
         emissor=emissor(), destinatario=DESTINATARIO_DO_MCP, chaves=ChavesLocais(CHAVE)
     )
     servidor = criar_servidor(
-        configuracao, executor_de_consultas, auditoria_local, variavel("ENDERECO_PUBLICO_DO_MCP")
+        configuracao,
+        executor_de_consultas,
+        auditoria_local,
+        variavel("ENDERECO_PUBLICO_DO_MCP"),
+        limite_que_nao_barra(),
     )
 
     @servidor.tool

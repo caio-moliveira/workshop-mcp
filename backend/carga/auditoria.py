@@ -7,14 +7,14 @@ Uma mudança na estrutura da tabela só chega a um ambiente já criado com `dock
 import psycopg
 from psycopg import sql
 
+from auditoria import BANCO, PAPEL, Resultado
 from carga.conexao import conectar, variavel_obrigatoria
 
-BANCO = "auditoria"
-PAPEL = "auditoria"
 VARIAVEL_DA_SENHA = "SENHA_DO_PAPEL_AUDITORIA"
 
 # Uma linha por chamada, com o desfecho final. O horário tem fuso, para ordenar sem ambiguidade.
-ESTRUTURA = """
+# Os desfechos aceitos são os do servidor MCP: um desfecho novo entra só em `Resultado`.
+ESTRUTURA = sql.SQL("""
 create schema if not exists auditoria;
 
 create table if not exists auditoria.chamada (
@@ -26,11 +26,9 @@ create table if not exists auditoria.chamada (
     ferramenta text not null,
     parametros jsonb not null,
     parametros_cortados boolean not null,
-    resultado text not null check (
-        resultado in ('permitida', 'negada', 'parametro_invalido', 'limitada', 'falha')
-    )
+    resultado text not null check (resultado in ({resultados}))
 );
-"""
+""").format(resultados=sql.SQL(", ").join(sql.Literal(r.value) for r in Resultado))
 
 
 def preparar_auditoria(conexao: psycopg.Connection) -> None:

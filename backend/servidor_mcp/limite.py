@@ -9,6 +9,7 @@ import time
 from collections import defaultdict, deque
 from collections.abc import Callable, Mapping
 
+# O padrão, quando o ambiente não diz: o único lugar do código com esses números.
 CHAMADAS_PADRAO = 30
 JANELA_PADRAO_EM_SEGUNDOS = 60.0
 
@@ -21,8 +22,8 @@ class LimiteDeFrequencia:
 
     def __init__(
         self,
-        chamadas: int = CHAMADAS_PADRAO,
-        janela_em_segundos: float = JANELA_PADRAO_EM_SEGUNDOS,
+        chamadas: int,
+        janela_em_segundos: float,
         relogio: Callable[[], float] = time.monotonic,
     ) -> None:
         self._chamadas = chamadas
@@ -48,7 +49,7 @@ class LimiteDeFrequencia:
 def limite_do_ambiente(
     ambiente: Mapping[str, str] = os.environ, relogio: Callable[[], float] = time.monotonic
 ) -> LimiteDeFrequencia:
-    """O limite das variáveis de ambiente, com o padrão de 30 chamadas por 60 segundos."""
+    """O limite das variáveis de ambiente; sem elas, o padrão."""
     return LimiteDeFrequencia(
         chamadas=int(ambiente.get("LIMITE_DE_CHAMADAS_POR_USUARIO", CHAMADAS_PADRAO)),
         janela_em_segundos=float(

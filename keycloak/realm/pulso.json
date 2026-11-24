@@ -25,6 +25,7 @@
   ],
   "users": [
     {
+      "id": "97bfb2e3-99f7-4091-aafd-10af557ea6d2",
       "username": "ana.vendas",
       "firstName": "Ana",
       "lastName": "Ribeiro",
@@ -35,6 +36,7 @@
       "credentials": [{ "type": "password", "value": "${SENHA_DO_USUARIO_VENDAS}", "temporary": false }]
     },
     {
+      "id": "de6f0717-e940-4f57-8c5c-a485fdb532fa",
       "username": "bruno.produtos",
       "firstName": "Bruno",
       "lastName": "Costa",
@@ -45,6 +47,7 @@
       "credentials": [{ "type": "password", "value": "${SENHA_DO_USUARIO_PRODUTOS}", "temporary": false }]
     },
     {
+      "id": "07657bbb-3365-45e7-9b94-ae3fcb48202c",
       "username": "carla.comercial",
       "firstName": "Carla",
       "lastName": "Mendes",
@@ -55,6 +58,7 @@
       "credentials": [{ "type": "password", "value": "${SENHA_DO_USUARIO_COMERCIAL}", "temporary": false }]
     },
     {
+      "id": "8948dcbe-7262-45cb-8e09-46c736f90e6e",
       "username": "diego.diretoria",
       "firstName": "Diego",
       "lastName": "Almeida",

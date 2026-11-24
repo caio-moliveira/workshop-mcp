@@ -9,7 +9,9 @@ import psycopg
 import pytest
 from dotenv import load_dotenv
 
+import auditoria
 from consultas import BancoDeDados
+from servidor_mcp import LimiteDeFrequencia
 
 BACKEND = Path(__file__).resolve().parents[1]
 RAIZ_DO_PROJETO = BACKEND.parent
@@ -61,12 +63,12 @@ def conectar_como_vendas(banco: str | None = None) -> psycopg.Connection:
 
 
 # O banco próprio da auditoria, fora da recarga (ADR 0008).
-BANCO_DA_AUDITORIA = "auditoria"
+BANCO_DA_AUDITORIA = auditoria.BANCO
 
 
 def conectar_como_auditoria() -> psycopg.Connection:
     """Abre uma conexão no banco da auditoria com a credencial do papel `auditoria`."""
-    return _conectar("auditoria", variavel("SENHA_DO_PAPEL_AUDITORIA"), BANCO_DA_AUDITORIA)
+    return _conectar(auditoria.PAPEL, variavel("SENHA_DO_PAPEL_AUDITORIA"), BANCO_DA_AUDITORIA)
 
 
 def ultima_chamada_de(id_do_usuario: str) -> dict | None:
@@ -83,6 +85,11 @@ def ultima_chamada_de(id_do_usuario: str) -> dict | None:
         if linha is None:
             return None
         return dict(zip([coluna.name for coluna in cursor.description], linha, strict=True))
+
+
+def limite_que_nao_barra() -> LimiteDeFrequencia:
+    """Um limite de frequência novo, alto demais para um teste alcançar."""
+    return LimiteDeFrequencia(chamadas=1_000_000, janela_em_segundos=60)
 
 
 def compose(*argumentos: str) -> subprocess.CompletedProcess[str]:

@@ -4,17 +4,23 @@ Grava no banco próprio da auditoria, com o papel `auditoria`, que só pode inse
 """
 
 from auditoria.registro import (
+    BANCO,
+    PAPEL,
     Auditoria,
     AuditoriaIndisponivel,
     AuditoriaNoBanco,
+    Chamada,
     Resultado,
     auditoria_do_ambiente,
 )
 
 __all__ = [
+    "BANCO",
+    "PAPEL",
     "Auditoria",
     "AuditoriaIndisponivel",
     "AuditoriaNoBanco",
+    "Chamada",
     "Resultado",
     "auditoria_do_ambiente",
 ]

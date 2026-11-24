@@ -12,4 +12,4 @@ A auditoria (RF-30, RF-31) precisa sobreviver à recarga, que derruba e recria o
 
 ## Consequences
 
-O Postgres não tem volume: `docker compose down` apaga a auditoria junto com o resto, e é só assim que uma mudança na estrutura da tabela de auditoria chega a um ambiente já criado. Se o banco de auditoria cair, o servidor MCP para de responder às chamadas.
+O Postgres não tem volume: `docker compose down` apaga a auditoria junto com o resto, e é só assim que uma mudança na estrutura da tabela de auditoria chega a um ambiente já criado. Se o banco de auditoria cair, o servidor MCP para de responder às chamadas. O usuário fica na auditoria pelo `sub` do token; por isso os usuários de demonstração têm identificador fixo no realm, e o mesmo usuário não aparece com identificadores diferentes a cada subida do Keycloak.
