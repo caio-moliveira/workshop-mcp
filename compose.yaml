@@ -23,7 +23,9 @@ services:
       timeout: 3s
       retries: 30
 
-  # Roda uma vez e termina; sobe o Postgres antes, pela dependência.
+  # Roda uma vez e termina; sobe o Postgres antes, pela dependência. Também cria o banco, o papel
+  # e a tabela da auditoria, se faltarem, sem nunca apagá-los (ADR 0008); a senha do papel,
+  # SENHA_DO_PAPEL_AUDITORIA, vem do .env.
   carga:
     build:
       context: backend
@@ -126,7 +128,8 @@ services:
   # Importa o acesso e as consultas direto, sem passar pela API. Só aceita tokens cujo
   # destinatário inclui pulso-mcp (ADR 0006). Publica os metadados de recurso protegido em
   # /.well-known/oauth-protected-resource/mcp, com ENDERECO_PUBLICO_DO_MCP como recurso, e a
-  # recusa sem token os aponta: é por eles que o MCP Inspector chega ao login do realm.
+  # recusa sem token os aponta: é por eles que o MCP Inspector chega ao login do realm. Grava
+  # cada chamada no banco da auditoria com o papel `auditoria` (SENHA_DO_PAPEL_AUDITORIA, do .env).
   mcp:
     build:
       context: backend
@@ -135,6 +138,13 @@ services:
     environment:
       ENDERECO_INTERNO_DO_PROVEDOR: http://keycloak:8080
       POSTGRES_HOST: postgres
+      # Limite de frequência (RS-11): chamadas por usuário numa janela deslizante, em segundos.
+      # Vem do shell, como as portas, e não do .env: a suíte de testes faz centenas de chamadas
+      # com o mesmo usuário e precisa do servidor com um limite alto, sem mexer no .env da
+      # demonstração. Para rodar a suíte:
+      #   LIMITE_DE_CHAMADAS_POR_USUARIO=100000 docker compose up -d --wait mcp
+      LIMITE_DE_CHAMADAS_POR_USUARIO: ${LIMITE_DE_CHAMADAS_POR_USUARIO:-30}
+      JANELA_DO_LIMITE_EM_SEGUNDOS: ${JANELA_DO_LIMITE_EM_SEGUNDOS:-60}
     ports:
       # Só a máquina local alcança o servidor MCP.
       - "127.0.0.1:${MCP_PORT:-8001}:8001"

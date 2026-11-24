@@ -10,6 +10,7 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --locked --no-dev
 
 COPY acesso ./acesso
+COPY auditoria ./auditoria
 COPY consultas ./consultas
 COPY servidor_mcp ./servidor_mcp
 

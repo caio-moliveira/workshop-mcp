@@ -3,6 +3,9 @@
 Um cliente MCP fala o protocolo por HTTP com o serviço `mcp` do compose, com tokens reais do
 provedor (RF-19 a RF-22, RF-26, CA-02). Os outros perfis recebem a lista vazia e, na chamada
 direta, o mesmo erro de uma ferramenta que não existe (RS-08).
+
+Depois de cada chamada, o teste confere a linha da auditoria: toda chamada fica registrada, com
+o desfecho (RF-30, RF-31, CA-07).
 """
 
 import json
@@ -10,6 +13,7 @@ import os
 
 import httpx
 import pytest
+from apoio import BANCO_DA_AUDITORIA, conectar_como_dono, ultima_chamada_de
 from cliente_mcp import (
     FERRAMENTA_DESCONHECIDA,
     MCP_DO_AMBIENTE,
@@ -21,7 +25,7 @@ from cliente_mcp import (
     pedir_ao_protocolo,
     texto_do_erro,
 )
-from provedor import senha_de, token_de_outro_servico
+from provedor import conteudo, senha_de, token_de_outro_servico
 from recusa import pedir
 
 from acesso import Perfil
@@ -47,6 +51,29 @@ FERRAMENTA_QUE_NUNCA_EXISTIU = "vendas_margem_por_cliente"
 PROIBIDOS = ("cliente", "_id", "dados_de_origem", "vendas.")
 
 
+def assert_auditada(token: str, ferramenta: str, argumentos: dict | None, resultado: str) -> None:
+    """A última linha da auditoria do usuário do token é a chamada que o teste acabou de fazer."""
+    do_token = conteudo(token)
+    linha = ultima_chamada_de(do_token["sub"])
+    assert linha is not None
+    assert linha["nome_do_usuario"] == do_token["name"]
+    assert linha["perfil"] == do_token["perfil"]
+    assert linha["ferramenta"] == ferramenta
+    assert linha["parametros"] == (argumentos or {})
+    assert linha["parametros_cortados"] is False
+    assert linha["resultado"] == resultado
+
+
+def id_da_ultima_linha(token: str) -> int | None:
+    linha = ultima_chamada_de(conteudo(token)["sub"])
+    return linha["id"] if linha else None
+
+
+def id_da_ultima_linha_da_auditoria() -> int | None:
+    with conectar_como_dono(BANCO_DA_AUDITORIA) as conexao:
+        return conexao.execute("select max(id) from auditoria.chamada").fetchone()[0]
+
+
 @pytest.fixture
 def mcp_do_ambiente():
     """Um cliente HTTP cru apontado para o servidor MCP do compose."""
@@ -55,9 +82,14 @@ def mcp_do_ambiente():
 
 
 def test_vendas_lista_as_ferramentas_de_vendas(token_de):
-    ferramentas = listar_ferramentas(MCP_DO_AMBIENTE, token_de(Perfil.VENDAS))
+    token = token_de(Perfil.VENDAS)
+    antes = id_da_ultima_linha(token)
+
+    ferramentas = listar_ferramentas(MCP_DO_AMBIENTE, token)
 
     assert sorted(f.name for f in ferramentas) == FERRAMENTAS_DE_VENDAS
+    # Listar não é chamada: não gera linha na auditoria.
+    assert id_da_ultima_linha(token) == antes
 
 
 @pytest.mark.parametrize("perfil", OUTROS_PERFIS, ids=str)
@@ -78,6 +110,7 @@ def test_a_ferramenta_devolve_o_mesmo_conteudo_da_rota_da_api(token_de, ferramen
     assert da_api.status_code == 200
     assert not resultado.is_error
     assert resultado.structured_content == da_api.json()
+    assert_auditada(token, ferramenta, {"periodo": periodo}, "permitida")
 
 
 @pytest.mark.parametrize("ferramenta", FERRAMENTAS_DE_VENDAS)
@@ -86,10 +119,12 @@ def test_nenhuma_resposta_traz_identificador_de_cliente_nem_nome_interno_de_banc
     token_de, conexao_dono, ferramenta, periodo
 ):
     argumentos = {**ARGUMENTOS_OBRIGATORIOS.get(ferramenta, {}), "periodo": periodo}
+    token = token_de(Perfil.VENDAS)
 
-    resultado = chamar(MCP_DO_AMBIENTE, token_de(Perfil.VENDAS), ferramenta, argumentos)
+    resultado = chamar(MCP_DO_AMBIENTE, token, ferramenta, argumentos)
 
     assert not resultado.is_error
+    assert_auditada(token, ferramenta, argumentos, "permitida")
     texto = _texto_inteiro(resultado)
     for proibido in PROIBIDOS:
         assert proibido not in texto
@@ -125,10 +160,12 @@ def _dados_pessoais_dos_clientes(conexao_dono, conteudo: dict) -> list:
 @pytest.mark.parametrize("ferramenta", FERRAMENTAS_DE_VENDAS)
 def test_toda_resposta_traz_as_datas_do_periodo_usado(token_de, ferramenta):
     argumentos = {**ARGUMENTOS_OBRIGATORIOS.get(ferramenta, {}), "periodo": "30d"}
+    token = token_de(Perfil.VENDAS)
 
-    resultado = chamar(MCP_DO_AMBIENTE, token_de(Perfil.VENDAS), ferramenta, argumentos)
+    resultado = chamar(MCP_DO_AMBIENTE, token, ferramenta, argumentos)
 
     assert not resultado.is_error
+    assert_auditada(token, ferramenta, argumentos, "permitida")
     assert resultado.structured_content["periodo"] == {"inicio": "2026-11-01", "fim": "2026-11-30"}
 
 
@@ -148,9 +185,12 @@ def test_sem_periodo_a_ferramenta_usa_os_ultimos_12_meses(token_de, ferramenta):
 @pytest.mark.parametrize("ferramenta", FERRAMENTAS_DE_VENDAS)
 @pytest.mark.parametrize("perfil", OUTROS_PERFIS, ids=str)
 def test_outro_perfil_recebe_o_erro_de_ferramenta_inexistente(token_de, ferramenta, perfil):
-    resultado = chamar(MCP_DO_AMBIENTE, token_de(perfil), ferramenta)
+    token = token_de(perfil)
+
+    resultado = chamar(MCP_DO_AMBIENTE, token, ferramenta)
 
     assert texto_do_erro(resultado) == FERRAMENTA_DESCONHECIDA
+    assert_auditada(token, ferramenta, None, "negada")
 
 
 @pytest.mark.parametrize("ferramenta", FERRAMENTAS_DE_VENDAS)
@@ -162,7 +202,10 @@ def test_a_resposta_a_outro_perfil_e_identica_a_de_ferramenta_inexistente(
     token = token_de(perfil)
 
     de_outro_perfil = chamar_pelo_protocolo(mcp_do_ambiente, token, ferramenta)
+    assert_auditada(token, ferramenta, None, "negada")
     inexistente = chamar_pelo_protocolo(mcp_do_ambiente, token, FERRAMENTA_QUE_NUNCA_EXISTIU)
+    # O mesmo resultado na auditoria, com o nome como foi pedido; o motivo fica só no log.
+    assert_auditada(token, FERRAMENTA_QUE_NUNCA_EXISTIU, None, "negada")
 
     assert de_outro_perfil.status_code == inexistente.status_code == 200
     assert de_outro_perfil.content == inexistente.content
@@ -178,9 +221,9 @@ def _sem_data(cabecalhos) -> dict[str, str]:
 
 def test_ferramenta_inexistente_tem_o_mesmo_erro_para_vendas(mcp_do_ambiente, token_de):
     """Quem tem ferramentas também não descobre, pelo erro, nomes de outras."""
-    de_vendas = chamar_pelo_protocolo(
-        mcp_do_ambiente, token_de(Perfil.VENDAS), FERRAMENTA_QUE_NUNCA_EXISTIU
-    )
+    token = token_de(Perfil.VENDAS)
+    de_vendas = chamar_pelo_protocolo(mcp_do_ambiente, token, FERRAMENTA_QUE_NUNCA_EXISTIU)
+    assert_auditada(token, FERRAMENTA_QUE_NUNCA_EXISTIU, None, "negada")
     de_outro = chamar_pelo_protocolo(
         mcp_do_ambiente, token_de(Perfil.PRODUTOS), FERRAMENTA_QUE_NUNCA_EXISTIU
     )
@@ -191,29 +234,52 @@ def test_ferramenta_inexistente_tem_o_mesmo_erro_para_vendas(mcp_do_ambiente, to
 @pytest.mark.parametrize("ferramenta", FERRAMENTAS_DE_VENDAS)
 def test_parametro_fora_do_previsto_e_recusado_sem_eco(token_de, ferramenta):
     argumentos = {**ARGUMENTOS_OBRIGATORIOS.get(ferramenta, {}), "periodo": "7d"}
+    token = token_de(Perfil.VENDAS)
 
-    resultado = chamar(MCP_DO_AMBIENTE, token_de(Perfil.VENDAS), ferramenta, argumentos)
+    resultado = chamar(MCP_DO_AMBIENTE, token, ferramenta, argumentos)
 
     assert texto_do_erro(resultado) == PARAMETRO_INVALIDO
+    assert_auditada(token, ferramenta, argumentos, "parametro_invalido")
 
 
 @pytest.mark.parametrize("agrupamento", ["rota", "lojista"])
 def test_vendas_chama_os_atrasos_nos_dois_agrupamentos(token_de, agrupamento):
     """Os valores são conferidos com os dados de origem em test_atrasos_de_vendas.py."""
-    resultado = chamar(
-        MCP_DO_AMBIENTE, token_de(Perfil.VENDAS), "vendas_atrasos", {"agrupamento": agrupamento}
-    )
+    token = token_de(Perfil.VENDAS)
+
+    resultado = chamar(MCP_DO_AMBIENTE, token, "vendas_atrasos", {"agrupamento": agrupamento})
 
     assert not resultado.is_error
+    assert_auditada(token, "vendas_atrasos", {"agrupamento": agrupamento}, "permitida")
     assert resultado.structured_content["agrupamento"] == agrupamento
     assert resultado.structured_content["grupos"]
 
 
 @pytest.mark.parametrize("argumentos", [{}, {"agrupamento": "categoria"}], ids=str)
 def test_atrasos_sem_agrupamento_valido_e_recusado_sem_eco(token_de, argumentos):
-    resultado = chamar(MCP_DO_AMBIENTE, token_de(Perfil.VENDAS), "vendas_atrasos", argumentos)
+    token = token_de(Perfil.VENDAS)
+
+    resultado = chamar(MCP_DO_AMBIENTE, token, "vendas_atrasos", argumentos)
 
     assert texto_do_erro(resultado) == PARAMETRO_INVALIDO
+    assert_auditada(token, "vendas_atrasos", argumentos, "parametro_invalido")
+
+
+def test_argumentos_grandes_sao_cortados_e_marcados_na_auditoria(token_de):
+    token = token_de(Perfil.VENDAS)
+    argumentos = {"periodo": "a" * 10_000}
+
+    resultado = chamar(MCP_DO_AMBIENTE, token, "vendas_indicadores", argumentos)
+
+    assert texto_do_erro(resultado) == PARAMETRO_INVALIDO
+    linha = ultima_chamada_de(conteudo(token)["sub"])
+    assert linha["ferramenta"] == "vendas_indicadores"
+    assert linha["resultado"] == "parametro_invalido"
+    assert linha["parametros_cortados"] is True
+    # Guardado como texto, o começo do que chegou, até 4 KB.
+    assert isinstance(linha["parametros"], str)
+    assert linha["parametros"].startswith('{"periodo": "' + "a" * 100)
+    assert len(linha["parametros"].encode()) <= 4 * 1024
 
 
 @pytest.mark.parametrize(
@@ -243,9 +309,13 @@ def test_token_real_emitido_para_outro_servico_e_recusado_com_401(mcp_do_ambient
     """Mesmo provedor, mesmo usuário, assinatura válida: sem `pulso-mcp` entre os destinatários,
     o token não entra (RS-02)."""
     token = token_de_outro_servico("ana.vendas", senha_de("ana.vendas"))
+    # O token de outro serviço não traz `sub`: confere a última linha da auditoria inteira.
+    antes = id_da_ultima_linha_da_auditoria()
 
     assert_recusado(pedir_ao_protocolo(mcp_do_ambiente, token, "tools/list"))
     assert_recusado(chamar_pelo_protocolo(mcp_do_ambiente, token, "vendas_indicadores"))
+    # A recusa no token não gera linha na auditoria: fica só no log do serviço.
+    assert id_da_ultima_linha_da_auditoria() == antes
 
 
 def test_o_servidor_responde_sem_sessao(mcp_do_ambiente, token_de):

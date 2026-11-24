@@ -23,7 +23,7 @@ A função de negócio de um usuário: Vendas, Produtos, Comercial ou Diretoria.
 _Avoid_: Papel (é outra coisa), área, grupo, role
 
 **Papel**:
-A identidade no banco de dados que tem permissão de leitura em uma única camada de leitura. Cada perfil tem exatamente um papel.
+Uma identidade no banco de dados com permissão para uma única coisa. O papel de um perfil lê uma única camada de leitura, e cada perfil tem exatamente um papel. O papel da auditoria só grava na auditoria, não lê nada e não pertence a nenhum perfil.
 _Avoid_: Perfil, usuário do banco
 
 **Credencial**:
@@ -41,6 +41,18 @@ _Avoid_: Tool (sozinho), endpoint, função
 **Assistente externo**:
 Um assistente de IA de terceiros, como o Claude ou o ChatGPT, conectado ao servidor MCP com o login do usuário.
 _Avoid_: Cliente externo, cliente MCP (Cliente é quem compra)
+
+**Chamada**:
+O pedido de um usuário para executar uma ferramenta, qualquer que seja o desfecho: permitida, negada, com parâmetro inválido, com falha ou barrada pelo limite de frequência. Listar as ferramentas não é chamada.
+_Avoid_: Requisição, acesso, uso
+
+**Auditoria**:
+O registro permanente de todas as chamadas, com usuário, perfil, ferramenta, parâmetros, resultado e horário. Nenhuma ferramenta a lê, e a recarga não a apaga.
+_Avoid_: Log (que é o diagnóstico do serviço), histórico (que é o da conversa), trilha
+
+**Limite de frequência**:
+O número máximo de chamadas que um usuário pode fazer numa janela de tempo. Quando ele passa do limite, só as chamadas dele são barradas.
+_Avoid_: Rate limit, cota, throttling
 
 **Dados de origem**:
 Os dados brutos da empresa, que nenhum perfil lê diretamente.

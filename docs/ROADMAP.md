@@ -25,7 +25,7 @@ Fontes dos requisitos:
 | 3 | Vendas na tela | 2 | Concluída |
 | 4a | Servidor MCP de Vendas | 3 | Concluída |
 | V1 | Verificação com túnel: Claude e ChatGPT | 4a | Concluída (Claude verificado; ChatGPT pendente para a 7) |
-| 4b | Auditoria e limite de frequência | 4a | Livre |
+| 4b | Auditoria e limite de frequência | 4a | Concluída |
 | 5a | Chat de Vendas no painel lateral | 4b | Depende de decisões (ver final) |
 | 5b | Chat expandido, rastreio e histórico | 5a | Livre |
 | 8 | Perfil Produtos | 5b | Livre |
@@ -105,6 +105,7 @@ As entregas 6 e 7 mantêm seus números, mas ficam para depois: a decisão de nu
   - O limite de frequência dispara para um usuário sem afetar outro.
 - **Depende de:** 4a.
 - **Cobre:** RF-30, RF-31, RF-32, RS-11, CA-07.
+- **Resultado (24/11/2026):** concluída, no roteiro `docs/demonstracao/entrega-4b.md`. Toda chamada ao servidor MCP vira uma linha no banco `auditoria`, com o desfecho (`permitida`, `negada`, `parametro_invalido`, `limitada` ou `falha`), gravada antes da resposta; se a gravação falha, a chamada é recusada. O banco fica fora da recarga e só o papel dono o lê; o papel que grava só insere, e os papéis de perfil nem se conectam (ADR 0008). O limite de frequência é de 30 chamadas por usuário por minuto, em janela deslizante, configurável pelo shell que roda o compose; a suíte de testes sobe o `mcp` com um limite alto.
 
 ### 5a. Chat de Vendas no painel lateral
 
@@ -237,7 +238,7 @@ Questões listadas em `docs/PRD.md`:
 | Provedor de nuvem e domínio | 6 e, por consequência, 7 e 11. Adiada. |
 | ~~Como o agente obtém um token aceito pelo MCP: dois destinatários ou troca de token~~ | Decidida na 4a: dois destinatários, sem troca de token (ADR 0006). Não bloqueia mais a 5a. |
 | Meta de 3 segundos do RNF-05 | Nenhuma. É medida na 3 e confirmada na 11. |
-| Limite de chamadas por usuário do RS-11 | 4b (só o valor; o mecanismo pode nascer configurável) |
+| ~~Limite de chamadas por usuário do RS-11~~ | Decidida na 4b: 30 chamadas por usuário por minuto, configurável (`LIMITE_DE_CHAMADAS_POR_USUARIO` e `JANELA_DO_LIMITE_EM_SEGUNDOS`). |
 
 Lacunas que os PRDs não listam:
 

@@ -10,5 +10,10 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --locked --no-dev
 
 COPY carga ./carga
+# O nome do banco e do papel da auditoria e os desfechos aceitos vêm do módulo `auditoria`, que
+# depende de `acesso` e `consultas`.
+COPY acesso ./acesso
+COPY auditoria ./auditoria
+COPY consultas ./consultas
 
 CMD ["python", "-m", "carga"]
