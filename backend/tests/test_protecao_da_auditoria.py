@@ -5,7 +5,13 @@ from dataclasses import replace
 
 import psycopg
 import pytest
-from apoio import BANCO_DA_AUDITORIA, banco_local, conectar_como_auditoria, ultima_chamada_de
+from apoio import (
+    BANCO_DA_AUDITORIA,
+    banco_local,
+    compose,
+    conectar_como_auditoria,
+    ultima_chamada_de,
+)
 from psycopg.types.json import Jsonb
 
 from consultas import credenciais_do_ambiente
@@ -51,6 +57,15 @@ def test_o_papel_auditoria_nao_le_nao_altera_nem_apaga(comando):
         conexao.execute(comando)
     # A linha gravada continua lá, intacta.
     assert ultima_chamada_de(usuario)["resultado"] == "permitida"
+
+
+def test_a_recarga_preserva_a_chamada_gravada_antes_dela():
+    usuario = _gravar_como_auditoria()
+
+    resultado = compose("run", "--rm", "carga")
+
+    assert resultado.returncode == 0, resultado.stderr
+    assert ultima_chamada_de(usuario) is not None
 
 
 # As ferramentas do servidor MCP leem o banco só pelo executor de consultas, com o papel do
