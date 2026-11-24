@@ -101,7 +101,7 @@ Para chamar uma ferramenta, troque o final da linha por `--method tools/call --t
 | Chamada | Resultado esperado |
 | --- | --- |
 | `--tool-name vendas_indicadores` | `periodo` de `2025-12-01` a `2026-11-30`; `pedidos_realizados` 16795 (anterior 13204); `receita` 17082039.33 (anterior 13543930.03); `taxa_de_atraso` 0.0903 com `atrasos` 1411 (anterior 0.1021); `taxa_de_aprovacao` 0.9595 (anterior 0.9599). Os mesmos números do painel da entrega 3. |
-| `--tool-name vendas_evolucao --tool-arg periodo=90d` | `agrupamento` `semana`, 14 pontos, do `2026-08-31` (211 pedidos, parcial) ao `2026-11-30` (83 pedidos, parcial). |
+| `--tool-name vendas_evolucao --tool-arg periodo=90d` | `periodo` de `2026-09-02` a `2026-11-30`; `agrupamento` `semana`, 14 pontos, do `2026-08-31` (211 pedidos, parcial) ao `2026-11-30` (83 pedidos, parcial). |
 | `--tool-name vendas_situacao_das_entregas` | Em trânsito 436, Prazo vencido 57, Entregue no prazo 14211, Entregue com atraso 1411. |
 | `--tool-name vendas_pedidos_recentes --tool-arg periodo=30d` | `periodo` de `2026-11-01` a `2026-11-30` e 20 pedidos, do 29999 ao 29980, com número, momento da compra, cidade, UF, lojista, rota, valor, pagamento e entrega; nenhum identificador nem dado pessoal de cliente. |
 | `--tool-name vendas_atrasos --tool-arg agrupamento=rota` | Ver abaixo. |
