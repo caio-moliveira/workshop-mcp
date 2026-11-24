@@ -21,6 +21,7 @@ from cliente_mcp import (
 from provedor import DESTINATARIO_DO_MCP
 
 from acesso import Perfil
+from auditoria import AuditoriaIndisponivel
 from consultas import BancoDeDados, ExecutorDeConsultas, credenciais_do_ambiente
 
 CHAVE = nova_chave()
@@ -113,3 +114,28 @@ def test_consulta_que_falhou_e_erro_interno_ficam_como_falha(criar_mcp, executor
     linha = ultima_chamada_de(sub)
     assert linha["parametros"] == {"periodo": "30d"}
     assert linha["resultado"] == "falha"
+
+
+class _AuditoriaQueFalha:
+    """Uma auditoria que nunca consegue gravar."""
+
+    def registrar(self, usuario, ferramenta, argumentos, resultado, horario):
+        raise AuditoriaIndisponivel("auditoria fora do ar")
+
+
+@pytest.mark.parametrize(
+    ("ferramenta", "argumentos"),
+    [(FERRAMENTA, {"periodo": "30d"}), (FERRAMENTA, {"periodo": "7d"}), ("inexistente", {})],
+    ids=["permitida", "parametro-invalido", "negada"],
+)
+def test_sem_auditoria_a_chamada_e_recusada_com_servico_indisponivel(
+    criar_mcp, caplog, ferramenta, argumentos
+):
+    """Nem a consulta que deu certo é respondida sem registro (ADR 0008)."""
+    mcp = criar_mcp(auditoria=_AuditoriaQueFalha(), chaves=ChavesLocais(CHAVE))
+    token, _ = token_novo(Perfil.VENDAS)
+
+    resultado = chamar(mcp, token, ferramenta, argumentos)
+
+    assert texto_do_erro(resultado) == INDISPONIVEL
+    assert "auditoria fora do ar" in caplog.text

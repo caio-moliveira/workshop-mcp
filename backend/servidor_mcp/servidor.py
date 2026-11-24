@@ -36,7 +36,7 @@ from acesso import (
     autenticar,
     mensagens,
 )
-from auditoria import Auditoria, Resultado
+from auditoria import Auditoria, AuditoriaIndisponivel, Resultado
 from consultas import AcessoNegado, ConsultaFalhou, ExecutorDeConsultas, ParametroInvalido
 from servidor_mcp.ferramentas import FERRAMENTAS, Ferramenta
 
@@ -274,16 +274,21 @@ class AuditoriaDasChamadas(Middleware):
         usuario = _usuario_do_token()
         if usuario is None:
             return
-        # A gravação bloqueia numa conexão do pool: fora do laço de eventos.
-        await anyio.to_thread.run_sync(
-            lambda: self._auditoria.registrar(
-                usuario,
-                context.message.name,
-                context.message.arguments or {},
-                resultado,
-                chegada,
+        try:
+            # A gravação bloqueia numa conexão do pool: fora do laço de eventos.
+            await anyio.to_thread.run_sync(
+                lambda: self._auditoria.registrar(
+                    usuario,
+                    context.message.name,
+                    context.message.arguments or {},
+                    resultado,
+                    chegada,
+                )
             )
-        )
+        except AuditoriaIndisponivel as erro:
+            # Nenhuma chamada é respondida sem registro, nem a que deu certo (ADR 0008).
+            registro.error("auditoria indisponível, chamada %s recusada: %s", resultado, erro)
+            raise ToolError(mensagens.SERVICO_INDISPONIVEL, log_level=logging.DEBUG) from erro
 
 
 def criar_servidor(
