@@ -116,6 +116,42 @@ def test_consulta_que_falhou_e_erro_interno_ficam_como_falha(criar_mcp, executor
     assert linha["resultado"] == "falha"
 
 
+LIMITE_DOS_PARAMETROS_EM_BYTES = 4 * 1024
+
+
+@pytest.mark.parametrize("letra", ["a", "ç"], ids=["ascii", "multibyte"])
+def test_argumentos_grandes_sao_cortados_e_marcados(mcp, letra):
+    token, sub = token_novo(Perfil.VENDAS)
+    argumentos = {"periodo": letra * 10_000}
+
+    resultado = chamar(mcp, token, FERRAMENTA, argumentos)
+
+    assert texto_do_erro(resultado) == PARAMETRO_INVALIDO
+    linha = ultima_chamada_de(sub)
+    assert linha["parametros_cortados"] is True
+    assert linha["resultado"] == "parametro_invalido"
+    # O corte guarda o começo do que chegou, como texto, até o limite.
+    cortados = linha["parametros"]
+    assert isinstance(cortados, str)
+    assert cortados.startswith('{"periodo": "' + letra * 100)
+    assert len(cortados.encode()) <= LIMITE_DOS_PARAMETROS_EM_BYTES
+    assert len(cortados.encode()) > LIMITE_DOS_PARAMETROS_EM_BYTES - 4
+
+
+def test_nome_grande_de_ferramenta_e_cortado(mcp):
+    token, sub = token_novo(Perfil.VENDAS)
+    nome = "vendas_" + "x" * 10_000
+
+    resultado = chamar(mcp, token, nome, {})
+
+    assert texto_do_erro(resultado) == FERRAMENTA_DESCONHECIDA
+    linha = ultima_chamada_de(sub)
+    assert linha["resultado"] == "negada"
+    assert nome.startswith(linha["ferramenta"])
+    assert "vendas_xxxx" in linha["ferramenta"]
+    assert len(linha["ferramenta"]) < 1_000
+
+
 class _AuditoriaQueFalha:
     """Uma auditoria que nunca consegue gravar."""
 
