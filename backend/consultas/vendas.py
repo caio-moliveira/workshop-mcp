@@ -91,3 +91,62 @@ def indicadores(conexao: psycopg.Connection, periodo: Periodo) -> dict:
         "taxa_de_atraso": {**par(lambda r: r.taxa_de_atraso), "atrasos": agora.atrasos},
         "taxa_de_aprovacao": par(lambda r: r.taxa_de_aprovacao),
     }
+
+
+# O nome de cada agrupamento da evolução, conforme o período, e a unidade de `date_trunc` dele. A
+# semana do Postgres começa na segunda (ISO 8601).
+_AGRUPAMENTO = {
+    Periodo.TRINTA_DIAS: ("dia", "day"),
+    Periodo.NOVENTA_DIAS: ("semana", "week"),
+    Periodo.DOZE_MESES: ("mes", "month"),
+    Periodo.VINTE_E_QUATRO_MESES: ("mes", "month"),
+}
+
+
+@consulta(Perfil.VENDAS)
+def evolucao(conexao: psycopg.Connection, periodo: Periodo) -> dict:
+    """Pedidos realizados e receita de cada dia, semana ou mês do período, em ordem.
+
+    Cada ponto começa no início do seu intervalo de calendário (a segunda da semana, o dia 1 do
+    mês), mesmo que o período comece no meio dele; só os pedidos do período entram. Intervalos sem
+    pedidos aparecem com zero.
+    """
+    agrupamento, unidade = _AGRUPAMENTO[periodo]
+    atual = terminado_em(periodo, _data_de_referencia(conexao))
+    linhas = conexao.execute(
+        f"""
+        with pedidos as (
+            select
+                date_trunc(%(unidade)s, {DIA_DO_PEDIDO}::timestamp)::date as intervalo,
+                g.situacao,
+                g.valor
+            from vendas.pedido p
+            join vendas.pagamento g on g.pedido_id = p.id
+            where {DIA_DO_PEDIDO} between %(inicio)s and %(fim)s
+        ),
+        intervalos as (
+            select i::date as inicio
+            from generate_series(
+                date_trunc(%(unidade)s, %(inicio)s::timestamp),
+                %(fim)s::timestamp,
+                ('1 ' || %(unidade)s)::interval
+            ) as i
+        )
+        select
+            i.inicio,
+            count(d.intervalo),
+            coalesce(sum(d.valor) filter (where d.situacao = 'Aprovado'), 0)
+        from intervalos i
+        left join pedidos d on d.intervalo = i.inicio
+        group by i.inicio
+        order by i.inicio
+        """,
+        {"unidade": unidade, "inicio": atual.inicio, "fim": atual.fim},
+    ).fetchall()
+    return {
+        "agrupamento": agrupamento,
+        "pontos": [
+            {"inicio": inicio.isoformat(), "pedidos": pedidos, "receita": float(receita)}
+            for inicio, pedidos, receita in linhas
+        ],
+    }
