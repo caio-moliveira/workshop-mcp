@@ -31,12 +31,16 @@ PARAMETROS_PREVISTOS = {
     "vendas_evolucao": {"periodo"},
     "vendas_situacao_das_entregas": {"periodo"},
     "vendas_pedidos_recentes": {"periodo"},
+    "vendas_atrasos": {"periodo", "agrupamento"},
 }
 # Os valores de cada parâmetro, também repetidos: a enumeração é fechada.
 VALORES_PREVISTOS = {
     "periodo": ["30d", "90d", "12m", "24m"],
+    "agrupamento": ["rota", "lojista"],
 }
 PADROES_PREVISTOS = {"periodo": "12m"}
+# Os parâmetros sem padrão, que quem chama precisa informar.
+OBRIGATORIOS_PREVISTOS = {"vendas_atrasos": {"agrupamento"}}
 
 
 def token_de(perfil: Perfil) -> str:
@@ -87,7 +91,8 @@ def test_o_esquema_de_entrada_so_tem_os_parametros_previstos(ferramentas):
         assert esquema["type"] == "object", ferramenta.name
         assert esquema["additionalProperties"] is False, ferramenta.name
         assert set(esquema["properties"]) == PARAMETROS_PREVISTOS[ferramenta.name], ferramenta.name
-        assert set(esquema.get("required", [])) <= set(esquema["properties"]), ferramenta.name
+        obrigatorios = OBRIGATORIOS_PREVISTOS.get(ferramenta.name, set())
+        assert set(esquema.get("required", [])) == obrigatorios, ferramenta.name
         assert set(esquema) <= {"type", "properties", "additionalProperties", "required"}
 
 
