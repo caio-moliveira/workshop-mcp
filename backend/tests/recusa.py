@@ -5,6 +5,8 @@ RESPOSTA_DE_RECUSA = {"erro": "Não autenticado."}
 RESPOSTA_DE_NEGACAO = {"erro": "Acesso negado."}
 RESPOSTA_DE_PARAMETRO_INVALIDO = {"erro": "Parâmetro inválido."}
 RESPOSTA_DE_INDISPONIVEL = {"erro": "Serviço indisponível."}
+# Qualquer falha não prevista: o motivo fica só no log (RS-08).
+RESPOSTA_DE_ERRO_INTERNO = {"erro": "Erro interno."}
 
 # As rotas que servem o painel de Vendas. Toda rota nova de Vendas entra aqui.
 ROTAS_DE_VENDAS = [

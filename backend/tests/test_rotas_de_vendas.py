@@ -9,7 +9,9 @@ import time
 import httpx
 import pytest
 from apoio import banco_local
+from fastapi.testclient import TestClient
 from recusa import (
+    RESPOSTA_DE_ERRO_INTERNO,
     RESPOSTA_DE_INDISPONIVEL,
     RESPOSTA_DE_PARAMETRO_INVALIDO,
     ROTAS_DE_VENDAS,
@@ -142,3 +144,23 @@ def test_erro_do_banco_nao_chega_ao_cliente_com_nomes_internos(criar_api, token_
 
     assert resposta.status_code == 503
     assert resposta.json() == RESPOSTA_DE_INDISPONIVEL
+
+
+class _ExecutorQueQuebra(ExecutorDeConsultas):
+    """Autoriza como o de verdade, mas toda consulta lança uma exceção que ninguém previu."""
+
+    def executar(self, usuario, consulta, **parametros):
+        raise RuntimeError("detalhe interno: vendas.pedido")
+
+
+@pytest.mark.parametrize("rota", ROTAS_DE_VENDAS)
+def test_erro_inesperado_vira_500_generico_sem_detalhe(criar_api, token_de, rota, caplog):
+    with _ExecutorQueQuebra(banco_local(), credenciais_do_ambiente()) as executor:
+        api = TestClient(criar_api(consultas=executor).app, raise_server_exceptions=False)
+
+        resposta = pedir(api, rota, token_de(Perfil.VENDAS))
+
+    assert resposta.status_code == 500
+    assert resposta.json() == RESPOSTA_DE_ERRO_INTERNO
+    assert "vendas.pedido" not in resposta.text
+    assert "detalhe interno: vendas.pedido" in caplog.text

@@ -40,6 +40,8 @@ PARAMETRO_INVALIDO = {"erro": "Parâmetro inválido."}
 # O provedor ou o banco fora do ar não é culpa do token: o cliente não deve mandar o usuário ao
 # login.
 INDISPONIVEL = {"erro": "Serviço indisponível."}
+# Qualquer falha não prevista: o motivo fica só no log, nunca na resposta (RS-08).
+ERRO_INTERNO = {"erro": "Erro interno."}
 
 # As rotas que só exigem um usuário autenticado, sem perfil. Toda outra rota serve uma consulta,
 # e o perfil é o que a consulta declara (RS-05).
@@ -63,7 +65,7 @@ class RotaDeConsulta(APIRoute):
 
 
 def ler_periodo(parametros: QueryParams) -> Periodo:
-    """O único parâmetro previsto é `periodo`, uma vez só. Nada de filtro livre."""
+    """O único parâmetro previsto é `periodo`, uma vez só. Nada além dele."""
     if set(parametros.keys()) - {"periodo"} or len(parametros.getlist("periodo")) > 1:
         raise ParametroInvalido("parâmetro fora do previsto")
     return Periodo.ler(parametros.get("periodo", PERIODO_PADRAO))
@@ -110,22 +112,27 @@ def criar_aplicacao(
         registro.error("consulta falhou: %s", erro)
         return JSONResponse(INDISPONIVEL, status_code=503)
 
+    @aplicacao.exception_handler(Exception)
+    def erro_inesperado(_: Request, erro: Exception) -> JSONResponse:
+        registro.error("erro inesperado: %s", erro, exc_info=erro)
+        return JSONResponse(ERRO_INTERNO, status_code=500)
+
     def usuario_autenticado(request: Request) -> UsuarioAutenticado:
         esquema, _, token = request.headers.get("authorization", "").partition(" ")
         if esquema.lower() != "bearer" or not token:
             raise TokenRecusado("cabeçalho Authorization ausente ou sem Bearer")
         return autenticar(token, configuracao)
 
+    # O usuário do token da requisição; sem token válido, a recusa (401) vem antes de tudo.
+    Autenticado = Annotated[UsuarioAutenticado, Depends(usuario_autenticado)]
+
     @aplicacao.get("/eu")
-    def eu(usuario: Annotated[UsuarioAutenticado, Depends(usuario_autenticado)]) -> dict:
+    def eu(usuario: Autenticado) -> dict:
         return {"nome": usuario.nome, "perfil": usuario.perfil}
 
     def servir(consulta: Consulta) -> Callable:
         # Ordem fixa: token (na dependência), perfil, parâmetros e só então a consulta.
-        def endpoint(
-            request: Request,
-            usuario: Annotated[UsuarioAutenticado, Depends(usuario_autenticado)],
-        ):
+        def endpoint(request: Request, usuario: Autenticado) -> dict:
             consultas.autorizar(usuario, consulta)
             periodo = ler_periodo(request.query_params)
             return consultas.executar(usuario, consulta, periodo=periodo)
