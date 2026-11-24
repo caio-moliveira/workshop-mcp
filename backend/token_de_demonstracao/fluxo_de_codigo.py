@@ -39,12 +39,12 @@ def _base(emissor: str) -> str:
     return f"{emissor}/protocol/openid-connect"
 
 
-def novo_verificador() -> str:
+def _novo_verificador() -> str:
     """O segredo do PKCE, que só quem começou o login conhece."""
     return secrets.token_urlsafe(48)
 
 
-def desafio_de(verificador: str) -> str:
+def _desafio_de(verificador: str) -> str:
     """O desafio S256 do PKCE: o hash do verificador, que vai no pedido de autorização."""
     resumo = hashlib.sha256(verificador.encode()).digest()
     return base64.urlsafe_b64encode(resumo).rstrip(b"=").decode()
@@ -107,10 +107,10 @@ def tokens_pelo_fluxo_de_codigo(
 
     Levanta `LoginRecusado` se o provedor não devolver o código de autorização.
     """
-    verificador = novo_verificador()
+    verificador = _novo_verificador()
     with httpx.Client(timeout=TEMPO_LIMITE_EM_SEGUNDOS) as navegador:
         resposta = enviar_credenciais(
-            navegador, emissor, aplicacao, desafio_de(verificador), nome_de_usuario, senha
+            navegador, emissor, aplicacao, _desafio_de(verificador), nome_de_usuario, senha
         )
     destino = resposta.headers.get("location", "")
     if resposta.status_code != 302 or not destino.startswith(aplicacao.retorno):
