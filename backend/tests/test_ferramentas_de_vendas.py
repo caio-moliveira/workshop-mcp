@@ -13,7 +13,7 @@ import os
 
 import httpx
 import pytest
-from apoio import ultima_chamada_de
+from apoio import BANCO_DA_AUDITORIA, conectar_como_dono, ultima_chamada_de
 from cliente_mcp import (
     FERRAMENTA_DESCONHECIDA,
     MCP_DO_AMBIENTE,
@@ -67,6 +67,11 @@ def assert_auditada(token: str, ferramenta: str, argumentos: dict | None, result
 def id_da_ultima_linha(token: str) -> int | None:
     linha = ultima_chamada_de(conteudo(token)["sub"])
     return linha["id"] if linha else None
+
+
+def id_da_ultima_linha_da_auditoria() -> int | None:
+    with conectar_como_dono(BANCO_DA_AUDITORIA) as conexao:
+        return conexao.execute("select max(id) from auditoria.chamada").fetchone()[0]
 
 
 @pytest.fixture
@@ -287,12 +292,13 @@ def test_token_real_emitido_para_outro_servico_e_recusado_com_401(mcp_do_ambient
     """Mesmo provedor, mesmo usuário, assinatura válida: sem `pulso-mcp` entre os destinatários,
     o token não entra (RS-02)."""
     token = token_de_outro_servico("ana.vendas", senha_de("ana.vendas"))
-    antes = id_da_ultima_linha(token)
+    # O token de outro serviço não traz `sub`: confere a última linha da auditoria inteira.
+    antes = id_da_ultima_linha_da_auditoria()
 
     assert_recusado(pedir_ao_protocolo(mcp_do_ambiente, token, "tools/list"))
     assert_recusado(chamar_pelo_protocolo(mcp_do_ambiente, token, "vendas_indicadores"))
     # A recusa no token não gera linha na auditoria: fica só no log do serviço.
-    assert id_da_ultima_linha(token) == antes
+    assert id_da_ultima_linha_da_auditoria() == antes
 
 
 def test_o_servidor_responde_sem_sessao(mcp_do_ambiente, token_de):
