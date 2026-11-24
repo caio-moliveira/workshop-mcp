@@ -34,6 +34,14 @@ _Avoid_: Papel, login, conta
 O conjunto de dados preparado para um perfil, contendo apenas o que ele pode consultar. É a única coisa que telas e ferramentas leem.
 _Avoid_: Visão, data mart, camada de consumo
 
+**Ferramenta**:
+Uma consulta oferecida pelo servidor MCP, que pertence a um único perfil e só aparece para ele.
+_Avoid_: Tool (sozinho), endpoint, função
+
+**Assistente externo**:
+Um assistente de IA de terceiros, como o Claude ou o ChatGPT, conectado ao servidor MCP com o login do usuário.
+_Avoid_: Cliente externo, cliente MCP (Cliente é quem compra)
+
 **Dados de origem**:
 Os dados brutos da empresa, que nenhum perfil lê diretamente.
 _Avoid_: Origem (sozinho), tabelas de origem, base bruta
