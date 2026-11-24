@@ -4,6 +4,7 @@ import { DESCRICAO_DOS_PERFIS } from "../perfis";
 import type { FonteDeDados } from "../useBloco";
 import { BlocoDeEvolucao } from "./BlocoDeEvolucao";
 import { BlocoDeIndicadores } from "./BlocoDeIndicadores";
+import { BlocoDePedidosRecentes } from "./BlocoDePedidosRecentes";
 import estilos from "./PainelDeVendas.module.css";
 import { usePeriodoDaUrl } from "./usePeriodoDaUrl";
 
@@ -33,6 +34,7 @@ export function PainelDeVendas({ fonte, primeiroNome }: Propriedades) {
           <BlocoDeEvolucao fonte={fonte} periodo={periodo} />
         </div>
       </div>
+      <BlocoDePedidosRecentes fonte={fonte} periodo={periodo} />
     </>
   );
 }

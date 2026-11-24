@@ -1,0 +1,40 @@
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 var(--espaco-2);
+  border-radius: 999px;
+  background: var(--surface-muted);
+  color: var(--text-primary);
+  font-size: var(--texto-label);
+  font-weight: var(--peso-medio);
+  white-space: nowrap;
+}
+
+.ponto {
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  border-radius: 50%;
+}
+
+.sucesso {
+  background: var(--sucesso);
+}
+
+.atencao {
+  background: var(--atencao);
+}
+
+.erro {
+  background: var(--erro);
+}
+
+.informacao {
+  background: var(--informacao);
+}
+
+.neutro {
+  background: var(--text-tertiary);
+}

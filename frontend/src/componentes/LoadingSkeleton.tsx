@@ -5,18 +5,33 @@ interface Propriedades {
    * `pagina`: a estrutura inteira, enquanto a aplicação confirma quem é o usuário.
    * `cartao`: um cartão de indicador, proporcional ao KpiCard. Quem o usa anuncia o carregamento.
    * `grafico`: um ChartPanel com título, legenda e a área do gráfico. Quem o usa anuncia também.
+   * `tabela`: as linhas de uma DataTable, com a mesma altura. Quem o usa anuncia o carregamento.
    */
-  forma?: "pagina" | "cartao" | "grafico";
+  forma?: "pagina" | "cartao" | "grafico" | "tabela";
+  /** Quantas linhas a tabela vai ter. */
+  linhas?: number;
 }
 
 /** Esqueleto proporcional ao que vai aparecer, sem piscar a tela (FE §10). */
-export function LoadingSkeleton({ forma = "pagina" }: Propriedades) {
+export function LoadingSkeleton({ forma = "pagina", linhas = 8 }: Propriedades) {
   if (forma === "grafico") {
     return (
       <div className={estilos.grafico} aria-hidden="true">
         <span className={`${estilos.bloco} ${estilos.tituloDoGrafico}`} />
         <span className={`${estilos.bloco} ${estilos.legendaDoGrafico}`} />
         <span className={`${estilos.bloco} ${estilos.areaDoGrafico}`} />
+      </div>
+    );
+  }
+  if (forma === "tabela") {
+    return (
+      <div className={estilos.tabela} aria-hidden="true">
+        <span className={estilos.cabecalhoDaTabela} />
+        {Array.from({ length: linhas }, (_, indice) => (
+          <span key={indice} className={estilos.linhaDaTabela}>
+            <span className={`${estilos.bloco} ${estilos.celulaDaTabela}`} />
+          </span>
+        ))}
       </div>
     );
   }

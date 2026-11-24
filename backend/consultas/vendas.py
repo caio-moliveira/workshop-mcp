@@ -18,6 +18,9 @@ from consultas.registro import consulta
 # O dia de um pedido, no fuso do negócio, venha a sessão com o fuso que vier.
 DIA_DO_PEDIDO = "(p.momento_compra at time zone 'America/Sao_Paulo')::date"
 
+# A tabela do painel é limitada: sem paginação nem rota de detalhe.
+LIMITE_DE_PEDIDOS_RECENTES = 20
+
 
 @dataclass(frozen=True)
 class _Resumo:
@@ -148,5 +151,47 @@ def evolucao(conexao: psycopg.Connection, periodo: Periodo) -> dict:
         "pontos": [
             {"inicio": inicio.isoformat(), "pedidos": pedidos, "receita": float(receita)}
             for inicio, pedidos, receita in linhas
+        ],
+    }
+
+
+@consulta(Perfil.VENDAS)
+def pedidos_recentes(conexao: psycopg.Connection, periodo: Periodo) -> dict:
+    """Os pedidos mais recentes do período, do mais novo para o mais antigo.
+
+    Do cliente, só a cidade e a UF: nenhum identificador sai da consulta. A situação da entrega é
+    `None` quando o pagamento foi recusado e não há entrega.
+    """
+    intervalo = terminado_em(periodo, _data_de_referencia(conexao))
+    linhas = conexao.execute(
+        f"""
+        select
+            p.id, p.momento_compra, p.cliente_cidade, p.cliente_uf, p.lojista_nome, p.rota,
+            g.valor, g.situacao, e.situacao
+        from vendas.pedido p
+        join vendas.pagamento g on g.pedido_id = p.id
+        left join vendas.entrega e on e.pedido_id = p.id
+        where {DIA_DO_PEDIDO} between %s and %s
+        order by p.momento_compra desc, p.id desc
+        limit %s
+        """,
+        (intervalo.inicio, intervalo.fim, LIMITE_DE_PEDIDOS_RECENTES),
+    ).fetchall()
+    return {
+        "periodo": {"inicio": intervalo.inicio.isoformat(), "fim": intervalo.fim.isoformat()},
+        "pedidos": [
+            {
+                "numero": numero,
+                # Um instante com fuso: o frontend o mostra no horário de Brasília.
+                "momento_compra": momento.isoformat(),
+                "cidade": cidade,
+                "uf": uf,
+                "lojista": lojista,
+                "rota": rota,
+                "valor": float(valor),
+                "pagamento": pagamento,
+                "entrega": entrega,
+            }
+            for numero, momento, cidade, uf, lojista, rota, valor, pagamento, entrega in linhas
         ],
     }

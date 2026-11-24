@@ -7,7 +7,7 @@ RESPOSTA_DE_PARAMETRO_INVALIDO = {"erro": "Parâmetro inválido."}
 RESPOSTA_DE_INDISPONIVEL = {"erro": "Serviço indisponível."}
 
 # As rotas que servem o painel de Vendas. Toda rota nova de Vendas entra aqui.
-ROTAS_DE_VENDAS = ["/vendas/indicadores", "/vendas/evolucao"]
+ROTAS_DE_VENDAS = ["/vendas/indicadores", "/vendas/evolucao", "/vendas/pedidos-recentes"]
 
 
 def assert_recusado(resposta) -> None:
