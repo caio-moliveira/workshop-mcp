@@ -105,6 +105,25 @@
   height: 22px;
 }
 
+/* Painel de gráfico: mesma moldura do ChartPanel, área com a altura do gráfico. */
+.grafico {
+  composes: painel from "./ChartPanel.module.css";
+}
+
+.tituloDoGrafico {
+  width: 35%;
+  height: 21px;
+}
+
+.legendaDoGrafico {
+  width: 25%;
+  height: 18px;
+}
+
+.areaDoGrafico {
+  height: var(--altura-do-grafico);
+}
+
 @keyframes pulsar {
   50% {
     opacity: 0.55;

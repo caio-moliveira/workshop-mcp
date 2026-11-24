@@ -19,6 +19,24 @@ export function formatarNumero(valor: number): string {
   return NUMERO.format(valor);
 }
 
+const COMPACTO = { notation: "compact", maximumFractionDigits: 1 } as const;
+const MOEDA_COMPACTA = new Intl.NumberFormat("pt-BR", {
+  style: "currency",
+  currency: "BRL",
+  ...COMPACTO,
+});
+const NUMERO_COMPACTO = new Intl.NumberFormat("pt-BR", COMPACTO);
+
+/** Moeda curta para eixos de gráfico ("R$ 4,3 mi"). */
+export function formatarMoedaCompacta(valor: number): string {
+  return MOEDA_COMPACTA.format(valor);
+}
+
+/** Contagem curta para eixos de gráfico ("1,5 mil"). */
+export function formatarNumeroCompacto(valor: number): string {
+  return NUMERO_COMPACTO.format(valor);
+}
+
 /** Uma fração (0,123) como percentual com uma casa ("12,3%"). */
 export function formatarPercentual(fracao: number): string {
   return PERCENTUAL.format(fracao);

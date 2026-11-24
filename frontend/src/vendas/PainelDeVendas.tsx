@@ -2,7 +2,9 @@ import { PageHeading } from "../componentes/PageHeading";
 import { PeriodFilter } from "../componentes/PeriodFilter";
 import { DESCRICAO_DOS_PERFIS } from "../perfis";
 import type { FonteDeDados } from "../useBloco";
+import { BlocoDeEvolucao } from "./BlocoDeEvolucao";
 import { BlocoDeIndicadores } from "./BlocoDeIndicadores";
+import estilos from "./PainelDeVendas.module.css";
 import { usePeriodoDaUrl } from "./usePeriodoDaUrl";
 
 interface Propriedades {
@@ -26,6 +28,11 @@ export function PainelDeVendas({ fonte, primeiroNome }: Propriedades) {
         filtros={<PeriodFilter periodo={periodo} aoMudar={mudarPeriodo} />}
       />
       <BlocoDeIndicadores fonte={fonte} periodo={periodo} />
+      <div className={estilos.linhaAnalitica}>
+        <div className={estilos.principal}>
+          <BlocoDeEvolucao fonte={fonte} periodo={periodo} />
+        </div>
+      </div>
     </>
   );
 }

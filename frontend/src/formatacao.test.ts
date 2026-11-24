@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   formatarData,
   formatarMoeda,
+  formatarMoedaCompacta,
   formatarNumero,
+  formatarNumeroCompacto,
   formatarPercentual,
   formatarPontosPercentuais,
   formatarVariacaoRelativa,
@@ -43,5 +45,13 @@ describe("formatação em pt-BR", () => {
   it("data ISO no formato brasileiro, sem deslocar o dia pelo fuso", () => {
     expect(formatarData("2026-11-30")).toBe("30/11/2026");
     expect(formatarData("2024-12-01")).toBe("01/12/2024");
+  });
+
+  it("moeda e contagem compactas, para os eixos dos gráficos", () => {
+    expect(formatarMoedaCompacta(0)).toBe(`R$${ESPACO}0`);
+    expect(formatarMoedaCompacta(12500)).toBe(`R$${ESPACO}12,5${ESPACO}mil`);
+    expect(formatarMoedaCompacta(4321987.65)).toBe(`R$${ESPACO}4,3${ESPACO}mi`);
+    expect(formatarNumeroCompacto(950)).toBe("950");
+    expect(formatarNumeroCompacto(1500)).toBe(`1,5${ESPACO}mil`);
   });
 });

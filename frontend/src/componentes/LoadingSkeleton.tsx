@@ -4,12 +4,22 @@ interface Propriedades {
   /**
    * `pagina`: a estrutura inteira, enquanto a aplicação confirma quem é o usuário.
    * `cartao`: um cartão de indicador, proporcional ao KpiCard. Quem o usa anuncia o carregamento.
+   * `grafico`: um ChartPanel com título, legenda e a área do gráfico. Quem o usa anuncia também.
    */
-  forma?: "pagina" | "cartao";
+  forma?: "pagina" | "cartao" | "grafico";
 }
 
 /** Esqueleto proporcional ao que vai aparecer, sem piscar a tela (FE §10). */
 export function LoadingSkeleton({ forma = "pagina" }: Propriedades) {
+  if (forma === "grafico") {
+    return (
+      <div className={estilos.grafico} aria-hidden="true">
+        <span className={`${estilos.bloco} ${estilos.tituloDoGrafico}`} />
+        <span className={`${estilos.bloco} ${estilos.legendaDoGrafico}`} />
+        <span className={`${estilos.bloco} ${estilos.areaDoGrafico}`} />
+      </div>
+    );
+  }
   if (forma === "cartao") {
     return (
       <div className={estilos.cartao} aria-hidden="true">

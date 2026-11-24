@@ -1,0 +1,72 @@
+.painel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco-4);
+  min-width: 0;
+  padding: var(--espaco-4) var(--espaco-6) var(--espaco-6);
+  border: 1px solid var(--border);
+  border-radius: var(--raio-card);
+  background: var(--surface);
+}
+
+.cabecalho {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco-1);
+}
+
+.titulo {
+  color: var(--text-primary);
+  font-size: var(--texto-titulo-card);
+  font-weight: var(--peso-semibold);
+}
+
+.descricao {
+  color: var(--text-secondary);
+  font-size: var(--texto-label);
+}
+
+.legenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espaco-1) var(--espaco-4);
+  margin: var(--espaco-1) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.itemDaLegenda {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: var(--texto-label);
+  font-weight: var(--peso-medio);
+}
+
+.marcaDeBarra {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.marcaDeLinha {
+  display: inline-block;
+  width: 14px;
+  height: 2px;
+  border-radius: 1px;
+}
+
+/* O Recharts (prop `responsive`) mede esta caixa: altura fixa, largura do painel. */
+.grafico {
+  width: 100%;
+  height: var(--altura-do-grafico);
+  min-width: 0;
+}
+
+@media (max-width: 767px) {
+  .painel {
+    padding: var(--espaco-3) var(--espaco-4) var(--espaco-4);
+  }
+}
