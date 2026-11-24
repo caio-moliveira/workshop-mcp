@@ -23,7 +23,7 @@ Fontes dos requisitos:
 | 1 | Fundação de dados | — | Concluída |
 | 2 | Login e perfil | 1 | Concluída |
 | 3 | Vendas na tela | 2 | Concluída |
-| 4a | Servidor MCP de Vendas | 3 | Livre |
+| 4a | Servidor MCP de Vendas | 3 | Concluída |
 | V1 | Verificação com túnel: Claude e ChatGPT | 4a | Livre |
 | 4b | Auditoria e limite de frequência | 4a | Livre |
 | 5a | Chat de Vendas no painel lateral | 4b | Depende de decisões (ver final) |
@@ -232,7 +232,7 @@ Questões listadas em `docs/PRD.md`:
 | --- | --- |
 | Provedor de modelo padrão do chat | 5a (só o valor padrão; o modelo é trocável por configuração) |
 | Provedor de nuvem e domínio | 6 e, por consequência, 7 e 11. Adiada. |
-| Como o agente obtém um token aceito pelo MCP: dois destinatários ou troca de token | 5a. Convém decidir no ciclo da 4a, porque afeta a validação de destinatário. |
+| ~~Como o agente obtém um token aceito pelo MCP: dois destinatários ou troca de token~~ | Decidida na 4a: dois destinatários, sem troca de token (ADR 0006). Não bloqueia mais a 5a. |
 | Meta de 3 segundos do RNF-05 | Nenhuma. É medida na 3 e confirmada na 11. |
 | Limite de chamadas por usuário do RS-11 | 4b (só o valor; o mecanismo pode nascer configurável) |
 
