@@ -21,6 +21,7 @@ try {
   const sessao = new Sessao(
     criarGerenciador(configuracao.enderecoDoProvedor),
     configuracao.enderecoDaApi,
+    configuracao.inatividadeDaSessaoEmSegundos,
   );
   raiz.render(
     <StrictMode>
@@ -33,7 +34,8 @@ try {
     <ErrorState
       titulo="Não foi possível abrir o pulso."
       descricao="A configuração da aplicação não pôde ser carregada. Tente de novo em instantes."
-      aoTentarDeNovo={() => window.location.reload()}
+      acao="Tentar de novo"
+      aoAcionar={() => window.location.reload()}
     />,
   );
 }

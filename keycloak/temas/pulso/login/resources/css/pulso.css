@@ -1,6 +1,6 @@
 /* Tela de login do pulso. (FE §9). Os tokens repetem os valores de frontend/src/estilos/tokens.css
-   (FE §2 a §4): o tema é servido pelo Keycloak e não enxerga o build do frontend. Ao mudar um, mude
-   o outro. As fontes são os mesmos arquivos do @fontsource que o frontend usa, só o subconjunto
+   (FE §2 a §4), que é a fonte: o tema é servido pelo Keycloak e não enxerga o build do frontend.
+   Ao mudar um, mude o outro; backend/tests/test_tokens_visuais.py falha se divergirem. As fontes são os mesmos arquivos do @fontsource que o frontend usa, só o subconjunto
    latino. */
 
 @font-face {
@@ -61,7 +61,7 @@
   --espaco-12: 48px;
 
   --raio-botao: 10px;
-  --altura-botao: 42px;
+  --altura-botao: 40px;
   --altura-input: 42px;
   --transicao-rapida: 140ms ease;
   --anel-de-foco: 0 0 0 2px var(--surface), 0 0 0 4px var(--brand-ink);

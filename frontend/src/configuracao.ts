@@ -1,5 +1,5 @@
 /**
- * Endereços que mudam de um ambiente para outro. Não entram no build: o navegador os busca em
+ * O que muda de um ambiente para outro. Não entra no build: o navegador busca em
  * `/configuracao.json`, servido pelo nginx no compose e pelo Vite em desenvolvimento.
  */
 export interface Configuracao {
@@ -7,12 +7,22 @@ export interface Configuracao {
   enderecoDoProvedor: string;
   /** Endereço da API como o navegador a alcança. */
   enderecoDaApi: string;
+  /** Inatividade que encerra a sessão, a mesma do realm (INATIVIDADE_DA_SESSAO_EM_SEGUNDOS). */
+  inatividadeDaSessaoEmSegundos: number;
 }
 
 function eConfiguracao(valor: unknown): valor is Configuracao {
   if (typeof valor !== "object" || valor === null) return false;
-  const { enderecoDoProvedor, enderecoDaApi } = valor as Record<string, unknown>;
-  return typeof enderecoDoProvedor === "string" && typeof enderecoDaApi === "string";
+  const { enderecoDoProvedor, enderecoDaApi, inatividadeDaSessaoEmSegundos } = valor as Record<
+    string,
+    unknown
+  >;
+  return (
+    typeof enderecoDoProvedor === "string" &&
+    typeof enderecoDaApi === "string" &&
+    typeof inatividadeDaSessaoEmSegundos === "number" &&
+    inatividadeDaSessaoEmSegundos > 0
+  );
 }
 
 export async function carregarConfiguracao(): Promise<Configuracao> {

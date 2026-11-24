@@ -24,6 +24,7 @@ import httpx  # noqa: E402
 import jwt  # noqa: E402
 from apoio import compose  # noqa: E402
 from provedor import senha_de, token_de_outro_servico, token_pelo_fluxo_de_codigo  # noqa: E402
+from recusa import pedir_eu  # noqa: E402
 
 from acesso.validacao import FOLGA_DE_RELOGIO_EM_SEGUNDOS  # noqa: E402
 
@@ -44,8 +45,8 @@ def _conteudo(token: str) -> dict:
 def _pedir_eu(token: str | None) -> None:
     """Pede GET /eu à API do ambiente e mostra a resposta e, se recusou, o motivo no log."""
     recusas_antes = len(_recusas_no_log())
-    cabecalhos = {"Authorization": f"Bearer {token}"} if token else {}
-    resposta = httpx.get(f"{API}/eu", headers=cabecalhos, timeout=10)
+    with httpx.Client(base_url=API, timeout=10) as api:
+        resposta = pedir_eu(api, token)
     corpo = json.dumps(resposta.json(), ensure_ascii=False)
     print(f"GET /eu -> {resposta.status_code} {corpo}")
     if "www-authenticate" in resposta.headers:
@@ -74,12 +75,12 @@ def _nova_recusa_no_log(recusas_antes: int) -> str:
     return "(não encontrado)"
 
 
-def entrar(usuario: str) -> None:
+def entrar(nome_de_usuario: str) -> None:
     """Login pelo fluxo de código; guarda o token e pede GET /eu com ele."""
-    token = token_pelo_fluxo_de_codigo(usuario, senha_de(usuario))
+    token = token_pelo_fluxo_de_codigo(nome_de_usuario, senha_de(nome_de_usuario))
     TOKEN_GUARDADO.write_text(token, encoding="utf-8")
     conteudo = _conteudo(token)
-    print(f"token de {usuario}: aud={conteudo['aud']} vence às {_hora(conteudo['exp'])}")
+    print(f"token de {nome_de_usuario}: aud={conteudo['aud']} vence às {_hora(conteudo['exp'])}")
     _pedir_eu(token)
 
 
@@ -87,12 +88,12 @@ def sem_token() -> None:
     _pedir_eu(None)
 
 
-def outro_servico(usuario: str) -> None:
+def outro_servico(nome_de_usuario: str) -> None:
     """Token do mesmo provedor e do mesmo usuário, emitido para o `admin-cli`."""
-    token = token_de_outro_servico(usuario, senha_de(usuario))
+    token = token_de_outro_servico(nome_de_usuario, senha_de(nome_de_usuario))
     conteudo = _conteudo(token)
     destinatario = conteudo.get("aud") or "(nenhum)"
-    print(f"token de {usuario} para {conteudo['azp']}: aud={destinatario}")
+    print(f"token de {nome_de_usuario} para {conteudo['azp']}: aud={destinatario}")
     _pedir_eu(token)
 
 

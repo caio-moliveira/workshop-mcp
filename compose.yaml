@@ -1,6 +1,14 @@
-# Sobe o ambiente e carrega o banco do zero: docker compose run --rm --build carga
-# O mesmo comando é a recarga (ADR 0001).
+# Sobe o ambiente inteiro, com o banco carregado do zero: docker compose up -d --build --wait
+# Recarga, só do banco, com o resto no ar: docker compose run --rm --build carga (ADR 0001).
 name: workshop-mcp
+
+# Tempo de inatividade que encerra a sessão: a única fonte do valor. O provedor o usa no realm
+# (ssoSessionIdleTimeout) e o frontend o recebe em /configuracao.json, para não renovar o token
+# de quem parou de usar a aplicação. Para encurtar numa demonstração, defina a variável no shell,
+# acima dos 5 minutos do token de acesso (a renovação é o que prorroga a sessão do provedor):
+#   INATIVIDADE_DA_SESSAO_EM_SEGUNDOS=360 docker compose up -d --wait keycloak frontend
+x-sessao: &sessao
+  INATIVIDADE_DA_SESSAO_EM_SEGUNDOS: ${INATIVIDADE_DA_SESSAO_EM_SEGUNDOS:-1800}
 
 services:
   postgres:
@@ -38,6 +46,7 @@ services:
       - KC_HOSTNAME="$$ENDERECO_PUBLICO_DO_PROVEDOR" exec /opt/keycloak/bin/kc.sh start-dev --import-realm
     env_file: backend/.env
     environment:
+      <<: *sessao
       # Banco em memória: nada sobrevive a um reinício, nem o realm importado.
       KC_DB: dev-mem
       KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
@@ -78,11 +87,23 @@ services:
       carga:
         condition: service_completed_successfully
     healthcheck:
+      # A consulta prévia do navegador vindo do frontend: responde 200 sem token nem provedor, e
+      # não deixa no log uma recusa a cada verificação. A API não publica /docs.
       test:
         - CMD
         - python
         - -c
-        - "import urllib.request as u; u.urlopen('http://127.0.0.1:8000/docs', timeout=2)"
+        - |
+          import os, urllib.request
+          pedido = urllib.request.Request(
+              "http://127.0.0.1:8000/eu",
+              method="OPTIONS",
+              headers={
+                  "Origin": os.environ["ENDERECO_DO_FRONTEND"],
+                  "Access-Control-Request-Method": "GET",
+              },
+          )
+          urllib.request.urlopen(pedido, timeout=2)
       interval: 2s
       timeout: 3s
       retries: 30
@@ -95,6 +116,7 @@ services:
       context: frontend
     env_file: backend/.env
     environment:
+      <<: *sessao
       ENDERECO_DA_API: http://127.0.0.1:${API_PORT:-8000}
     ports:
       - "127.0.0.1:5173:80"

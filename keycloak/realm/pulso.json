@@ -14,7 +14,7 @@
   "duplicateEmailsAllowed": false,
   "bruteForceProtected": true,
   "accessTokenLifespan": 300,
-  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionIdleTimeout": "${INATIVIDADE_DA_SESSAO_EM_SEGUNDOS}",
   "ssoSessionMaxLifespan": 36000,
   "defaultSignatureAlgorithm": "RS256",
   "groups": [
@@ -120,8 +120,8 @@
             "multivalued": "false",
             "aggregate.attrs": "false",
             "access.token.claim": "true",
-            "id.token.claim": "true",
-            "userinfo.token.claim": "true",
+            "id.token.claim": "false",
+            "userinfo.token.claim": "false",
             "introspection.token.claim": "true"
           }
         }

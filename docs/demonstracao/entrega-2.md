@@ -24,8 +24,9 @@ docker compose up -d --build --wait
 O comando sobe o Postgres, roda a carga, sobe o Keycloak, a API e, por último, o frontend. Ele só termina quando tudo está pronto. Resultado esperado, com código de saída 0, terminando com:
 
 ```
- Container workshop-mcp-keycloak-1  Healthy
  Container workshop-mcp-postgres-1  Healthy
+ Container workshop-mcp-keycloak-1  Healthy
+ Container workshop-mcp-api-1  Healthy
  Container workshop-mcp-carga-1  Exited
  Container workshop-mcp-frontend-1  Healthy
 ```
@@ -66,7 +67,7 @@ O `aud=pulso-api` diz que o token foi emitido para a API. A API aceita o token e
 
 Abra `http://localhost:5173` no navegador. A aplicação leva à tela de login do Keycloak, com o tema do `pulso.`: painel verde-escuro à esquerda, formulário **Entrar** à direita.
 
-Primeiro, uma senha errada: usuário `ana.vendas`, senha qualquer. Resultado esperado: a tela de login de novo, com a mensagem `Usuário ou senha inválidos.`, a mesma para um usuário que não existe.
+Primeiro, uma senha errada: usuário `ana.vendas`, senha qualquer. Resultado esperado: a tela de login de novo, com a mensagem `Usuário ou senha inválidos.`, a mesma para um usuário que não existe e para uma conta bloqueada por excesso de tentativas.
 
 Depois, entre com cada usuário de demonstração. As senhas são os valores das variáveis em `backend/.env`:
 
@@ -144,14 +145,17 @@ Com o ambiente no ar, dentro de `backend/`:
 uv run pytest
 ```
 
-Resultado esperado: `138 passed`, em cerca de três minutos e meio. A suíte recarrega o banco algumas vezes e reinicia o Keycloak, o que encerra as sessões abertas e troca as chaves de assinatura: por isso ela vem depois do passo 5. Os testes da entrega 2 obtêm tokens do Keycloak do compose pelo mesmo fluxo do navegador, sem mocks:
+Resultado esperado: `145 passed`, em cerca de quatro minutos. A suíte recarrega o banco algumas vezes e reinicia o Keycloak, o que encerra as sessões abertas e troca as chaves de assinatura: por isso ela vem depois do passo 5. Os testes da entrega 2 obtêm tokens do Keycloak do compose pelo mesmo fluxo do navegador, sem mocks:
 
 | Arquivo | O que verifica |
 | --- | --- |
-| `test_eu.py` | Os quatro usuários de demonstração em `GET /eu`; recusa sem token, com cabeçalho mal formado, com token de outro serviço e com token real vencido (relógio adiantado) |
+| `test_eu.py` | Os quatro usuários de demonstração em `GET /eu`; recusa sem token, com cabeçalho mal formado, com token de outro serviço e com token real vencido (relógio adiantado); a API não publica `/docs` nem `/openapi.json` |
 | `test_tokens_forjados.py` | Assinatura de outra chave, algoritmo `none` ou HMAC, outro emissor, perfil ausente, duplicado ou desconhecido; todas as recusas idênticas |
 | `test_provedor_sem_estado.py` | O Keycloak parte do realm versionado a cada subida |
-| `test_tela_de_login.py` | A tela de login com a cara do `pulso.` e a mesma mensagem para usuário inexistente e senha errada |
+| `test_tela_de_login.py` | A tela de login com a cara do `pulso.` e a mesma mensagem para usuário inexistente, senha errada e conta bloqueada por tentativas |
+| `test_tokens_do_provedor.py` | O perfil vai só no token de acesso, não no token de id nem no userinfo |
+| `test_sessao.py` | O realm e o frontend usam os mesmos 30 minutos de inatividade |
+| `test_tokens_visuais.py` | O tema de login repete os tokens visuais do frontend sem divergir |
 | `test_origem_do_frontend.py` | A API só aceita chamadas do navegador vindas do frontend (CORS) |
 
 ## 7. A integração contínua roda em um pull request

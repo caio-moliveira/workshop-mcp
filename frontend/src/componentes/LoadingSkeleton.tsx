@@ -4,7 +4,7 @@ import estilos from "./LoadingSkeleton.module.css";
 export function LoadingSkeleton() {
   return (
     <div className={estilos.shell} role="status" aria-live="polite">
-      <span className={estilos.oculto}>Confirmando seu acesso…</span>
+      <span className="visualmente-oculto">Confirmando seu acesso…</span>
       <div className={estilos.sidebar} aria-hidden="true">
         <span className={`${estilos.bloco} ${estilos.marca}`} />
         <span className={`${estilos.bloco} ${estilos.item}`} />
