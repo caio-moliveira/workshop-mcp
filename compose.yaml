@@ -1,6 +1,14 @@
-# Sobe o ambiente e carrega o banco do zero: docker compose run --rm --build carga
-# O mesmo comando é a recarga (ADR 0001).
+# Sobe o ambiente inteiro, com o banco carregado do zero: docker compose up -d --build --wait
+# Recarga, só do banco, com o resto no ar: docker compose run --rm --build carga (ADR 0001).
 name: workshop-mcp
+
+# Tempo de inatividade que encerra a sessão: a única fonte do valor. O provedor o usa no realm
+# (ssoSessionIdleTimeout) e o frontend o recebe em /configuracao.json, para não renovar o token
+# de quem parou de usar a aplicação. Para encurtar numa demonstração, defina a variável no shell,
+# acima dos 5 minutos do token de acesso (a renovação é o que prorroga a sessão do provedor):
+#   INATIVIDADE_DA_SESSAO_EM_SEGUNDOS=360 docker compose up -d --wait keycloak frontend
+x-sessao: &sessao
+  INATIVIDADE_DA_SESSAO_EM_SEGUNDOS: ${INATIVIDADE_DA_SESSAO_EM_SEGUNDOS:-1800}
 
 services:
   postgres:
@@ -27,3 +35,96 @@ services:
       postgres:
         condition: service_healthy
     restart: "no"
+
+  # Provedor de identidade. Sem estado persistente: a cada subida, importa o realm versionado
+  # (ADR 0004). As senhas dos usuários de demonstração entram pelos placeholders do arquivo.
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.4.2
+    # O emissor (iss) é sempre o endereço público, venha a requisição de onde vier.
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - KC_HOSTNAME="$$ENDERECO_PUBLICO_DO_PROVEDOR" exec /opt/keycloak/bin/kc.sh start-dev --import-realm
+    env_file: backend/.env
+    environment:
+      <<: *sessao
+      # Banco em memória: nada sobrevive a um reinício, nem o realm importado.
+      KC_DB: dev-mem
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      KC_HEALTH_ENABLED: "true"
+    volumes:
+      - ./keycloak/realm:/opt/keycloak/data/import:ro
+      # Tema de login do pulso. (FE §9), escolhido no realm. Em start-dev o Keycloak não guarda
+      # temas em cache: uma mudança aparece ao recarregar a tela, sem reiniciar.
+      - ./keycloak/temas/pulso:/opt/keycloak/themes/pulso:ro
+    ports:
+      - "127.0.0.1:8080:8080"
+    healthcheck:
+      # A imagem não tem curl: consulta a prontidão pela porta de gerenciamento.
+      test:
+        - CMD-SHELL
+        - >-
+          exec 3<>/dev/tcp/127.0.0.1/9000 &&
+          printf 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 &&
+          grep -q '"UP"' <&3
+      interval: 3s
+      timeout: 3s
+      retries: 60
+
+  # API das telas. Valida o token: emissor público, chaves buscadas pela rede interna.
+  api:
+    build:
+      context: backend
+      dockerfile: api/Dockerfile
+    env_file: backend/.env
+    environment:
+      ENDERECO_INTERNO_DO_PROVEDOR: http://keycloak:8080
+    ports:
+      - "127.0.0.1:${API_PORT:-8000}:8000"
+    depends_on:
+      keycloak:
+        condition: service_healthy
+      # A API só sobe com o banco carregado: assim `up --wait` termina com tudo pronto.
+      carga:
+        condition: service_completed_successfully
+    healthcheck:
+      # A consulta prévia do navegador vindo do frontend: responde 200 sem token nem provedor, e
+      # não deixa no log uma recusa a cada verificação. A API não publica /docs.
+      test:
+        - CMD
+        - python
+        - -c
+        - |
+          import os, urllib.request
+          pedido = urllib.request.Request(
+              "http://127.0.0.1:8000/eu",
+              method="OPTIONS",
+              headers={
+                  "Origin": os.environ["ENDERECO_DO_FRONTEND"],
+                  "Access-Control-Request-Method": "GET",
+              },
+          )
+          urllib.request.urlopen(pedido, timeout=2)
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  # Frontend: o build servido por nginx. Os endereços do provedor e da API entram ao subir o
+  # contêiner, em /configuracao.json, sem rebuild. Abra em http://localhost:5173, o endereço que
+  # o provedor aceita como retorno do login (ENDERECO_DO_FRONTEND).
+  frontend:
+    build:
+      context: frontend
+    env_file: backend/.env
+    environment:
+      <<: *sessao
+      ENDERECO_DA_API: http://127.0.0.1:${API_PORT:-8000}
+    ports:
+      - "127.0.0.1:5173:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/configuracao.json"]
+      interval: 2s
+      timeout: 3s
+      retries: 30

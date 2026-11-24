@@ -1,0 +1,131 @@
+{
+  "realm": "pulso",
+  "displayName": "pulso.",
+  "enabled": true,
+  "loginTheme": "pulso",
+  "internationalizationEnabled": true,
+  "supportedLocales": ["pt-BR"],
+  "defaultLocale": "pt-BR",
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "resetPasswordAllowed": false,
+  "rememberMe": false,
+  "loginWithEmailAllowed": false,
+  "duplicateEmailsAllowed": false,
+  "bruteForceProtected": true,
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": "${INATIVIDADE_DA_SESSAO_EM_SEGUNDOS}",
+  "ssoSessionMaxLifespan": 36000,
+  "defaultSignatureAlgorithm": "RS256",
+  "groups": [
+    { "name": "Vendas", "path": "/Vendas", "attributes": { "perfil": ["vendas"] } },
+    { "name": "Produtos", "path": "/Produtos", "attributes": { "perfil": ["produtos"] } },
+    { "name": "Comercial", "path": "/Comercial", "attributes": { "perfil": ["comercial"] } },
+    { "name": "Diretoria", "path": "/Diretoria", "attributes": { "perfil": ["diretoria"] } }
+  ],
+  "users": [
+    {
+      "username": "ana.vendas",
+      "firstName": "Ana",
+      "lastName": "Ribeiro",
+      "email": "ana.ribeiro@pulso.example",
+      "emailVerified": true,
+      "enabled": true,
+      "groups": ["/Vendas"],
+      "credentials": [{ "type": "password", "value": "${SENHA_DO_USUARIO_VENDAS}", "temporary": false }]
+    },
+    {
+      "username": "bruno.produtos",
+      "firstName": "Bruno",
+      "lastName": "Costa",
+      "email": "bruno.costa@pulso.example",
+      "emailVerified": true,
+      "enabled": true,
+      "groups": ["/Produtos"],
+      "credentials": [{ "type": "password", "value": "${SENHA_DO_USUARIO_PRODUTOS}", "temporary": false }]
+    },
+    {
+      "username": "carla.comercial",
+      "firstName": "Carla",
+      "lastName": "Mendes",
+      "email": "carla.mendes@pulso.example",
+      "emailVerified": true,
+      "enabled": true,
+      "groups": ["/Comercial"],
+      "credentials": [{ "type": "password", "value": "${SENHA_DO_USUARIO_COMERCIAL}", "temporary": false }]
+    },
+    {
+      "username": "diego.diretoria",
+      "firstName": "Diego",
+      "lastName": "Almeida",
+      "email": "diego.almeida@pulso.example",
+      "emailVerified": true,
+      "enabled": true,
+      "groups": ["/Diretoria"],
+      "credentials": [{ "type": "password", "value": "${SENHA_DO_USUARIO_DIRETORIA}", "temporary": false }]
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "pulso-api",
+      "name": "API do pulso.",
+      "description": "Destinatário dos tokens que a API aceita. Não emite tokens.",
+      "enabled": true,
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "protocol": "openid-connect"
+    },
+    {
+      "clientId": "pulso-web",
+      "name": "Aplicação pulso.",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "frontchannelLogout": true,
+      "protocol": "openid-connect",
+      "rootUrl": "${ENDERECO_DO_FRONTEND}",
+      "baseUrl": "/",
+      "redirectUris": ["${ENDERECO_DO_FRONTEND}/*"],
+      "webOrigins": ["${ENDERECO_DO_FRONTEND}"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "${ENDERECO_DO_FRONTEND}/*"
+      },
+      "protocolMappers": [
+        {
+          "name": "destinatario-pulso-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.client.audience": "pulso-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "perfil",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "config": {
+            "user.attribute": "perfil",
+            "claim.name": "perfil",
+            "jsonType.label": "String",
+            "multivalued": "false",
+            "aggregate.attrs": "false",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "userinfo.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+.vazio {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--espaco-2);
+  padding: var(--espaco-10) var(--espaco-6);
+  border: 1px solid var(--border);
+  border-radius: var(--raio-card);
+  background: var(--surface);
+}
+
+.icone {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  margin-bottom: var(--espaco-2);
+  border-radius: var(--raio-botao);
+  background: var(--surface-muted);
+  color: var(--brand-ink);
+}
+
+.titulo {
+  color: var(--text-primary);
+  font-size: var(--texto-titulo-secao);
+  font-weight: var(--peso-semibold);
+}
+
+.descricao {
+  max-width: 56ch;
+  color: var(--text-secondary);
+}

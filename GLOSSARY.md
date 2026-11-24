@@ -6,6 +6,18 @@ Um marketplace brasileiro que conecta lojistas a clientes finais, cujos dados s�
 
 ### Acesso
 
+**Usuário**:
+Uma pessoa da empresa que consulta os dados pelo `pulso.`, pela aplicação ou por um cliente externo.
+_Avoid_: Cliente (que é quem compra), conta, login
+
+**Usuário de demonstração**:
+Um dos quatro usuários fictícios, um por perfil, que existem para mostrar o isolamento entre perfis.
+_Avoid_: Usuário de teste, mock
+
+**Sessão**:
+O período em que um usuário fica logado sem precisar entrar de novo. Termina por inatividade, pelo limite de duração ou quando ele sai.
+_Avoid_: Login (que é o ato de entrar), token
+
 **Perfil**:
 A função de negócio de um usuário: Vendas, Produtos, Comercial ou Diretoria. Cada usuário tem exatamente um.
 _Avoid_: Papel (é outra coisa), área, grupo, role

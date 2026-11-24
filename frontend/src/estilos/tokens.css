@@ -1,0 +1,83 @@
+/* Tokens visuais do FE §2 a §4 (docs/PRD_frontend.md). Nenhum componente usa cor ou medida solta. */
+:root {
+  /* §2 Cores centrais */
+  --bg-app: #f7f8f5;
+  --surface: #ffffff;
+  --surface-muted: #f0f3ee;
+  --brand-ink: #202c29;
+  --text-primary: #222a26;
+  --text-secondary: #69756e;
+  --text-tertiary: #89948c;
+  --border: #e2e8e1;
+  --accent-lime: #d4f379;
+  --accent-text: #202c29;
+
+  /* §2 Semântica e visualização */
+  --sucesso: #228061;
+  --atencao: #b77932;
+  --erro: #b64b4b;
+  --informacao: #4968c9;
+  --serie-1: #376b57;
+  --serie-2: #708dd1;
+  --serie-3: #c49a58;
+  --serie-4: #a6b0a8;
+
+  /* §2 Identificação dos perfis: só em ícone, linha curta ou chip */
+  --perfil-vendas: #376b57;
+  --perfil-produtos: #4968c9;
+  --perfil-comercial: #b47b58;
+  --perfil-diretoria: #a58a4b;
+
+  /* §3 Tipografia */
+  --fonte-texto: "Geist Variable", "Geist", "Inter", system-ui, sans-serif;
+  --fonte-marca: "Instrument Sans", "Geist Variable", "Geist", system-ui, sans-serif;
+  --peso-regular: 400;
+  --peso-medio: 500;
+  --peso-semibold: 600;
+  --texto-titulo-pagina: 32px;
+  --texto-titulo-secao: 19px;
+  --texto-titulo-card: 14px;
+  --texto-corpo: 14.5px;
+  --texto-label: 12.5px;
+
+  /* §4 Espaçamento */
+  --espaco-1: 4px;
+  --espaco-2: 8px;
+  --espaco-3: 12px;
+  --espaco-4: 16px;
+  --espaco-6: 24px;
+  --espaco-8: 32px;
+  --espaco-10: 40px;
+  --espaco-12: 48px;
+  --margem-conteudo: 32px;
+  --largura-maxima: 1480px;
+
+  /* §4 Superfícies e controles */
+  --raio-card: 13px;
+  --raio-botao: 10px;
+  --altura-botao: 40px;
+  --altura-input: 42px;
+  --tamanho-icone: 18px;
+  --sombra-flutuante: 0 8px 24px rgb(32 44 41 / 0.08);
+
+  /* §5 Estrutura global */
+  --largura-sidebar: 240px;
+  --altura-topbar: 68px;
+
+  /* §10 Interações */
+  --transicao-rapida: 140ms ease;
+  --anel-de-foco: 0 0 0 2px var(--surface), 0 0 0 4px var(--brand-ink);
+}
+
+@media (max-width: 1023px) {
+  :root {
+    --margem-conteudo: 24px;
+  }
+}
+
+@media (max-width: 767px) {
+  :root {
+    --margem-conteudo: 16px;
+    --texto-titulo-pagina: 26px;
+  }
+}

@@ -16,7 +16,8 @@ PORTA_PADRAO = "5433"
 load_dotenv(BACKEND / ".env")
 
 
-def _variavel(nome: str) -> str:
+def variavel(nome: str) -> str:
+    """O valor de uma variável de ambiente obrigatória; encerra os testes se faltar."""
     valor = os.environ.get(nome)
     if not valor:
         pytest.exit(
@@ -32,7 +33,7 @@ def _conectar(usuario: str, senha: str, banco: str | None) -> psycopg.Connection
         port=int(os.environ.get("POSTGRES_PORT", PORTA_PADRAO)),
         user=usuario,
         password=senha,
-        dbname=banco or _variavel("BANCO"),
+        dbname=banco or variavel("BANCO"),
         connect_timeout=5,
         autocommit=True,
     )
@@ -40,12 +41,12 @@ def _conectar(usuario: str, senha: str, banco: str | None) -> psycopg.Connection
 
 def conectar_como_dono(banco: str | None = None) -> psycopg.Connection:
     """Abre uma conexão usando o papel dono (por padrão, no banco carregado)."""
-    return _conectar(_variavel("POSTGRES_USER"), _variavel("POSTGRES_PASSWORD"), banco)
+    return _conectar(variavel("POSTGRES_USER"), variavel("POSTGRES_PASSWORD"), banco)
 
 
 def conectar_como_vendas(banco: str | None = None) -> psycopg.Connection:
     """Abre uma conexão usando a credencial do papel de Vendas (por padrão, no banco carregado)."""
-    return _conectar("vendas", _variavel("SENHA_DO_PAPEL_VENDAS"), banco)
+    return _conectar("vendas", variavel("SENHA_DO_PAPEL_VENDAS"), banco)
 
 
 def compose(*argumentos: str) -> subprocess.CompletedProcess[str]:
