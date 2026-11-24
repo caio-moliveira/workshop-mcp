@@ -23,7 +23,7 @@ A função de negócio de um usuário: Vendas, Produtos, Comercial ou Diretoria.
 _Avoid_: Papel (é outra coisa), área, grupo, role
 
 **Papel**:
-A identidade no banco de dados que tem permissão de leitura em uma única camada de leitura. Cada perfil tem exatamente um papel.
+Uma identidade no banco de dados com permissão para uma única coisa. O papel de um perfil lê uma única camada de leitura, e cada perfil tem exatamente um papel. O papel da auditoria só grava na auditoria, não lê nada e não pertence a nenhum perfil.
 _Avoid_: Perfil, usuário do banco
 
 **Credencial**:
