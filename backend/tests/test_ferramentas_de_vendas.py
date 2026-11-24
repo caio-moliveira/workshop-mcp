@@ -5,6 +5,7 @@ provedor (RF-19 a RF-22, RF-26, CA-02). Os outros perfis recebem a lista vazia e
 direta, o mesmo erro de uma ferramenta que não existe (RS-08).
 """
 
+import json
 import os
 
 import httpx
@@ -33,11 +34,17 @@ API_DO_AMBIENTE = f"http://127.0.0.1:{os.environ.get('API_PORT', '8000')}"
 # painel de Vendas entra aqui.
 ROTA_DA_FERRAMENTA = {
     "vendas_indicadores": "/vendas/indicadores",
+    "vendas_evolucao": "/vendas/evolucao",
+    "vendas_situacao_das_entregas": "/vendas/situacao-das-entregas",
+    "vendas_pedidos_recentes": "/vendas/pedidos-recentes",
 }
 # A ferramenta de atrasos não tem rota na API nem bloco no painel, e exige o agrupamento.
 ARGUMENTOS_OBRIGATORIOS = {"vendas_atrasos": {"agrupamento": "rota"}}
 FERRAMENTAS_DE_VENDAS = sorted([*ROTA_DA_FERRAMENTA, *ARGUMENTOS_OBRIGATORIOS])
 FERRAMENTA_QUE_NUNCA_EXISTIU = "vendas_margem_por_cliente"
+# O que não pode aparecer em resposta nenhuma: o cliente, identificadores e nomes internos do banco
+# (esquemas, tabelas e colunas de chave).
+PROIBIDOS = ("cliente", "_id", "dados_de_origem", "vendas.")
 
 
 @pytest.fixture
@@ -71,6 +78,48 @@ def test_a_ferramenta_devolve_o_mesmo_conteudo_da_rota_da_api(token_de, ferramen
     assert da_api.status_code == 200
     assert not resultado.is_error
     assert resultado.structured_content == da_api.json()
+
+
+@pytest.mark.parametrize("ferramenta", FERRAMENTAS_DE_VENDAS)
+@pytest.mark.parametrize("periodo", PERIODOS)
+def test_nenhuma_resposta_traz_identificador_de_cliente_nem_nome_interno_de_banco(
+    token_de, conexao_dono, ferramenta, periodo
+):
+    argumentos = {**ARGUMENTOS_OBRIGATORIOS.get(ferramenta, {}), "periodo": periodo}
+
+    resultado = chamar(MCP_DO_AMBIENTE, token_de(Perfil.VENDAS), ferramenta, argumentos)
+
+    assert not resultado.is_error
+    texto = _texto_inteiro(resultado)
+    for proibido in PROIBIDOS:
+        assert proibido not in texto
+    for dado in _dados_pessoais_dos_clientes(conexao_dono, resultado.structured_content):
+        assert str(dado) not in texto
+
+
+def _texto_inteiro(resultado) -> str:
+    """Tudo o que a resposta leva a quem chamou: o conteúdo estruturado e os blocos de texto."""
+    estruturado = json.dumps(resultado.structured_content, ensure_ascii=False)
+    return estruturado + "".join(bloco.text for bloco in resultado.content)
+
+
+def _dados_pessoais_dos_clientes(conexao_dono, conteudo: dict) -> list:
+    """Nome, e-mail, CPF e endereço dos clientes dos pedidos que a resposta cita, lidos
+    nos dados de origem com o papel dono. Vazio para as respostas que não citam pedidos."""
+    numeros = [pedido["numero"] for pedido in conteudo.get("pedidos", [])]
+    if not numeros:
+        return []
+    linhas = conexao_dono.execute(
+        """
+        select c.nome, c.email, c.cpf, c.endereco
+        from dados_de_origem.pedido p
+        join dados_de_origem.cliente c on c.id = p.cliente_id
+        where p.id = any(%s)
+        """,
+        (numeros,),
+    ).fetchall()
+    assert linhas
+    return [dado for linha in linhas for dado in linha]
 
 
 @pytest.mark.parametrize("ferramenta", FERRAMENTAS_DE_VENDAS)

@@ -28,6 +28,9 @@ CHAVE = nova_chave()
 # ou um parâmetro novo exige mudar também este teste.
 PARAMETROS_PREVISTOS = {
     "vendas_indicadores": {"periodo"},
+    "vendas_evolucao": {"periodo"},
+    "vendas_situacao_das_entregas": {"periodo"},
+    "vendas_pedidos_recentes": {"periodo"},
     "vendas_atrasos": {"periodo", "agrupamento"},
 }
 # Os valores de cada parâmetro, também repetidos: a enumeração é fechada.
