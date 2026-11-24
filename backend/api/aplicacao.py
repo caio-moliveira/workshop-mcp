@@ -26,8 +26,8 @@ from consultas import (
     ExecutorDeConsultas,
     ParametroInvalido,
     Periodo,
+    vendas,
 )
-from consultas import vendas
 
 registro = logging.getLogger("api")
 

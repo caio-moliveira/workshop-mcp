@@ -41,7 +41,7 @@ def executor_de_consultas() -> Iterator[ExecutorDeConsultas]:
         yield executor
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def criar_api(executor_de_consultas) -> Callable[..., TestClient]:
     """Cria a API pela fábrica, dentro do processo, validando tokens do provedor real.
 
