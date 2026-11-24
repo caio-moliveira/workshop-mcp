@@ -35,3 +35,10 @@ def test_banco_so_e_publicado_no_endereco_local():
 
     assert resultado.returncode == 0, resultado.stderr
     assert resultado.stdout.strip().startswith("127.0.0.1:")
+
+
+def test_servidor_mcp_so_e_publicado_no_endereco_local():
+    resultado = compose("port", "mcp", "8001")
+
+    assert resultado.returncode == 0, resultado.stderr
+    assert resultado.stdout.strip().startswith("127.0.0.1:")

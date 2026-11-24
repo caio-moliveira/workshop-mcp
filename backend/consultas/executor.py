@@ -48,6 +48,15 @@ class Credencial:
         return f"Credencial(papel={self.papel!r})"
 
 
+def banco_do_ambiente() -> BancoDeDados:
+    """O banco carregado, pela rede interna do compose."""
+    return BancoDeDados(
+        host=os.environ["POSTGRES_HOST"],
+        porta=int(os.environ.get("POSTGRES_INTERNAL_PORT", "5432")),
+        nome=os.environ["BANCO"],
+    )
+
+
 def credenciais_do_ambiente() -> dict[Perfil, Credencial]:
     """A credencial de cada perfil cujo papel tem senha no ambiente (SENHA_DO_PAPEL_<PERFIL>).
 

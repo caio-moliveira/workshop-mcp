@@ -79,6 +79,18 @@
       "protocol": "openid-connect"
     },
     {
+      "clientId": "pulso-mcp",
+      "name": "Servidor MCP do pulso.",
+      "description": "Destinatário dos tokens que o servidor MCP aceita. Não emite tokens.",
+      "enabled": true,
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "protocol": "openid-connect"
+    },
+    {
       "clientId": "pulso-web",
       "name": "Aplicação pulso.",
       "enabled": true,
@@ -104,6 +116,109 @@
           "protocolMapper": "oidc-audience-mapper",
           "config": {
             "included.client.audience": "pulso-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "destinatario-pulso-mcp",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.client.audience": "pulso-mcp",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "perfil",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "config": {
+            "user.attribute": "perfil",
+            "claim.name": "perfil",
+            "jsonType.label": "String",
+            "multivalued": "false",
+            "aggregate.attrs": "false",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "userinfo.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "pulso-outra-aplicacao",
+      "name": "Outra aplicação",
+      "description": "Outra aplicação do mesmo provedor, para demonstrar a recusa: o token dela não traz pulso-api nem pulso-mcp.",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "protocol": "openid-connect",
+      "redirectUris": ["http://localhost:8765/retorno"],
+      "webOrigins": [],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      },
+      "protocolMappers": [
+        {
+          "name": "destinatario-pulso-outra-aplicacao",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.client.audience": "pulso-outra-aplicacao",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "perfil",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "config": {
+            "user.attribute": "perfil",
+            "claim.name": "perfil",
+            "jsonType.label": "String",
+            "multivalued": "false",
+            "aggregate.attrs": "false",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "userinfo.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "pulso-inspector",
+      "name": "MCP Inspector",
+      "description": "Login pelo MCP Inspector (npx @modelcontextprotocol/inspector), aberto em http://localhost:6274. Tokens só para o servidor MCP.",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "protocol": "openid-connect",
+      "redirectUris": ["http://localhost:6274/oauth/callback"],
+      "webOrigins": ["http://localhost:6274"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      },
+      "protocolMappers": [
+        {
+          "name": "destinatario-pulso-mcp",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.client.audience": "pulso-mcp",
             "access.token.claim": "true",
             "id.token.claim": "false",
             "introspection.token.claim": "true"

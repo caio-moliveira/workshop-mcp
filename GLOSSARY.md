@@ -7,7 +7,7 @@ Um marketplace brasileiro que conecta lojistas a clientes finais, cujos dados s�
 ### Acesso
 
 **Usuário**:
-Uma pessoa da empresa que consulta os dados pelo `pulso.`, pela aplicação ou por um cliente externo.
+Uma pessoa da empresa que consulta os dados pelo `pulso.`, pela aplicação ou por um assistente externo.
 _Avoid_: Cliente (que é quem compra), conta, login
 
 **Usuário de demonstração**:
@@ -33,6 +33,14 @@ _Avoid_: Papel, login, conta
 **Camada de leitura**:
 O conjunto de dados preparado para um perfil, contendo apenas o que ele pode consultar. É a única coisa que telas e ferramentas leem.
 _Avoid_: Visão, data mart, camada de consumo
+
+**Ferramenta**:
+Uma consulta oferecida pelo servidor MCP, que pertence a um único perfil e só aparece para ele.
+_Avoid_: Tool (sozinho), endpoint, função
+
+**Assistente externo**:
+Um assistente de IA de terceiros, como o Claude ou o ChatGPT, conectado ao servidor MCP com o login do usuário.
+_Avoid_: Cliente externo, cliente MCP (Cliente é quem compra)
 
 **Dados de origem**:
 Os dados brutos da empresa, que nenhum perfil lê diretamente.
