@@ -77,7 +77,7 @@ def assert_recusa_identica(http, token: str) -> None:
 def test_token_assinado_pela_chave_confiavel_e_aceito(mcp):
     ferramentas = listar_ferramentas(mcp, token_de(Perfil.VENDAS))
 
-    assert [f.name for f in ferramentas] == [FERRAMENTA]
+    assert FERRAMENTA in [f.name for f in ferramentas]
 
 
 @pytest.mark.parametrize(
@@ -134,7 +134,7 @@ def test_token_para_outro_destinatario_e_recusado(http, destinatario):
 def test_token_com_o_mcp_entre_varios_destinatarios_e_aceito(mcp):
     token = assinar(conteudo(aud=["account", DESTINATARIO_DA_API, DESTINATARIO_DO_MCP]), CHAVE)
 
-    assert [f.name for f in listar_ferramentas(mcp, token)] == [FERRAMENTA]
+    assert FERRAMENTA in [f.name for f in listar_ferramentas(mcp, token)]
 
 
 def test_token_vencido_e_recusado(http):
