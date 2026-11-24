@@ -36,7 +36,7 @@ from acesso import (
     autenticar,
     mensagens,
 )
-from auditoria import Auditoria, Resultado
+from auditoria import Auditoria, AuditoriaIndisponivel, Resultado
 from consultas import AcessoNegado, ConsultaFalhou, ExecutorDeConsultas, ParametroInvalido
 from servidor_mcp.ferramentas import FERRAMENTAS, Ferramenta
 from servidor_mcp.limite import LimiteDeFrequencia
@@ -48,9 +48,17 @@ CAMINHO = "/mcp"
 CAMINHO_DA_SAUDE = "/saude"
 
 
-def _erro(mensagem: str) -> ToolError:
+class ErroDaChamada(ToolError):
+    """Um erro de ferramenta com mensagem genérica e o desfecho que vai para a auditoria."""
+
+    def __init__(self, mensagem: str, resultado: Resultado) -> None:
+        super().__init__(mensagem, log_level=logging.DEBUG)
+        self.resultado = resultado
+
+
+def _erro(mensagem: str, resultado: Resultado) -> ErroDaChamada:
     """Um erro de ferramenta com mensagem genérica. O motivo já foi para o log daqui."""
-    return ToolError(mensagem, log_level=logging.DEBUG)
+    return ErroDaChamada(mensagem, resultado)
 
 
 class TokenDoUsuario(AccessToken):
@@ -191,16 +199,16 @@ class FerramentaDeConsulta(Tool):
             )
         except AcessoNegado as erro:
             registro.warning("acesso negado: %s", erro)
-            raise _erro(mensagens.FERRAMENTA_DESCONHECIDA) from erro
+            raise _erro(mensagens.FERRAMENTA_DESCONHECIDA, Resultado.NEGADA) from erro
         except ParametroInvalido as erro:
             registro.info("parâmetro inválido em %s: %s", self.name, erro)
-            raise _erro(mensagens.PARAMETRO_INVALIDO) from erro
+            raise _erro(mensagens.PARAMETRO_INVALIDO, Resultado.PARAMETRO_INVALIDO) from erro
         except ConsultaFalhou as erro:
             registro.error("consulta falhou: %s", erro)
-            raise _erro(mensagens.SERVICO_INDISPONIVEL) from erro
+            raise _erro(mensagens.SERVICO_INDISPONIVEL, Resultado.FALHA) from erro
         except Exception as erro:
             registro.error("erro inesperado em %s: %s", self.name, erro, exc_info=erro)
-            raise _erro(mensagens.ERRO_INTERNO) from erro
+            raise _erro(mensagens.ERRO_INTERNO, Resultado.FALHA) from erro
         return ToolResult(structured_content=resultado)
 
 
@@ -233,11 +241,11 @@ class FerramentasDoPerfil(Middleware):
                 usuario.perfil if usuario else None,
                 context.message.name,
             )
-            raise _erro(mensagens.FERRAMENTA_DESCONHECIDA)
+            raise _erro(mensagens.FERRAMENTA_DESCONHECIDA, Resultado.NEGADA)
         return await call_next(context)
 
 
-class ChamadaLimitada(ToolError):
+class ChamadaLimitada(ErroDaChamada):
     """A chamada barrada pelo limite de frequência: um erro de ferramenta, não um HTTP 429.
 
     Como erro de ferramenta, o assistente explica ao usuário o que houve, em vez de tratar como
@@ -245,7 +253,7 @@ class ChamadaLimitada(ToolError):
     """
 
     def __init__(self) -> None:
-        super().__init__(mensagens.MUITAS_CHAMADAS, log_level=logging.DEBUG)
+        super().__init__(mensagens.MUITAS_CHAMADAS, Resultado.LIMITADA)
 
 
 class LimiteDasChamadas(Middleware):
@@ -280,8 +288,12 @@ class AuditoriaDasChamadas(Middleware):
         chegada = datetime.now(UTC)
         try:
             resposta = await call_next(context)
-        except ChamadaLimitada:
-            await self._registrar(context, Resultado.LIMITADA, chegada)
+        except ErroDaChamada as erro:
+            await self._registrar(context, erro.resultado, chegada)
+            raise
+        except Exception:
+            # O que escapou das etapas já foi para o log de quem o levantou.
+            await self._registrar(context, Resultado.FALHA, chegada)
             raise
         await self._registrar(context, Resultado.PERMITIDA, chegada)
         return resposta
@@ -292,16 +304,21 @@ class AuditoriaDasChamadas(Middleware):
         usuario = _usuario_do_token()
         if usuario is None:
             return
-        # A gravação bloqueia numa conexão do pool: fora do laço de eventos.
-        await anyio.to_thread.run_sync(
-            lambda: self._auditoria.registrar(
-                usuario,
-                context.message.name,
-                context.message.arguments or {},
-                resultado,
-                chegada,
+        try:
+            # A gravação bloqueia numa conexão do pool: fora do laço de eventos.
+            await anyio.to_thread.run_sync(
+                lambda: self._auditoria.registrar(
+                    usuario,
+                    context.message.name,
+                    context.message.arguments or {},
+                    resultado,
+                    chegada,
+                )
             )
-        )
+        except AuditoriaIndisponivel as erro:
+            # Nenhuma chamada é respondida sem registro, nem a que deu certo (ADR 0008).
+            registro.error("auditoria indisponível, chamada %s recusada: %s", resultado, erro)
+            raise ToolError(mensagens.SERVICO_INDISPONIVEL, log_level=logging.DEBUG) from erro
 
 
 def criar_servidor(

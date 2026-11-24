@@ -1,5 +1,6 @@
 """A gravação de uma chamada na auditoria, uma linha por chamada, com o desfecho final."""
 
+import json
 import os
 from datetime import datetime
 from enum import StrEnum
@@ -18,6 +19,9 @@ PAPEL = "auditoria"
 # Quanto uma chamada espera pela auditoria antes de desistir.
 ESPERA_POR_CONEXAO_EM_SEGUNDOS = 5
 CONEXOES = 4
+# Ninguém enche a auditoria com uma chamada só: acima disso, os argumentos e o nome são cortados.
+LIMITE_DOS_PARAMETROS_EM_BYTES = 4 * 1024
+LIMITE_DO_NOME_EM_CARACTERES = 200
 
 # Sem `returning`: exigiria `select`, que o papel não tem (RF-32).
 GRAVACAO = """
@@ -89,6 +93,7 @@ class AuditoriaNoBanco:
         resultado: Resultado,
         horario: datetime,
     ) -> None:
+        parametros, cortados = _parametros_para_gravar(argumentos)
         try:
             with self._pool.connection() as conexao:
                 conexao.execute(
@@ -98,9 +103,9 @@ class AuditoriaNoBanco:
                         usuario.id,
                         usuario.nome,
                         usuario.perfil.value,
-                        ferramenta,
-                        Jsonb(argumentos),
-                        False,
+                        ferramenta[:LIMITE_DO_NOME_EM_CARACTERES],
+                        Jsonb(parametros),
+                        cortados,
                         resultado.value,
                     ),
                 )
@@ -120,6 +125,19 @@ class AuditoriaNoBanco:
         rastro: TracebackType | None,
     ) -> None:
         self.fechar()
+
+
+def _parametros_para_gravar(argumentos: dict[str, Any]) -> tuple[Any, bool]:
+    """Os argumentos como chegaram e se foram cortados.
+
+    Acima do limite, guarda o começo do JSON como texto: um JSON cortado não é mais um objeto.
+    """
+    texto = json.dumps(argumentos, ensure_ascii=False)
+    em_bytes = texto.encode()
+    if len(em_bytes) <= LIMITE_DOS_PARAMETROS_EM_BYTES:
+        return argumentos, False
+    # O corte pode cair no meio de um caractere: o pedaço incompleto é descartado.
+    return em_bytes[:LIMITE_DOS_PARAMETROS_EM_BYTES].decode(errors="ignore"), True
 
 
 def auditoria_do_ambiente() -> AuditoriaNoBanco:
