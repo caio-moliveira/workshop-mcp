@@ -1,5 +1,7 @@
 /** O contrato de `GET /vendas/pedidos-recentes`: números crus e datas ISO, sem dado de cliente. */
 
+import { type DatasDoPeriodo, eDatasDoPeriodo, eNumero, eObjeto, eUmDe } from "./contrato";
+
 export const LIMITE_DE_PEDIDOS_RECENTES = 20;
 
 export const SITUACOES_DE_PAGAMENTO = ["Aprovado", "Recusado"] as const;
@@ -29,26 +31,17 @@ export interface PedidoRecente {
 }
 
 export interface PedidosRecentes {
-  periodo: { inicio: string; fim: string };
+  periodo: DatasDoPeriodo;
   /** Do mais recente para o mais antigo, no máximo 20. */
   pedidos: PedidoRecente[];
 }
 
-const DATA_ISO = /^\d{4}-\d{2}-\d{2}$/;
 // Data, hora e fuso obrigatórios: sem fuso, o navegador leria o instante no fuso dele.
 const INSTANTE_ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/;
 const UF = /^[A-Z]{2}$/;
 
-function eObjeto(valor: unknown): valor is Record<string, unknown> {
-  return typeof valor === "object" && valor !== null && !Array.isArray(valor);
-}
-
 function eTexto(valor: unknown): valor is string {
   return typeof valor === "string" && valor !== "";
-}
-
-function eUmDe<T extends string>(opcoes: readonly T[], valor: unknown): valor is T {
-  return typeof valor === "string" && (opcoes as readonly string[]).includes(valor);
 }
 
 function ePedidoRecente(valor: unknown): valor is PedidoRecente {
@@ -64,22 +57,17 @@ function ePedidoRecente(valor: unknown): valor is PedidoRecente {
     UF.test(valor.uf) &&
     eTexto(valor.lojista) &&
     eTexto(valor.rota) &&
-    typeof valor.valor === "number" &&
-    Number.isFinite(valor.valor) &&
+    eNumero(valor.valor) &&
     eUmDe(SITUACOES_DE_PAGAMENTO, valor.pagamento) &&
     (valor.entrega === null || eUmDe(SITUACOES_DE_ENTREGA, valor.entrega))
   );
 }
 
 export function ePedidosRecentes(valor: unknown): valor is PedidosRecentes {
-  if (!eObjeto(valor) || !eObjeto(valor.periodo)) return false;
-  const { inicio, fim } = valor.periodo;
+  if (!eObjeto(valor)) return false;
   const { pedidos } = valor;
   return (
-    typeof inicio === "string" &&
-    DATA_ISO.test(inicio) &&
-    typeof fim === "string" &&
-    DATA_ISO.test(fim) &&
+    eDatasDoPeriodo(valor.periodo) &&
     Array.isArray(pedidos) &&
     pedidos.length <= LIMITE_DE_PEDIDOS_RECENTES &&
     pedidos.every(ePedidoRecente)

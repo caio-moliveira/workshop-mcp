@@ -44,7 +44,7 @@ As variações das taxas aparecem em pontos percentuais (`p.p.`); as de pedidos 
 
 ## 3. O painel nas quatro faixas de largura (FE §11)
 
-Com o painel aberto em 24 meses, reduza a largura da janela (ou use as ferramentas do navegador, modo responsivo). A revisão desta entrega mediu cada faixa:
+Com o painel aberto em 24 meses, reduza a largura do navegador (ou use as ferramentas do navegador, modo responsivo). A revisão desta entrega mediu cada faixa:
 
 | Largura | Indicadores | Gráficos | Tabela |
 | --- | --- | --- | --- |
@@ -150,7 +150,7 @@ Resultado esperado: `285 passed`, em cerca de oito minutos. Como na entrega 2, a
 | `test_rotas_de_vendas.py` | Os quatro usuários contra as quatro rotas: 200 só para Vendas, o mesmo 403 para os outros; a ordem 401, 403, 400; o 400 genérico sem eco; a negação antes do banco; perfil sem credencial negado; erro de banco sem nomes internos; menos de 3 s por rota em 24 meses |
 | `test_perfil_das_rotas.py` | Toda rota declara um perfil ou está na lista de rotas só autenticadas (RS-05) |
 | `test_indicadores_de_vendas.py` | Os quatro indicadores e o período anterior nos quatro períodos, contra consultas independentes |
-| `test_evolucao_de_vendas.py` | O agrupamento por dia, semana e mês no horário de Brasília, com intervalos vazios em zero |
+| `test_evolucao_de_vendas.py` | O agrupamento por dia, semana e mês no horário de Brasília, com dias, semanas ou meses sem pedido em zero |
 | `test_situacao_das_entregas.py` | As quatro situações, sempre todas, contra uma consulta independente |
 | `test_pedidos_recentes.py` | Os 20 pedidos mais recentes, sem identificador de cliente |
 | `test_camada_vendas.py` | A view da data de referência, lida pelo papel de Vendas, também com `DATA_REFERENCIA` sobreposta |

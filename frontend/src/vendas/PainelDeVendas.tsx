@@ -27,7 +27,7 @@ export function PainelDeVendas({ fonte, primeiroNome }: Propriedades) {
         contexto={nome}
         titulo={rotuloDoPainel}
         subtitulo={`Olá, ${primeiroNome}. Pedidos, receita, atrasos e pagamentos do período, até a data de referência dos dados.`}
-        filtros={<PeriodFilter periodo={periodo} aoMudar={mudarPeriodo} />}
+        controles={<PeriodFilter periodo={periodo} aoMudar={mudarPeriodo} />}
       />
       <BlocoDeIndicadores fonte={fonte} periodo={periodo} />
       <div className={estilos.linhaAnalitica}>

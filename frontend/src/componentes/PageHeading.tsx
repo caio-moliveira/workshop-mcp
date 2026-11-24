@@ -7,12 +7,12 @@ interface Propriedades {
   contexto: string;
   titulo: string;
   subtitulo: string;
-  /** Filtros discretos, alinhados à direita (FE §5), como o PeriodFilter. */
-  filtros?: ReactNode;
+  /** Controles discretos, alinhados à direita (FE §5), como o PeriodFilter. */
+  controles?: ReactNode;
 }
 
 /** Cabeçalho do conteúdo (FE §5). */
-export function PageHeading({ contexto, titulo, subtitulo, filtros }: Propriedades) {
+export function PageHeading({ contexto, titulo, subtitulo, controles }: Propriedades) {
   return (
     <header className={estilos.cabecalho}>
       <div className={estilos.textos}>
@@ -20,7 +20,7 @@ export function PageHeading({ contexto, titulo, subtitulo, filtros }: Propriedad
         <h1 className={estilos.titulo}>{titulo}</h1>
         <p className={estilos.subtitulo}>{subtitulo}</p>
       </div>
-      {filtros && <div className={estilos.filtros}>{filtros}</div>}
+      {controles && <div className={estilos.controles}>{controles}</div>}
     </header>
   );
 }

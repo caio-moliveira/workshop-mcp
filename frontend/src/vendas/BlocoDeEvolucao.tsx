@@ -1,10 +1,9 @@
 import { Bar, CartesianGrid, ComposedChart, Line, Tooltip, XAxis, YAxis } from "recharts";
 
 import { ChartPanel } from "../componentes/ChartPanel";
-import { DeniedState } from "../componentes/DeniedState";
 import { DicaDoGrafico } from "../componentes/DicaDoGrafico";
 import { EmptyState } from "../componentes/EmptyState";
-import { ErrorState } from "../componentes/ErrorState";
+import { AnuncioDeCarregamento, EstadosDoBloco } from "../componentes/EstadosDoBloco";
 import { CURSOR, EIXO, GRADE, SEM_ANIMACAO, type SerieDoGrafico } from "../componentes/graficos";
 import { LoadingSkeleton } from "../componentes/LoadingSkeleton";
 import {
@@ -17,7 +16,7 @@ import { useBloco, type FonteDeDados } from "../useBloco";
 import {
   eEvolucaoDeVendas,
   rotuloDoEixo,
-  rotuloDoIntervalo,
+  rotuloDoPonto,
   semPedidos,
   type Agrupamento,
   type EvolucaoDeVendas,
@@ -79,7 +78,7 @@ function Grafico({ dados }: { dados: EvolucaoDeVendas }) {
             if (!active || !ponto) return null;
             return (
               <DicaDoGrafico
-                titulo={rotuloDoIntervalo(ponto.inicio, agrupamento)}
+                titulo={rotuloDoPonto(ponto.inicio, agrupamento)}
                 linhas={[
                   { ...PEDIDOS, valor: formatarNumero(ponto.pedidos) },
                   { ...RECEITA, valor: formatarMoeda(ponto.receita) },
@@ -121,35 +120,27 @@ export function BlocoDeEvolucao({ fonte, periodo }: Propriedades) {
     eEvolucaoDeVendas,
   );
 
-  switch (estado.fase) {
-    case "carregando":
-      return (
-        <div role="status" aria-live="polite">
-          <span className="visualmente-oculto">Carregando a evolução de pedidos e receita…</span>
+  return (
+    <EstadosDoBloco
+      estado={estado}
+      tentarDeNovo={tentarDeNovo}
+      nome="a evolução"
+      carregando={
+        <AnuncioDeCarregamento texto="Carregando a evolução de pedidos e receita…">
           <LoadingSkeleton forma="grafico" />
-        </div>
-      );
-    case "erro":
-      return (
-        <ErrorState
-          variante="bloco"
-          titulo="Não foi possível carregar a evolução"
-          descricao="O servidor não respondeu como esperado. Os outros blocos do painel não são afetados."
-          acao="Tentar de novo"
-          aoAcionar={tentarDeNovo}
-        />
-      );
-    case "negado":
-      return <DeniedState />;
-    case "pronto":
-      if (semPedidos(estado.dados)) {
-        return (
+        </AnuncioDeCarregamento>
+      }
+    >
+      {(dados) =>
+        semPedidos(dados) ? (
           <EmptyState
             titulo="Nenhum pedido no período"
             descricao="Não há pedidos para desenhar a evolução nestes dias. Escolha um período maior."
           />
-        );
+        ) : (
+          <Grafico dados={dados} />
+        )
       }
-      return <Grafico dados={estado.dados} />;
-  }
+    </EstadosDoBloco>
+  );
 }

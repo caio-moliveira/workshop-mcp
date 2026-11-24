@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { eEvolucaoDeVendas, rotuloDoEixo, rotuloDoIntervalo, semPedidos } from "./evolucao";
+import { eEvolucaoDeVendas, rotuloDoEixo, rotuloDoPonto, semPedidos } from "./evolucao";
 
 /** Uma resposta de `GET /vendas/evolucao?periodo=90d`, como a API a devolve. */
 function resposta(): Record<string, unknown> {
@@ -48,7 +48,7 @@ describe("validação da resposta de evolução", () => {
   });
 });
 
-describe("rótulos dos intervalos", () => {
+describe("rótulos dos pontos", () => {
   it("no eixo, dia e semana como dia/mês, mês abreviado com o ano", () => {
     expect(rotuloDoEixo("2026-11-02", "dia")).toBe("02/11");
     expect(rotuloDoEixo("2026-08-31", "semana")).toBe("31/08");
@@ -56,10 +56,10 @@ describe("rótulos dos intervalos", () => {
     expect(rotuloDoEixo("2026-01-01", "mes")).toBe("jan/26");
   });
 
-  it("na dica, o intervalo por extenso", () => {
-    expect(rotuloDoIntervalo("2026-11-02", "dia")).toBe("02/11/2026");
-    expect(rotuloDoIntervalo("2026-08-31", "semana")).toBe("Semana de 31/08/2026");
-    expect(rotuloDoIntervalo("2025-12-01", "mes")).toBe("Dezembro de 2025");
+  it("na dica, o ponto por extenso", () => {
+    expect(rotuloDoPonto("2026-11-02", "dia")).toBe("02/11/2026");
+    expect(rotuloDoPonto("2026-08-31", "semana")).toBe("Semana de 31/08/2026");
+    expect(rotuloDoPonto("2025-12-01", "mes")).toBe("Dezembro de 2025");
   });
 
   it("não desloca o dia pelo fuso do navegador", () => {

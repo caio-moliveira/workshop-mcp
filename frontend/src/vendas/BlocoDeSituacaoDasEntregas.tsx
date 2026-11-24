@@ -1,10 +1,9 @@
 import { Bar, BarChart, CartesianGrid, LabelList, Tooltip, XAxis, YAxis } from "recharts";
 
 import { ChartPanel } from "../componentes/ChartPanel";
-import { DeniedState } from "../componentes/DeniedState";
 import { DicaDoGrafico } from "../componentes/DicaDoGrafico";
 import { EmptyState } from "../componentes/EmptyState";
-import { ErrorState } from "../componentes/ErrorState";
+import { AnuncioDeCarregamento, EstadosDoBloco } from "../componentes/EstadosDoBloco";
 import { CURSOR, EIXO, SEM_ANIMACAO, type SerieDoGrafico } from "../componentes/graficos";
 import { LoadingSkeleton } from "../componentes/LoadingSkeleton";
 import { formatarNumero, formatarNumeroCompacto } from "../formatacao";
@@ -96,35 +95,27 @@ export function BlocoDeSituacaoDasEntregas({ fonte, periodo }: Propriedades) {
     eSituacaoDasEntregas,
   );
 
-  switch (estado.fase) {
-    case "carregando":
-      return (
-        <div role="status" aria-live="polite">
-          <span className="visualmente-oculto">Carregando a situação das entregas…</span>
+  return (
+    <EstadosDoBloco
+      estado={estado}
+      tentarDeNovo={tentarDeNovo}
+      nome="a situação das entregas"
+      carregando={
+        <AnuncioDeCarregamento texto="Carregando a situação das entregas…">
           <LoadingSkeleton forma="grafico" />
-        </div>
-      );
-    case "erro":
-      return (
-        <ErrorState
-          variante="bloco"
-          titulo="Não foi possível carregar a situação das entregas"
-          descricao="O servidor não respondeu como esperado. Os outros blocos do painel não são afetados."
-          acao="Tentar de novo"
-          aoAcionar={tentarDeNovo}
-        />
-      );
-    case "negado":
-      return <DeniedState />;
-    case "pronto":
-      if (semEntregas(estado.dados)) {
-        return (
+        </AnuncioDeCarregamento>
+      }
+    >
+      {(dados) =>
+        semEntregas(dados) ? (
           <EmptyState
             titulo="Nenhuma entrega no período"
             descricao="Não há pedidos com entrega nestes dias. Escolha um período maior."
           />
-        );
+        ) : (
+          <Grafico dados={dados} />
+        )
       }
-      return <Grafico dados={estado.dados} />;
-  }
+    </EstadosDoBloco>
+  );
 }

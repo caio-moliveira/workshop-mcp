@@ -1,6 +1,5 @@
-import { DeniedState } from "../componentes/DeniedState";
 import { EmptyState } from "../componentes/EmptyState";
-import { ErrorState } from "../componentes/ErrorState";
+import { AnuncioDeCarregamento, EstadosDoBloco } from "../componentes/EstadosDoBloco";
 import { KpiCard } from "../componentes/KpiCard";
 import { LoadingSkeleton } from "../componentes/LoadingSkeleton";
 import { TrendBadge } from "../componentes/TrendBadge";
@@ -122,38 +121,30 @@ export function BlocoDeIndicadores({ fonte, periodo }: Propriedades) {
     eIndicadoresDeVendas,
   );
 
-  switch (estado.fase) {
-    case "carregando":
-      return (
-        <div className={estilos.grade} role="status" aria-live="polite">
-          <span className="visualmente-oculto">Carregando os indicadores…</span>
+  return (
+    <EstadosDoBloco
+      estado={estado}
+      tentarDeNovo={tentarDeNovo}
+      nome="os indicadores"
+      carregando={
+        <AnuncioDeCarregamento texto="Carregando os indicadores…" className={estilos.grade}>
           <LoadingSkeleton forma="cartao" />
           <LoadingSkeleton forma="cartao" />
           <LoadingSkeleton forma="cartao" />
           <LoadingSkeleton forma="cartao" />
-        </div>
-      );
-    case "erro":
-      return (
-        <ErrorState
-          variante="bloco"
-          titulo="Não foi possível carregar os indicadores"
-          descricao="O servidor não respondeu como esperado. Os outros blocos do painel não são afetados."
-          acao="Tentar de novo"
-          aoAcionar={tentarDeNovo}
-        />
-      );
-    case "negado":
-      return <DeniedState />;
-    case "pronto":
-      if (estado.dados.pedidos_realizados.atual === 0) {
-        return (
+        </AnuncioDeCarregamento>
+      }
+    >
+      {(dados) =>
+        dados.pedidos_realizados.atual === 0 ? (
           <EmptyState
             titulo="Nenhum pedido no período"
             descricao="Não há pedidos realizados nestes dias. Escolha um período maior para ver os indicadores."
           />
-        );
+        ) : (
+          <Indicadores dados={dados} periodo={periodo} />
+        )
       }
-      return <Indicadores dados={estado.dados} periodo={periodo} />;
-  }
+    </EstadosDoBloco>
+  );
 }

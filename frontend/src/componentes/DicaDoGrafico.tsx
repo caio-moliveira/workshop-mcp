@@ -3,7 +3,7 @@ import estilos from "./DicaDoGrafico.module.css";
 import type { SerieDoGrafico } from "./graficos";
 
 interface Propriedades {
-  /** O intervalo ou a categoria sob o ponteiro, por extenso. */
+  /** O ponto ou a categoria sob o ponteiro, por extenso. */
   titulo: string;
   /** Uma linha por série, com o valor já formatado. */
   linhas: (SerieDoGrafico & { valor: string })[];

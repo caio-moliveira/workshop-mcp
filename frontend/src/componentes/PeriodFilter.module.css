@@ -1,4 +1,4 @@
-.filtro {
+.seletor {
   display: inline-flex;
   gap: 2px;
   padding: 3px;
@@ -34,7 +34,7 @@
 }
 
 @media (max-width: 767px) {
-  .filtro {
+  .seletor {
     width: 100%;
   }
 

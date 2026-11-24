@@ -9,7 +9,7 @@ interface Propriedades {
 /** Seletor de período: quatro opções fixas, uma pressionada (FE §5, §12). */
 export function PeriodFilter({ periodo, aoMudar }: Propriedades) {
   return (
-    <div className={estilos.filtro} role="group" aria-label="Período">
+    <div className={estilos.seletor} role="group" aria-label="Período">
       {PERIODOS.map((opcao) => (
         <button
           key={opcao}

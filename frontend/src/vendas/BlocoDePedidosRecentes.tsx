@@ -1,9 +1,8 @@
 import { useId, type ReactNode } from "react";
 
 import { DataTable, type Coluna } from "../componentes/DataTable";
-import { DeniedState } from "../componentes/DeniedState";
 import { EmptyState } from "../componentes/EmptyState";
-import { ErrorState } from "../componentes/ErrorState";
+import { AnuncioDeCarregamento, EstadosDoBloco } from "../componentes/EstadosDoBloco";
 import { LoadingSkeleton } from "../componentes/LoadingSkeleton";
 import { StatusChip, type TomDaSituacao } from "../componentes/StatusChip";
 import { formatarDataHora, formatarMoeda } from "../formatacao";
@@ -96,46 +95,36 @@ export function BlocoDePedidosRecentes({ fonte, periodo }: Propriedades) {
     ePedidosRecentes,
   );
 
-  switch (estado.fase) {
-    case "carregando":
-      return (
+  return (
+    <EstadosDoBloco
+      estado={estado}
+      tentarDeNovo={tentarDeNovo}
+      nome="os pedidos recentes"
+      carregando={
         <Moldura ocupado>
-          <div role="status" aria-live="polite">
-            <span className="visualmente-oculto">Carregando os pedidos recentes…</span>
+          <AnuncioDeCarregamento texto="Carregando os pedidos recentes…">
             <LoadingSkeleton forma="tabela" linhas={8} />
-          </div>
+          </AnuncioDeCarregamento>
         </Moldura>
-      );
-    case "erro":
-      return (
-        <ErrorState
-          variante="bloco"
-          titulo="Não foi possível carregar os pedidos recentes"
-          descricao="O servidor não respondeu como esperado. Os outros blocos do painel não são afetados."
-          acao="Tentar de novo"
-          aoAcionar={tentarDeNovo}
-        />
-      );
-    case "negado":
-      return <DeniedState />;
-    case "pronto":
-      if (estado.dados.pedidos.length === 0) {
-        return (
+      }
+    >
+      {(dados) =>
+        dados.pedidos.length === 0 ? (
           <EmptyState
             titulo="Nenhum pedido no período"
             descricao="Não há pedidos realizados nestes dias. Escolha um período maior para ver os pedidos recentes."
           />
-        );
+        ) : (
+          <Moldura>
+            <DataTable
+              rotulo="Pedidos recentes do período"
+              colunas={COLUNAS}
+              linhas={dados.pedidos}
+              chave={(p) => p.numero}
+            />
+          </Moldura>
+        )
       }
-      return (
-        <Moldura>
-          <DataTable
-            rotulo="Pedidos recentes do período"
-            colunas={COLUNAS}
-            linhas={estado.dados.pedidos}
-            chave={(p) => p.numero}
-          />
-        </Moldura>
-      );
-  }
+    </EstadosDoBloco>
+  );
 }

@@ -25,7 +25,7 @@ export const EIXO = {
   tick: { fill: "var(--text-secondary)", fontSize: 12 },
 } as const;
 
-/** O realce discreto do intervalo sob o ponteiro. */
+/** O realce discreto do ponto sob o ponteiro. */
 export const CURSOR = { fill: "var(--surface-muted)" } as const;
 
 /** Desligada: o FE §7 evita animações longas, e o painel já entra com opacidade (FE §10). */
