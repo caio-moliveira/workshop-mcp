@@ -143,7 +143,7 @@ Com o ambiente no ar, dentro de `backend/`:
 uv run pytest
 ```
 
-Resultado esperado: `285 passed`, em cerca de oito minutos. Como na entrega 2, a suíte recarrega o banco e reinicia o Keycloak, então ela vem depois dos passos no navegador. Os testes novos da entrega 3:
+Resultado esperado: `293 passed`, em cerca de oito minutos. Como na entrega 2, a suíte recarrega o banco e reinicia o Keycloak, então ela vem depois dos passos no navegador. Os testes novos da entrega 3:
 
 | Arquivo | O que verifica |
 | --- | --- |

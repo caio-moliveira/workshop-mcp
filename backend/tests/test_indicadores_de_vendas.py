@@ -39,9 +39,7 @@ where (p.momento_compra at time zone 'America/Sao_Paulo')::date between %s and %
 
 
 def _na_origem(conexao, datas) -> dict:
-    pedidos, receita, atrasos, entregues, aprovados = conexao.execute(
-        _NA_ORIGEM, datas
-    ).fetchone()
+    pedidos, receita, atrasos, entregues, aprovados = conexao.execute(_NA_ORIGEM, datas).fetchone()
     return {
         "pedidos": pedidos,
         "receita": receita,
