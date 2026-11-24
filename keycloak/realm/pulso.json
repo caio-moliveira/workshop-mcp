@@ -655,7 +655,7 @@
     },
     {
       "name": "pulso-mcp",
-      "description": "Escopo opcional de todo cliente registrado dinamicamente (ADR 0007): põe no token o destinatário pulso-mcp e a claim perfil, e nunca pulso-api.",
+      "description": "Escopo opcional de todo cliente registrado dinamicamente (ADR 0007): põe no token o destinatário pulso-mcp, a claim perfil e o nome do usuário (o cliente registrado com escopo não recebe o profile), e nunca pulso-api.",
       "protocol": "openid-connect",
       "attributes": {
         "include.in.token.scope": "true",
@@ -689,6 +689,17 @@
             "userinfo.token.claim": "false",
             "introspection.token.claim": "true"
           }
+        },
+        {
+          "name": "nome",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-full-name-mapper",
+          "config": {
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "userinfo.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
         }
       ]
     }
@@ -712,7 +723,7 @@
         "name": "Allowed Client Scopes",
         "providerId": "allowed-client-templates",
         "subType": "anonymous",
-        "config": { "allow-default-scopes": ["true"], "allowed-client-scopes": ["pulso-mcp"] }
+        "config": { "allow-default-scopes": ["true"], "allowed-client-scopes": ["openid", "pulso-mcp"] }
       },
       { "name": "Max Clients Limit", "providerId": "max-clients", "subType": "anonymous", "config": { "max-clients": ["200"] } },
       { "name": "Full Scope Disabled", "providerId": "scope", "subType": "anonymous", "config": {} },

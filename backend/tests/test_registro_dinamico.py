@@ -35,7 +35,12 @@ ESCOPO_DO_MCP = "openid pulso-mcp"
 
 
 def _registrar(retorno: str) -> httpx.Response:
-    """Registra um cliente público, como o assistente faz ao adicionar o conector."""
+    """Registra um cliente público, como o assistente faz ao adicionar o conector.
+
+    O pedido leva os escopos anunciados nos metadados de recurso protegido, como o Claude manda:
+    o `openid` também, que no provedor não é um escopo de cliente e a política de escopos do
+    registro anônimo precisa aceitar.
+    """
     return httpx.post(
         f"{emissor()}/clients-registrations/openid-connect",
         json={
@@ -44,6 +49,7 @@ def _registrar(retorno: str) -> httpx.Response:
             "grant_types": ["authorization_code", "refresh_token"],
             "response_types": ["code"],
             "token_endpoint_auth_method": "none",
+            "scope": ESCOPO_DO_MCP,
         },
         timeout=10,
     )
@@ -116,12 +122,15 @@ def test_o_registro_com_retorno_fora_dos_hosts_confiaveis_e_recusado(retorno):
 
 
 def test_o_token_do_assistente_traz_o_perfil_e_so_o_destinatario_do_mcp():
-    """Login e consentimento do usuário: o token vale no servidor MCP e não na API (ADR 0006)."""
+    """Login e consentimento do usuário: o token traz o que o servidor MCP exige e não vale na API
+    (ADR 0006)."""
     conteudo = _conteudo(_token(_assistente()))
 
     assert _destinatarios(conteudo) == [DESTINATARIO_DO_MCP]
     assert conteudo["perfil"] == "vendas"
-    assert conteudo["preferred_username"] == "ana.vendas"
+    # O nome vem do escopo pulso-mcp: o cliente registrado com escopo, como o Claude faz, não
+    # recebe o profile, e o servidor MCP exige o nome.
+    assert conteudo["name"] == "Ana Ribeiro"
 
 
 @pytest.mark.parametrize("retorno", [RETORNO_DO_CLAUDE, RETORNO_DO_CHATGPT])
