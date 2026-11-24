@@ -48,6 +48,7 @@ ROTAS_SO_AUTENTICADAS = frozenset({"/eu"})
 # Cada rota de dados e a consulta que ela serve. Todas recebem só o período.
 ROTAS_DE_DADOS: dict[str, Consulta] = {
     "/vendas/indicadores": vendas.indicadores,
+    "/vendas/pedidos-recentes": vendas.pedidos_recentes,
 }
 
 
