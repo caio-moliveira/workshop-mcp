@@ -1,6 +1,13 @@
 /** O contrato de `GET /vendas/evolucao`: números crus e datas ISO. */
 
-import { eDataIso, eNumero, eObjeto, eUmDe } from "./contrato";
+import {
+  type DatasDoPeriodo,
+  eDataIso,
+  eDatasDoPeriodo,
+  eNumero,
+  eObjeto,
+  eUmDe,
+} from "./contrato";
 
 /** Dia em 30 dias, semana (começando na segunda) em 90 dias, mês em 12 e 24 meses. */
 export const AGRUPAMENTOS = ["dia", "semana", "mes"] as const;
@@ -15,6 +22,7 @@ export interface PontoDaEvolucao {
 }
 
 export interface EvolucaoDeVendas {
+  periodo: DatasDoPeriodo;
   agrupamento: Agrupamento;
   /** Em ordem, um por dia, semana ou mês do período, com zero onde não houve pedido. */
   pontos: PontoDaEvolucao[];
@@ -47,6 +55,7 @@ function ePonto(valor: unknown): valor is PontoDaEvolucao {
 export function eEvolucaoDeVendas(valor: unknown): valor is EvolucaoDeVendas {
   return (
     eObjeto(valor) &&
+    eDatasDoPeriodo(valor.periodo) &&
     eUmDe(AGRUPAMENTOS, valor.agrupamento) &&
     Array.isArray(valor.pontos) &&
     valor.pontos.every(ePonto)
@@ -59,7 +68,12 @@ export function semPedidos(evolucao: EvolucaoDeVendas): boolean {
 }
 
 /** Ano, mês e dia de uma data ISO, sem passar por `Date` e pelo fuso do navegador. */
-function partes(iso: string): { ano: string; mes: string; dia: string; nomeDoMes: string } {
+function partes(iso: string): {
+  ano: string;
+  mes: string;
+  dia: string;
+  nomeDoMes: string;
+} {
   const [ano = "", mes = "", dia = ""] = iso.split("-");
   return { ano, mes, dia, nomeDoMes: MESES[Number(mes) - 1] ?? mes };
 }
@@ -72,7 +86,10 @@ export function rotuloDoEixo(inicio: string, agrupamento: Agrupamento): string {
 }
 
 /** O ponto por extenso, para a dica: "02/11/2026", "Semana de 31/08/2026", "Dezembro de 2025". */
-export function rotuloDoPonto(inicio: string, agrupamento: Agrupamento): string {
+export function rotuloDoPonto(
+  inicio: string,
+  agrupamento: Agrupamento,
+): string {
   const { ano, mes, dia, nomeDoMes } = partes(inicio);
   const data = `${dia}/${mes}/${ano}`;
   if (agrupamento === "dia") return data;

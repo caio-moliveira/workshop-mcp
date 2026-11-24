@@ -156,6 +156,7 @@ def evolucao(conexao: psycopg.Connection, periodo: Periodo) -> dict:
         (unidade, atual.inicio, atual.fim, unidade, atual.inicio, atual.fim, unidade),
     ).fetchall()
     return {
+        "periodo": atual.como_json(),
         "agrupamento": agrupamento,
         "pontos": [
             {"inicio": inicio.isoformat(), "pedidos": pedidos, "receita": float(receita)}

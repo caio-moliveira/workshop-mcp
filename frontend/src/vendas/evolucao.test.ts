@@ -1,10 +1,16 @@
 import { describe, expect, it } from "vitest";
 
-import { eEvolucaoDeVendas, rotuloDoEixo, rotuloDoPonto, semPedidos } from "./evolucao";
+import {
+  eEvolucaoDeVendas,
+  rotuloDoEixo,
+  rotuloDoPonto,
+  semPedidos,
+} from "./evolucao";
 
 /** Uma resposta de `GET /vendas/evolucao?periodo=90d`, como a API a devolve. */
 function resposta(): Record<string, unknown> {
   return {
+    periodo: { inicio: "2026-09-02", fim: "2026-11-30" },
     agrupamento: "semana",
     pontos: [
       { inicio: "2026-08-31", pedidos: 412, receita: 98765.43 },
@@ -15,7 +21,11 @@ function resposta(): Record<string, unknown> {
 
 /** Uma resposta de um ponto só, com os campos dados trocados. */
 function comPonto(troca: Record<string, unknown>): Record<string, unknown> {
-  return { agrupamento: "dia", pontos: [{ inicio: "2026-08-31", pedidos: 1, receita: 1, ...troca }] };
+  return {
+    periodo: { inicio: "2026-11-01", fim: "2026-11-30" },
+    agrupamento: "dia",
+    pontos: [{ inicio: "2026-08-31", pedidos: 1, receita: 1, ...troca }],
+  };
 }
 
 describe("validação da resposta de evolução", () => {
@@ -23,26 +33,34 @@ describe("validação da resposta de evolução", () => {
     expect(eEvolucaoDeVendas(resposta())).toBe(true);
   });
 
-  it.each(["dia", "semana", "mes"])("aceita o agrupamento %s", (agrupamento) => {
-    expect(eEvolucaoDeVendas({ ...resposta(), agrupamento })).toBe(true);
-  });
+  it.each(["dia", "semana", "mes"])(
+    "aceita o agrupamento %s",
+    (agrupamento) => {
+      expect(eEvolucaoDeVendas({ ...resposta(), agrupamento })).toBe(true);
+    },
+  );
 
   it("aceita a lista vazia de pontos", () => {
-    expect(eEvolucaoDeVendas({ agrupamento: "dia", pontos: [] })).toBe(true);
+    expect(eEvolucaoDeVendas({ ...resposta(), pontos: [] })).toBe(true);
   });
 
   it.each([
     ["nulo", null],
     ["lista", []],
     ["agrupamento desconhecido", { ...resposta(), agrupamento: "ano" }],
-    ["sem pontos", { agrupamento: "dia" }],
-    ["pontos como objeto", { agrupamento: "dia", pontos: {} }],
+    ["sem período", { agrupamento: "semana", pontos: resposta().pontos }],
+    [
+      "período fora do ISO",
+      { ...resposta(), periodo: { inicio: "02/09/2026", fim: "2026-11-30" } },
+    ],
+    ["sem pontos", { periodo: resposta().periodo, agrupamento: "dia" }],
+    ["pontos como objeto", { ...resposta(), pontos: {} }],
     ["data fora do ISO", comPonto({ inicio: "31/08/2026" })],
     ["pedidos como texto", comPonto({ pedidos: "1" })],
     ["pedidos fracionário", comPonto({ pedidos: 1.5 })],
     ["receita ausente", comPonto({ receita: undefined })],
     ["receita NaN", comPonto({ receita: Number.NaN })],
-    ["ponto nulo", { agrupamento: "dia", pontos: [null] }],
+    ["ponto nulo", { ...resposta(), pontos: [null] }],
   ])("recusa resposta fora do contrato: %s", (_, corpo) => {
     expect(eEvolucaoDeVendas(corpo)).toBe(false);
   });
@@ -78,6 +96,8 @@ describe("evolução sem pedidos", () => {
   it("com dados quando algum ponto tem pedido", () => {
     const zerado = { inicio: "2026-11-01", pedidos: 0, receita: 0 };
     const comPedido = { inicio: "2026-11-02", pedidos: 1, receita: 0 };
-    expect(semPedidos({ agrupamento: "dia", pontos: [zerado, comPedido] })).toBe(false);
+    expect(
+      semPedidos({ agrupamento: "dia", pontos: [zerado, comPedido] }),
+    ).toBe(false);
   });
 });

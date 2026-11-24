@@ -92,6 +92,16 @@ def test_pontos_batem_com_os_dados_de_origem(respostas, conexao_dono, periodo):
     assert [Decimal(str(p["receita"])) for p in pontos] == [e["receita"] for e in esperado]
 
 
+@pytest.mark.parametrize("periodo", PERIODOS)
+def test_traz_as_datas_do_periodo(respostas, periodo):
+    inicio, fim, _ = PERIODOS[periodo]
+
+    assert respostas[periodo].json()["periodo"] == {
+        "inicio": inicio.isoformat(),
+        "fim": fim.isoformat(),
+    }
+
+
 def test_quantidade_de_pontos_de_cada_periodo(respostas):
     """30 dias, 13 semanas (a primeira começa na segunda 31/08), 12 e 24 meses."""
     quantidades = {periodo: len(r.json()["pontos"]) for periodo, r in respostas.items()}
@@ -113,7 +123,7 @@ def test_sem_periodo_vale_o_de_12_meses(api, token_de, respostas):
 def test_resposta_tem_numeros_crus_e_nenhum_identificador(respostas):
     corpo = respostas["12m"].json()
 
-    assert set(corpo) == {"agrupamento", "pontos"}
+    assert set(corpo) == {"periodo", "agrupamento", "pontos"}
     for ponto in corpo["pontos"]:
         assert set(ponto) == {"inicio", "pedidos", "receita"}
         assert isinstance(ponto["pedidos"], int)
