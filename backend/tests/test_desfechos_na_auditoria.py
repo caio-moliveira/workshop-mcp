@@ -9,7 +9,7 @@ import asyncio
 import uuid
 
 import pytest
-from apoio import banco_local, ultima_chamada_de
+from apoio import banco_local, limite_que_nao_barra, ultima_chamada_de
 from chaves_locais import ChavesLocais, assinar, conteudo_valido, nova_chave
 from cliente_mcp import (
     ERRO_INTERNO,
@@ -27,9 +27,8 @@ from provedor import DESTINATARIO_DO_MCP
 from starlette.testclient import TestClient
 
 from acesso import ConfiguracaoDeAcesso, Perfil
-from auditoria import AuditoriaIndisponivel
+from auditoria import AuditoriaIndisponivel, Chamada
 from consultas import BancoDeDados, ExecutorDeConsultas, credenciais_do_ambiente
-from servidor_mcp import LimiteDeFrequencia
 from servidor_mcp.servidor import criar_servidor
 
 CHAVE = nova_chave()
@@ -181,7 +180,7 @@ def test_pedido_recusado_no_token_nao_gera_linha(mcp):
 class _AuditoriaQueFalha:
     """Uma auditoria que nunca consegue gravar."""
 
-    def registrar(self, usuario, ferramenta, argumentos, resultado, horario):
+    def registrar(self, chamada: Chamada) -> None:
         raise AuditoriaIndisponivel("auditoria fora do ar")
 
 
@@ -207,9 +206,9 @@ class _AuditoriaQueAnota:
     """Uma auditoria que só guarda o que recebeu."""
 
     def __init__(self) -> None:
-        self.chamadas = []
+        self.chamadas: list[Chamada] = []
 
-    def registrar(self, *chamada):
+    def registrar(self, chamada: Chamada) -> None:
         self.chamadas.append(chamada)
 
 
@@ -226,7 +225,7 @@ def test_chamada_sem_usuario_autenticado_e_recusada_e_fica_no_log(executor_de_co
         executor_de_consultas,
         auditoria,
         "http://mcp.invalid",
-        LimiteDeFrequencia(chamadas=10, janela_em_segundos=60),
+        limite_que_nao_barra(),
     )
 
     async def chamar_sem_token():

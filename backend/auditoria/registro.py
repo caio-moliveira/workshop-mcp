@@ -2,6 +2,7 @@
 
 import json
 import os
+from dataclasses import dataclass, replace
 from datetime import datetime
 from enum import StrEnum
 from types import TracebackType
@@ -12,8 +13,9 @@ from psycopg.types.json import Jsonb
 from psycopg_pool import ConnectionPool, PoolTimeout
 
 from acesso import UsuarioAutenticado
-from consultas import BancoDeDados, Credencial
+from consultas import BancoDeDados, Credencial, banco_do_ambiente
 
+# O banco próprio da auditoria e o papel que só grava nele. A carga cria os dois com estes nomes.
 BANCO = "auditoria"
 PAPEL = "auditoria"
 # Quanto uma chamada espera pela auditoria antes de desistir.
@@ -33,11 +35,24 @@ insert into auditoria.chamada (
 
 
 class Resultado(StrEnum):
+    """O desfecho de uma chamada. A carga deriva daqui os valores aceitos pela tabela."""
+
     PERMITIDA = "permitida"
     NEGADA = "negada"
     PARAMETRO_INVALIDO = "parametro_invalido"
     LIMITADA = "limitada"
     FALHA = "falha"
+
+
+@dataclass(frozen=True)
+class Chamada:
+    """Uma chamada ao servidor MCP como vai para a auditoria. O horário é o da chegada."""
+
+    usuario: UsuarioAutenticado
+    ferramenta: str
+    argumentos: dict[str, Any]
+    resultado: Resultado
+    horario: datetime
 
 
 class AuditoriaIndisponivel(Exception):
@@ -47,14 +62,7 @@ class AuditoriaIndisponivel(Exception):
 class Auditoria(Protocol):
     """Onde o servidor MCP registra cada chamada."""
 
-    def registrar(
-        self,
-        usuario: UsuarioAutenticado,
-        ferramenta: str,
-        argumentos: dict[str, Any],
-        resultado: Resultado,
-        horario: datetime,
-    ) -> None:
+    def registrar(self, chamada: Chamada) -> None:
         """Grava a chamada ou levanta AuditoriaIndisponivel."""
 
 
@@ -85,28 +93,21 @@ class AuditoriaNoBanco:
             open=True,
         )
 
-    def registrar(
-        self,
-        usuario: UsuarioAutenticado,
-        ferramenta: str,
-        argumentos: dict[str, Any],
-        resultado: Resultado,
-        horario: datetime,
-    ) -> None:
-        parametros, cortados = _parametros_para_gravar(argumentos)
+    def registrar(self, chamada: Chamada) -> None:
+        parametros, cortados = _parametros_para_gravar(chamada.argumentos)
         try:
             with self._pool.connection() as conexao:
                 conexao.execute(
                     GRAVACAO,
                     (
-                        horario,
-                        usuario.id,
-                        usuario.nome,
-                        usuario.perfil.value,
-                        ferramenta[:LIMITE_DO_NOME_EM_CARACTERES],
+                        chamada.horario,
+                        chamada.usuario.id,
+                        chamada.usuario.nome,
+                        chamada.usuario.perfil.value,
+                        chamada.ferramenta[:LIMITE_DO_NOME_EM_CARACTERES],
                         Jsonb(parametros),
                         cortados,
-                        resultado.value,
+                        chamada.resultado.value,
                     ),
                 )
         except (psycopg.Error, PoolTimeout) as erro:
@@ -141,10 +142,6 @@ def _parametros_para_gravar(argumentos: dict[str, Any]) -> tuple[Any, bool]:
 
 
 def auditoria_do_ambiente() -> AuditoriaNoBanco:
-    """A auditoria no Postgres do ambiente, pela rede interna do compose."""
-    banco = BancoDeDados(
-        host=os.environ["POSTGRES_HOST"],
-        porta=int(os.environ.get("POSTGRES_INTERNAL_PORT", "5432")),
-        nome=BANCO,
-    )
+    """A auditoria no Postgres do ambiente, o mesmo servidor do banco carregado."""
+    banco = replace(banco_do_ambiente(), nome=BANCO)
     return AuditoriaNoBanco(banco, Credencial(PAPEL, os.environ["SENHA_DO_PAPEL_AUDITORIA"]))

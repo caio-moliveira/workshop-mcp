@@ -9,7 +9,14 @@ from dataclasses import replace
 
 import psycopg
 import pytest
-from apoio import BANCO_DA_AUDITORIA, banco_local, compose, conectar_como_dono, variavel
+from apoio import (
+    BANCO_DA_AUDITORIA,
+    banco_local,
+    compose,
+    conectar_como_dono,
+    limite_que_nao_barra,
+    variavel,
+)
 from fastapi.testclient import TestClient
 from provedor import (
     DESTINATARIO_DA_API,
@@ -23,6 +30,7 @@ from starlette.applications import Starlette
 
 from acesso import ChavesDoProvedor, ConfiguracaoDeAcesso, Perfil
 from api import criar_aplicacao
+from auditoria import PAPEL as PAPEL_DA_AUDITORIA
 from auditoria import Auditoria, AuditoriaNoBanco
 from consultas import Credencial, ExecutorDeConsultas, credenciais_do_ambiente
 from servidor_mcp import LimiteDeFrequencia
@@ -73,7 +81,7 @@ def executor_de_consultas() -> Iterator[ExecutorDeConsultas]:
 def auditoria_local() -> Iterator[AuditoriaNoBanco]:
     """A auditoria do ambiente, com a credencial do papel `auditoria`, pela máquina local."""
     banco = replace(banco_local(), nome=BANCO_DA_AUDITORIA)
-    credencial = Credencial("auditoria", variavel("SENHA_DO_PAPEL_AUDITORIA"))
+    credencial = Credencial(PAPEL_DA_AUDITORIA, variavel("SENHA_DO_PAPEL_AUDITORIA"))
     with AuditoriaNoBanco(banco, credencial) as registro:
         yield registro
 
@@ -109,7 +117,7 @@ def criar_mcp(executor_de_consultas, auditoria_local) -> Callable[..., Starlette
 
     Como em `criar_api`: cada parâmetro da configuração de acesso pode ser trocado, e o executor
     de consultas também, com `consultas=`, a auditoria, com `auditoria=`, e o limite de
-    frequência, com `limite=` (sem ele, o padrão do servidor). O destinatário
+    frequência, com `limite=` (sem ele, um limite que nenhum teste alcança). O destinatário
     exigido é o do servidor MCP, e o endereço público anunciado nos metadados de recurso
     protegido é o do ambiente.
     """
@@ -130,7 +138,7 @@ def criar_mcp(executor_de_consultas, auditoria_local) -> Callable[..., Starlette
             consultas or executor_de_consultas,
             auditoria or auditoria_local,
             endereco_publico=variavel("ENDERECO_PUBLICO_DO_MCP"),
-            limite=limite,
+            limite=limite or limite_que_nao_barra(),
         )
 
     return criar
