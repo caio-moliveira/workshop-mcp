@@ -9,6 +9,8 @@ import psycopg
 import pytest
 from dotenv import load_dotenv
 
+from consultas import BancoDeDados
+
 BACKEND = Path(__file__).resolve().parents[1]
 RAIZ_DO_PROJETO = BACKEND.parent
 PORTA_PADRAO = "5433"
@@ -36,6 +38,15 @@ def _conectar(usuario: str, senha: str, banco: str | None) -> psycopg.Connection
         dbname=banco or variavel("BANCO"),
         connect_timeout=5,
         autocommit=True,
+    )
+
+
+def banco_local() -> BancoDeDados:
+    """O banco carregado, como a máquina local o alcança."""
+    return BancoDeDados(
+        host="127.0.0.1",
+        porta=int(os.environ.get("POSTGRES_PORT", PORTA_PADRAO)),
+        nome=variavel("BANCO"),
     )
 
 

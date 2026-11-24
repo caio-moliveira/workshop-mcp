@@ -1,0 +1,30 @@
+/* Linha analítica: gráfico principal em 8/12 colunas e o complementar em 4/12 no desktop;
+   empilhados abaixo disso (FE §6, §11). */
+.linhaAnalitica {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: var(--espaco-4);
+}
+
+.principal {
+  grid-column: span 8;
+  min-width: 0;
+}
+
+.complementar {
+  grid-column: span 4;
+  min-width: 0;
+}
+
+/* Lado a lado, os dois blocos têm a mesma altura, em qualquer estado (gráfico, erro, vazio). */
+.principal > *,
+.complementar > * {
+  height: 100%;
+}
+
+@media (max-width: 1279px) {
+  .principal,
+  .complementar {
+    grid-column: 1 / -1;
+  }
+}

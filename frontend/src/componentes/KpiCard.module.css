@@ -1,0 +1,52 @@
+/* O cartão é a referência do tamanho do valor: a largura dele varia com a grade de cada faixa. */
+.cartao {
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco-2);
+  min-width: 0;
+  padding: var(--espaco-4) var(--espaco-6) var(--espaco-6);
+  border: 1px solid var(--border);
+  border-radius: var(--raio-card);
+  background: var(--surface);
+}
+
+.rotulo {
+  color: var(--text-secondary);
+  font-size: var(--texto-titulo-card);
+  font-weight: var(--peso-medio);
+}
+
+.valor {
+  overflow: hidden;
+  color: var(--brand-ink);
+  font-family: var(--fonte-marca);
+  /* 28 px quando cabe; encolhe com o cartão até 21 px para que valores longos, como a receita de
+     24 meses ("R$ 30.625.969,36"), apareçam inteiros com 4 KPIs em linha a 1280 px (FE §11).
+     As reticências ficam só como último recurso. */
+  font-size: clamp(21px, 12cqi, 28px);
+  font-weight: var(--peso-semibold);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rodape {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espaco-2);
+}
+
+.legenda {
+  color: var(--text-tertiary);
+  font-size: var(--texto-label);
+}
+
+@media (max-width: 767px) {
+  .cartao {
+    padding: var(--espaco-3) var(--espaco-4) var(--espaco-4);
+  }
+}

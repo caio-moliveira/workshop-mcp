@@ -87,6 +87,10 @@ def _gerar_dados(conexao: psycopg.Connection, configuracao: Configuracao) -> Non
     fake = Faker("pt_BR")
     fake.seed_instance(configuracao.semente)
     calendario = Calendario(configuracao.data_referencia)
+    conexao.execute(
+        "insert into dados_de_origem.referencia (data_referencia) values (%s)",
+        (configuracao.data_referencia,),
+    )
 
     comercial = gerar_comercial(rng, fake, calendario)
     gravar(conexao, "lojista", comercial.lojistas)

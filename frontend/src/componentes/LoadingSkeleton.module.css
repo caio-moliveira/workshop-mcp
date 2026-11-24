@@ -85,6 +85,74 @@
   border-radius: var(--raio-card);
 }
 
+/* Cartão de indicador: mesma moldura e mesmas alturas do KpiCard. */
+.cartao {
+  composes: cartao from "./KpiCard.module.css";
+}
+
+.rotuloDoCartao {
+  width: 45%;
+  height: 21px;
+}
+
+.valorDoCartao {
+  width: 70%;
+  height: 34px;
+}
+
+.legendaDoCartao {
+  width: 55%;
+  height: 22px;
+}
+
+/* Painel de gráfico: mesma moldura do ChartPanel, área com a altura do gráfico. */
+.grafico {
+  composes: painel from "./ChartPanel.module.css";
+}
+
+.tituloDoGrafico {
+  width: 35%;
+  height: 21px;
+}
+
+.legendaDoGrafico {
+  width: 25%;
+  height: 18px;
+}
+
+.areaDoGrafico {
+  height: var(--altura-do-grafico);
+}
+
+/* Linhas de tabela: cabeçalho e linhas com as alturas da DataTable. */
+.tabela {
+  display: flex;
+  flex-direction: column;
+}
+
+.cabecalhoDaTabela {
+  height: 40px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-muted);
+}
+
+.linhaDaTabela {
+  display: flex;
+  align-items: center;
+  height: 54px;
+  padding: 0 var(--espaco-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.linhaDaTabela:last-child {
+  border-bottom: 0;
+}
+
+.celulaDaTabela {
+  width: 100%;
+  height: 14px;
+}
+
 @keyframes pulsar {
   50% {
     opacity: 0.55;

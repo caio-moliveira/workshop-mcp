@@ -1,6 +1,12 @@
 import type { User, UserManager } from "oidc-client-ts";
 
-import { ApiIndisponivel, buscarEu, TokenRecusado, type UsuarioAutenticado } from "../api";
+import {
+  ApiIndisponivel,
+  buscarDaApi,
+  buscarEu,
+  TokenRecusado,
+  type UsuarioAutenticado,
+} from "../api";
 import { VigiaDeInatividade } from "./inatividade";
 
 export type EstadoDaSessao =
@@ -32,7 +38,8 @@ export class Sessao {
   private tokenObtidoEm = 0;
   /** O token está para vencer (ou venceu) sem interação: renova na próxima. */
   private renovacaoPendente = false;
-  private renovando = false;
+  /** A renovação em andamento: quem pede um token durante ela espera a mesma. */
+  private renovacao: Promise<void> | null = null;
   /** A API já aceitou um token nesta carga da página. */
   private apiJaAceitou = false;
 
@@ -78,6 +85,29 @@ export class Sessao {
     await this.confirmar(usuario.access_token);
   }
 
+  /**
+   * Pede uma rota de dados com o token atual e valida a resposta. Um token vencido é renovado
+   * antes; um 401 segue o fluxo de sessão (volta ao login) e chega a quem pediu como
+   * TokenRecusado.
+   */
+  async consultar<T>(caminho: string, validar: (valor: unknown) => valor is T): Promise<T> {
+    let usuario = await this.gerenciador.getUser();
+    if (!usuario || usuario.expired) {
+      await this.renovar();
+      usuario = await this.gerenciador.getUser();
+    }
+    if (!usuario || usuario.expired) {
+      await this.irParaOLogin();
+      throw new TokenRecusado();
+    }
+    try {
+      return await buscarDaApi(this.enderecoDaApi, usuario.access_token, caminho, validar);
+    } catch (erro) {
+      if (erro instanceof TokenRecusado) await this.aoRecusarToken();
+      throw erro;
+    }
+  }
+
   /** Encerra a sessão também no provedor e volta à tela de login. */
   async sair(): Promise<void> {
     this.vigia.parar();
@@ -93,13 +123,19 @@ export class Sessao {
     this.vigia.parar();
     this.mudar({ fase: "redirecionando" });
     await this.gerenciador.removeUser();
-    await this.gerenciador.signinRedirect();
+    // A busca da URL (o período, por exemplo) volta junto do login, pelo estado do pedido.
+    await this.gerenciador.signinRedirect({ state: { busca: window.location.search } });
   }
 
   /** Troca o refresh token por um token novo, o que também prorroga a sessão do provedor. */
-  private async renovar(): Promise<void> {
-    if (this.renovando) return;
-    this.renovando = true;
+  private renovar(): Promise<void> {
+    this.renovacao ??= this.renovarUmaVez().finally(() => {
+      this.renovacao = null;
+    });
+    return this.renovacao;
+  }
+
+  private async renovarUmaVez(): Promise<void> {
     this.renovacaoPendente = false;
     try {
       if (!(await this.gerenciador.signinSilent())) throw new Error("renovação sem usuário");
@@ -107,8 +143,6 @@ export class Sessao {
     } catch {
       // A sessão do provedor acabou (duração máxima, saída em outra aba): entrar de novo.
       await this.irParaOLogin();
-    } finally {
-      this.renovando = false;
     }
   }
 
@@ -118,13 +152,17 @@ export class Sessao {
     if (!parametros.has("state") || !(parametros.has("code") || parametros.has("error"))) {
       return null;
     }
+    let busca = "";
     try {
-      return await this.gerenciador.signinRedirectCallback();
+      const usuario = await this.gerenciador.signinRedirectCallback();
+      busca = buscaGuardada(usuario.state);
+      return usuario;
     } catch {
       return null;
     } finally {
-      // O código é de uso único e não deve ficar na barra de endereço nem no histórico.
-      window.history.replaceState(null, "", window.location.pathname);
+      // O código é de uso único e não deve ficar na barra de endereço nem no histórico. A busca
+      // de antes do login (o período, por exemplo) volta ao lugar dele.
+      window.history.replaceState(null, "", `${window.location.pathname}${busca}`);
     }
   }
 
@@ -167,4 +205,11 @@ export class Sessao {
     this.estado = estado;
     this.ouvintes.forEach((ouvinte) => ouvinte());
   }
+}
+
+/** A busca da URL guardada no estado do pedido de login, se for uma busca. */
+function buscaGuardada(estado: unknown): string {
+  if (typeof estado !== "object" || estado === null) return "";
+  const { busca } = estado as Record<string, unknown>;
+  return typeof busca === "string" && busca.startsWith("?") ? busca : "";
 }

@@ -17,6 +17,14 @@
   background: var(--surface);
 }
 
+.bloco {
+  width: 100%;
+}
+
+.bloco .titulo {
+  font-size: var(--texto-titulo-card);
+}
+
 .icone {
   display: inline-flex;
   margin-bottom: var(--espaco-1);
