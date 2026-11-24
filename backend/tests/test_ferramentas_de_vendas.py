@@ -265,6 +265,23 @@ def test_atrasos_sem_agrupamento_valido_e_recusado_sem_eco(token_de, argumentos)
     assert_auditada(token, "vendas_atrasos", argumentos, "parametro_invalido")
 
 
+def test_argumentos_grandes_sao_cortados_e_marcados_na_auditoria(token_de):
+    token = token_de(Perfil.VENDAS)
+    argumentos = {"periodo": "a" * 10_000}
+
+    resultado = chamar(MCP_DO_AMBIENTE, token, "vendas_indicadores", argumentos)
+
+    assert texto_do_erro(resultado) == PARAMETRO_INVALIDO
+    linha = ultima_chamada_de(conteudo(token)["sub"])
+    assert linha["ferramenta"] == "vendas_indicadores"
+    assert linha["resultado"] == "parametro_invalido"
+    assert linha["parametros_cortados"] is True
+    # Guardado como texto, o começo do que chegou, até 4 KB.
+    assert isinstance(linha["parametros"], str)
+    assert linha["parametros"].startswith('{"periodo": "' + "a" * 100)
+    assert len(linha["parametros"].encode()) <= 4 * 1024
+
+
 @pytest.mark.parametrize(
     "pedido",
     [
