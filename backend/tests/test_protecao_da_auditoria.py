@@ -10,7 +10,9 @@ from apoio import (
     banco_local,
     compose,
     conectar_como_auditoria,
+    conectar_como_dono,
     ultima_chamada_de,
+    valor,
 )
 from psycopg.types.json import Jsonb
 
@@ -65,6 +67,21 @@ def test_a_recarga_preserva_a_chamada_gravada_antes_dela():
     resultado = compose("run", "--rm", "carga")
 
     assert resultado.returncode == 0, resultado.stderr
+    assert ultima_chamada_de(usuario) is not None
+
+
+def test_a_recarga_so_reaplica_a_senha_do_papel_auditoria():
+    # Uma senha trocada fora da carga: a recarga volta à do `.env`, sem recriar o papel.
+    with conectar_como_dono(BANCO_DA_AUDITORIA) as conexao:
+        conexao.execute(f"alter role auditoria password '{uuid.uuid4()}'")
+        oid_antes = valor(conexao, "select oid from pg_roles where rolname = 'auditoria'")
+
+    resultado = compose("run", "--rm", "carga")
+
+    assert resultado.returncode == 0, resultado.stderr
+    with conectar_como_dono(BANCO_DA_AUDITORIA) as conexao:
+        assert valor(conexao, "select oid from pg_roles where rolname = 'auditoria'") == oid_antes
+    usuario = _gravar_como_auditoria()
     assert ultima_chamada_de(usuario) is not None
 
 
