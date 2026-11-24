@@ -705,7 +705,7 @@
     }
   ],
   "defaultDefaultClientScopes": ["role_list", "saml_organization", "profile", "email", "roles", "web-origins", "acr", "basic"],
-  "defaultOptionalClientScopes": ["offline_access", "address", "phone", "microprofile-jwt", "organization", "pulso-mcp"],
+  "defaultOptionalClientScopes": ["address", "phone", "microprofile-jwt", "organization", "pulso-mcp"],
   "components": {
     "org.keycloak.services.clientregistration.policy.ClientRegistrationPolicy": [
       {
@@ -781,7 +781,7 @@
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": false,
       "defaultClientScopes": ["web-origins", "acr", "roles", "profile", "basic", "email"],
-      "optionalClientScopes": ["address", "phone", "offline_access", "organization", "microprofile-jwt"],
+      "optionalClientScopes": ["address", "phone", "organization", "microprofile-jwt"],
       "protocol": "openid-connect"
     },
     {
@@ -795,7 +795,7 @@
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": false,
       "defaultClientScopes": ["web-origins", "acr", "roles", "profile", "basic", "email"],
-      "optionalClientScopes": ["address", "phone", "offline_access", "organization", "microprofile-jwt"],
+      "optionalClientScopes": ["address", "phone", "organization", "microprofile-jwt"],
       "protocol": "openid-connect"
     },
     {
@@ -809,7 +809,7 @@
       "serviceAccountsEnabled": false,
       "frontchannelLogout": true,
       "defaultClientScopes": ["web-origins", "acr", "roles", "profile", "basic", "email"],
-      "optionalClientScopes": ["address", "phone", "offline_access", "organization", "microprofile-jwt"],
+      "optionalClientScopes": ["address", "phone", "organization", "microprofile-jwt"],
       "protocol": "openid-connect",
       "rootUrl": "${ENDERECO_DO_FRONTEND}",
       "baseUrl": "/",
@@ -871,7 +871,7 @@
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": false,
       "defaultClientScopes": ["web-origins", "acr", "roles", "profile", "basic", "email"],
-      "optionalClientScopes": ["address", "phone", "offline_access", "organization", "microprofile-jwt"],
+      "optionalClientScopes": ["address", "phone", "organization", "microprofile-jwt"],
       "protocol": "openid-connect",
       "redirectUris": ["http://localhost:8765/retorno"],
       "webOrigins": [],
@@ -919,7 +919,7 @@
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": false,
       "defaultClientScopes": ["web-origins", "acr", "roles", "profile", "basic", "email"],
-      "optionalClientScopes": ["address", "phone", "offline_access", "organization", "microprofile-jwt", "pulso-mcp"],
+      "optionalClientScopes": ["address", "phone", "organization", "microprofile-jwt", "pulso-mcp"],
       "protocol": "openid-connect",
       "redirectUris": ["http://localhost:6274/oauth/callback"],
       "webOrigins": ["http://localhost:6274"],
@@ -971,7 +971,7 @@
         "client.use.lightweight.access.token.enabled": "true"
       },
       "defaultClientScopes": ["web-origins", "acr", "roles", "profile", "basic", "email"],
-      "optionalClientScopes": ["address", "phone", "offline_access", "organization", "microprofile-jwt"],
+      "optionalClientScopes": ["address", "phone", "organization", "microprofile-jwt"],
       "protocol": "openid-connect"
     }
   ]
