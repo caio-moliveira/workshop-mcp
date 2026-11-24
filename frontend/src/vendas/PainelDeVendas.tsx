@@ -5,6 +5,7 @@ import type { FonteDeDados } from "../useBloco";
 import { BlocoDeEvolucao } from "./BlocoDeEvolucao";
 import { BlocoDeIndicadores } from "./BlocoDeIndicadores";
 import { BlocoDePedidosRecentes } from "./BlocoDePedidosRecentes";
+import { BlocoDeSituacaoDasEntregas } from "./BlocoDeSituacaoDasEntregas";
 import estilos from "./PainelDeVendas.module.css";
 import { usePeriodoDaUrl } from "./usePeriodoDaUrl";
 
@@ -32,6 +33,9 @@ export function PainelDeVendas({ fonte, primeiroNome }: Propriedades) {
       <div className={estilos.linhaAnalitica}>
         <div className={estilos.principal}>
           <BlocoDeEvolucao fonte={fonte} periodo={periodo} />
+        </div>
+        <div className={estilos.complementar}>
+          <BlocoDeSituacaoDasEntregas fonte={fonte} periodo={periodo} />
         </div>
       </div>
       <BlocoDePedidosRecentes fonte={fonte} periodo={periodo} />
