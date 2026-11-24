@@ -6,6 +6,7 @@ um cliente MCP o vê.
 """
 
 import pytest
+from apoio import variavel
 from chaves_locais import ChavesLocais, assinar, conteudo_valido, nova_chave
 from cliente_mcp import (
     FERRAMENTA_DESCONHECIDA,
@@ -152,7 +153,9 @@ def test_uma_ferramenta_fora_do_registro_nao_e_publicada(executor_de_consultas):
     configuracao = ConfiguracaoDeAcesso(
         emissor=emissor(), destinatario=DESTINATARIO_DO_MCP, chaves=ChavesLocais(CHAVE)
     )
-    servidor = criar_servidor(configuracao, executor_de_consultas)
+    servidor = criar_servidor(
+        configuracao, executor_de_consultas, variavel("ENDERECO_PUBLICO_DO_MCP")
+    )
 
     @servidor.tool
     def consulta_livre(sql: str) -> str:

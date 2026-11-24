@@ -7,19 +7,24 @@ perfil pelo executor de consultas, os mesmos que a API usa (RF-13).
 import logging
 from collections.abc import Sequence
 from typing import Any
+from urllib.parse import urlsplit
 
 import anyio
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
-from fastmcp.server.auth import AccessToken, TokenVerifier
+from fastmcp.server.auth import AccessToken, RemoteAuthProvider, TokenVerifier
 from fastmcp.server.dependencies import get_access_token
 from fastmcp.server.middleware import Middleware, MiddlewareContext
 from fastmcp.tools import Tool, ToolResult
-from pydantic import PrivateAttr
+from mcp.server.auth.handlers.metadata import ProtectedResourceMetadataHandler
+from mcp.server.auth.routes import build_resource_metadata_url
+from mcp.shared.auth import ProtectedResourceMetadata
+from pydantic import AnyHttpUrl, PrivateAttr
 from starlette.applications import Starlette
 from starlette.middleware import Middleware as MiddlewareHTTP
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
+from starlette.routing import Route
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from acesso import (
@@ -78,6 +83,47 @@ class VerificadorDeToken(TokenVerifier):
         return TokenDoUsuario(
             token=token, client_id=usuario.id, scopes=[], subject=usuario.id, usuario=usuario
         )
+
+
+class RecursoProtegido(RemoteAuthProvider):
+    """A autenticação do servidor como recurso protegido do OAuth (RFC 9728).
+
+    Publica os metadados de recurso protegido, com o endereço público do servidor como recurso e
+    o realm do provedor como servidor de autorização, e a recusa (401) passa a apontá-los no
+    `WWW-Authenticate`. Quem confere o token continua sendo o `VerificadorDeToken`.
+    """
+
+    def __init__(self, configuracao: ConfiguracaoDeAcesso, endereco_publico: str) -> None:
+        super().__init__(
+            token_verifier=VerificadorDeToken(configuracao),
+            # O emissor dos tokens é o próprio realm.
+            authorization_servers=[AnyHttpUrl(configuracao.emissor)],
+            base_url=endereco_publico,
+            # O único escopo que o cliente precisa pedir: perfil e destinatário vêm do realm.
+            scopes_supported=["openid"],
+        )
+
+    def get_routes(self, mcp_path: str | None = None) -> list[Route]:
+        """A rota dos metadados, sem o CORS aberto a toda origem que o SDK põe nela.
+
+        Nenhum navegador precisa lê-los: o MCP Inspector busca os metadados e fala com o servidor
+        pelo backend dele, e os assistentes externos, pelos servidores deles.
+        """
+        self.set_mcp_path(mcp_path)
+        recurso = self._get_resource_url(mcp_path)
+        metadados = ProtectedResourceMetadata(
+            resource=recurso,
+            authorization_servers=self.authorization_servers,
+            scopes_supported=self.scopes_supported,
+        )
+        caminho = urlsplit(str(build_resource_metadata_url(recurso))).path
+        return [
+            Route(
+                caminho,
+                endpoint=ProtectedResourceMetadataHandler(metadados).handle,
+                methods=["GET"],
+            )
+        ]
 
     def get_middleware(self) -> list:
         return [MiddlewareHTTP(_ProvedorIndisponivel), *super().get_middleware()]
@@ -195,15 +241,21 @@ class FerramentasDoPerfil(Middleware):
         return await call_next(context)
 
 
-def criar_servidor(configuracao: ConfiguracaoDeAcesso, consultas: ExecutorDeConsultas) -> FastMCP:
-    """O servidor MCP com as ferramentas do registro. Só ferramentas: sem recursos nem prompts."""
+def criar_servidor(
+    configuracao: ConfiguracaoDeAcesso, consultas: ExecutorDeConsultas, endereco_publico: str
+) -> FastMCP:
+    """O servidor MCP com as ferramentas do registro. Só ferramentas: sem recursos nem prompts.
+
+    O `endereco_publico` é onde quem está fora do ambiente alcança o servidor (sem o `/mcp`): é o
+    recurso anunciado nos metadados de recurso protegido.
+    """
     servidor = FastMCP(
         "pulso.",
         instructions=(
             "Consultas somente leitura aos dados do marketplace pulso. As ferramentas "
             "disponíveis dependem do perfil do usuário autenticado."
         ),
-        auth=VerificadorDeToken(configuracao),
+        auth=RecursoProtegido(configuracao, endereco_publico),
         middleware=[FerramentasDoPerfil(consultas)],
         # Rede de segurança: uma exceção que escape não leva o próprio texto a quem chamou.
         mask_error_details=True,
@@ -219,12 +271,13 @@ def criar_servidor(configuracao: ConfiguracaoDeAcesso, consultas: ExecutorDeCons
 
 
 def criar_aplicacao(
-    configuracao: ConfiguracaoDeAcesso, consultas: ExecutorDeConsultas
+    configuracao: ConfiguracaoDeAcesso, consultas: ExecutorDeConsultas, endereco_publico: str
 ) -> Starlette:
     """A aplicação HTTP do servidor MCP: streamable HTTP sem estado, em `/mcp` (RF-26).
 
-    Valida tokens pela configuração dada e lê o banco só pelo executor de consultas.
+    Valida tokens pela configuração dada e lê o banco só pelo executor de consultas. Publica os
+    metadados de recurso protegido em `/.well-known/oauth-protected-resource/mcp`.
     """
-    return criar_servidor(configuracao, consultas).http_app(
+    return criar_servidor(configuracao, consultas, endereco_publico).http_app(
         path=CAMINHO, stateless_http=True, json_response=True
     )
