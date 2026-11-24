@@ -1,0 +1,115 @@
+"""Todo desfecho de uma chamada fica na auditoria, e as respostas continuam as da 4a (RF-31, RS-08).
+
+O servidor é criado pela fábrica, dentro do processo, confiando numa chave local, e grava na
+auditoria do ambiente. Cada token tem um usuário novo, e o teste lê a última linha dele com a
+credencial do dono.
+"""
+
+import uuid
+
+import pytest
+from apoio import banco_local, ultima_chamada_de
+from chaves_locais import ChavesLocais, assinar, conteudo_valido, nova_chave
+from cliente_mcp import (
+    ERRO_INTERNO,
+    FERRAMENTA_DESCONHECIDA,
+    INDISPONIVEL,
+    PARAMETRO_INVALIDO,
+    chamar,
+    texto_do_erro,
+)
+from provedor import DESTINATARIO_DO_MCP
+
+from acesso import Perfil
+from consultas import BancoDeDados, ExecutorDeConsultas, credenciais_do_ambiente
+
+CHAVE = nova_chave()
+FERRAMENTA = "vendas_indicadores"
+FERRAMENTA_QUE_NUNCA_EXISTIU = "vendas_margem_por_cliente"
+
+
+def token_novo(perfil: Perfil) -> tuple[str, str]:
+    """Um token de um usuário que nunca chamou nada, e o identificador dele."""
+    sub = str(uuid.uuid4())
+    token = assinar(
+        conteudo_valido(aud=DESTINATARIO_DO_MCP, sub=sub, perfil=perfil.value), CHAVE
+    )
+    return token, sub
+
+
+@pytest.fixture
+def mcp(criar_mcp):
+    return criar_mcp(chaves=ChavesLocais(CHAVE))
+
+
+@pytest.mark.parametrize("ferramenta", [FERRAMENTA, FERRAMENTA_QUE_NUNCA_EXISTIU])
+def test_outro_perfil_e_nome_inexistente_ficam_como_negada_com_o_nome_pedido(mcp, ferramenta):
+    token, sub = token_novo(Perfil.PRODUTOS)
+
+    resultado = chamar(mcp, token, ferramenta, {"periodo": "30d"})
+
+    assert texto_do_erro(resultado) == FERRAMENTA_DESCONHECIDA
+    linha = ultima_chamada_de(sub)
+    assert linha is not None
+    assert linha["perfil"] == "produtos"
+    assert linha["ferramenta"] == ferramenta
+    assert linha["parametros"] == {"periodo": "30d"}
+    assert linha["resultado"] == "negada"
+
+
+@pytest.mark.parametrize(
+    "argumentos",
+    [
+        {"periodo": "7d"},
+        {"periodo": "12m", "filtro": "lojista_id = 1"},
+        {"periodo": ["12m", "30d"]},
+        {"periodo": None},
+        {"perfil": "diretoria"},
+    ],
+    ids=str,
+)
+def test_parametro_invalido_fica_registrado_exatamente_como_chegou(mcp, argumentos):
+    token, sub = token_novo(Perfil.VENDAS)
+
+    resultado = chamar(mcp, token, FERRAMENTA, argumentos)
+
+    assert texto_do_erro(resultado) == PARAMETRO_INVALIDO
+    linha = ultima_chamada_de(sub)
+    assert linha["ferramenta"] == FERRAMENTA
+    assert linha["parametros"] == argumentos
+    assert linha["resultado"] == "parametro_invalido"
+
+
+class _ExecutorQueQuebra(ExecutorDeConsultas):
+    """Autoriza como o de verdade, mas toda consulta lança uma exceção que ninguém previu."""
+
+    def executar(self, usuario, consulta, **parametros):
+        raise RuntimeError("detalhe interno")
+
+
+def _sem_banco() -> ExecutorDeConsultas:
+    """Um executor apontado para uma porta onde nada escuta: a consulta falha."""
+    banco = BancoDeDados(host="127.0.0.1", porta=9, nome=banco_local().nome)
+    return ExecutorDeConsultas(banco, credenciais_do_ambiente())
+
+
+def _que_quebra() -> ExecutorDeConsultas:
+    return _ExecutorQueQuebra(banco_local(), credenciais_do_ambiente())
+
+
+@pytest.mark.parametrize(
+    ("executor", "mensagem"),
+    [(_sem_banco, INDISPONIVEL), (_que_quebra, ERRO_INTERNO)],
+    ids=["consulta-falhou", "erro-interno"],
+)
+def test_consulta_que_falhou_e_erro_interno_ficam_como_falha(criar_mcp, executor, mensagem):
+    token, sub = token_novo(Perfil.VENDAS)
+    with executor() as consultas:
+        mcp = criar_mcp(consultas=consultas, chaves=ChavesLocais(CHAVE))
+
+        resultado = chamar(mcp, token, FERRAMENTA, {"periodo": "30d"})
+
+    assert texto_do_erro(resultado) == mensagem
+    linha = ultima_chamada_de(sub)
+    assert linha["parametros"] == {"periodo": "30d"}
+    assert linha["resultado"] == "falha"
