@@ -16,6 +16,7 @@ import estilos from "./BlocoDeIndicadores.module.css";
 import { eIndicadoresDeVendas, type IndicadoresDeVendas } from "./indicadores";
 import { ROTULO_DO_PERIODO, type Periodo } from "./periodo";
 import {
+  sentidoDaVariacao,
   tomDaVariacao,
   variacaoEmPontos,
   variacaoRelativa,
@@ -43,7 +44,7 @@ function Variacao({
   return (
     <TrendBadge
       texto={formatar(variacao)}
-      sentido={variacao > 0 ? "sobe" : variacao < 0 ? "desce" : "estavel"}
+      sentido={sentidoDaVariacao(variacao)}
       tom={tomDaVariacao(variacao, melhora)}
       comparacao={`em relação aos ${ROTULO_DO_PERIODO[periodo]} anteriores`}
     />

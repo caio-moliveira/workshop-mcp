@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { tomDaVariacao, variacaoEmPontos, variacaoRelativa } from "./variacao";
+import {
+  sentidoDaVariacao,
+  tomDaVariacao,
+  variacaoEmPontos,
+  variacaoRelativa,
+} from "./variacao";
 
 describe("variação em relação ao período anterior", () => {
   it("relativa, para contagens e receita", () => {
@@ -30,5 +35,20 @@ describe("variação em relação ao período anterior", () => {
     expect(tomDaVariacao(0.01, "desce")).toBe("ruim");
     expect(tomDaVariacao(-0.01, "desce")).toBe("bom");
     expect(tomDaVariacao(0, "sobe")).toBe("neutro");
+  });
+
+  it("uma variação que aparece como zero, com uma casa, é neutra", () => {
+    // -0,0349 p.p.: a taxa de aprovação em 12 meses na carga padrão aparece como "0,0 p.p.".
+    expect(tomDaVariacao(-0.000349, "sobe")).toBe("neutro");
+    expect(tomDaVariacao(0.0004, "desce")).toBe("neutro");
+    expect(tomDaVariacao(0.0005, "sobe")).toBe("bom");
+    expect(tomDaVariacao(-0.0006, "desce")).toBe("bom");
+  });
+
+  it("o sentido da seta segue o valor que aparece", () => {
+    expect(sentidoDaVariacao(0.272)).toBe("sobe");
+    expect(sentidoDaVariacao(-0.0118)).toBe("desce");
+    expect(sentidoDaVariacao(-0.000349)).toBe("estavel");
+    expect(sentidoDaVariacao(0)).toBe("estavel");
   });
 });

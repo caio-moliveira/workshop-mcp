@@ -20,7 +20,23 @@ export type Melhora = "sobe" | "desce";
 
 export type Tom = "bom" | "ruim" | "neutro";
 
+/**
+ * As duas variações aparecem com uma casa: 0,1% ou 0,1 p.p., ou seja, 0,001 como fração. Abaixo da
+ * metade disso a variação aparece como zero, e a cor e a seta não podem dizer outra coisa.
+ */
+const MENOR_VARIACAO_VISIVEL = 0.0005;
+
+function pareceZero(variacao: number): boolean {
+  return Math.abs(variacao) < MENOR_VARIACAO_VISIVEL;
+}
+
 export function tomDaVariacao(variacao: number, melhora: Melhora): Tom {
-  if (variacao === 0) return "neutro";
+  if (pareceZero(variacao)) return "neutro";
   return variacao > 0 === (melhora === "sobe") ? "bom" : "ruim";
+}
+
+/** Para onde aponta a seta: a mesma regra do tom, para os dois concordarem com o texto. */
+export function sentidoDaVariacao(variacao: number): "sobe" | "desce" | "estavel" {
+  if (pareceZero(variacao)) return "estavel";
+  return variacao > 0 ? "sobe" : "desce";
 }
