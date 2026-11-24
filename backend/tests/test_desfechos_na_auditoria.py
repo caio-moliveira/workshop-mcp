@@ -15,10 +15,14 @@ from cliente_mcp import (
     FERRAMENTA_DESCONHECIDA,
     INDISPONIVEL,
     PARAMETRO_INVALIDO,
+    assert_recusado,
     chamar,
+    chamar_pelo_protocolo,
+    listar_ferramentas,
     texto_do_erro,
 )
 from provedor import DESTINATARIO_DO_MCP
+from starlette.testclient import TestClient
 
 from acesso import Perfil
 from auditoria import AuditoriaIndisponivel
@@ -150,6 +154,26 @@ def test_nome_grande_de_ferramenta_e_cortado(mcp):
     assert nome.startswith(linha["ferramenta"])
     assert "vendas_xxxx" in linha["ferramenta"]
     assert len(linha["ferramenta"]) < 1_000
+
+
+def test_listar_as_ferramentas_nao_gera_linha(mcp):
+    token, sub = token_novo(Perfil.VENDAS)
+
+    assert listar_ferramentas(mcp, token)
+    assert ultima_chamada_de(sub) is None
+
+
+def test_pedido_recusado_no_token_nao_gera_linha(mcp):
+    """Sem token aceito não há usuário conhecido: a recusa fica só no log."""
+    sub = str(uuid.uuid4())
+    de_outra_chave = assinar(
+        conteudo_valido(aud=DESTINATARIO_DO_MCP, sub=sub, perfil="vendas"), nova_chave()
+    )
+    with TestClient(mcp) as http:
+        resposta = chamar_pelo_protocolo(http, de_outra_chave, FERRAMENTA, {"periodo": "30d"})
+
+    assert_recusado(resposta)
+    assert ultima_chamada_de(sub) is None
 
 
 class _AuditoriaQueFalha:
