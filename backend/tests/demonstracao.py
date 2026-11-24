@@ -24,11 +24,18 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import httpx  # noqa: E402
-import jwt  # noqa: E402
 from apoio import compose  # noqa: E402
-from provedor import senha_de, token_de_outro_servico, token_pelo_fluxo_de_codigo  # noqa: E402
+from provedor import (  # noqa: E402
+    conteudo,
+    destinatarios,
+    senha_de,
+    token_de_outro_servico,
+    token_pelo_fluxo_de_codigo,
+    usuario_de,
+)
 from recusa import ROTAS_DE_VENDAS, pedir, pedir_eu  # noqa: E402
 
+from acesso import Perfil  # noqa: E402
 from acesso.validacao import FOLGA_DE_RELOGIO_EM_SEGUNDOS  # noqa: E402
 
 API = f"http://127.0.0.1:{os.environ.get('API_PORT', '8000')}"
@@ -38,11 +45,6 @@ TOKEN_GUARDADO = Path(__file__).resolve().parents[1] / ".token-da-demonstracao"
 
 def _hora(segundos: float) -> str:
     return datetime.fromtimestamp(segundos).strftime("%H:%M:%S")
-
-
-def _conteudo(token: str) -> dict:
-    """O conteúdo do token, sem conferir a assinatura: só para mostrar, quem confere é a API."""
-    return jwt.decode(token, options={"verify_signature": False})
 
 
 def _pedir_eu(token: str | None) -> None:
@@ -82,8 +84,9 @@ def entrar(nome_de_usuario: str) -> None:
     """Login pelo fluxo de código; guarda o token e pede GET /eu com ele."""
     token = token_pelo_fluxo_de_codigo(nome_de_usuario, senha_de(nome_de_usuario))
     TOKEN_GUARDADO.write_text(token, encoding="utf-8")
-    conteudo = _conteudo(token)
-    print(f"token de {nome_de_usuario}: aud={conteudo['aud']} vence às {_hora(conteudo['exp'])}")
+    do_token = conteudo(token)
+    aud = ", ".join(destinatarios(do_token))
+    print(f"token de {nome_de_usuario}: aud={aud} vence às {_hora(do_token['exp'])}")
     _pedir_eu(token)
 
 
@@ -94,9 +97,9 @@ def sem_token() -> None:
 def outro_servico(nome_de_usuario: str) -> None:
     """Token do mesmo provedor e do mesmo usuário, emitido para o `admin-cli`."""
     token = token_de_outro_servico(nome_de_usuario, senha_de(nome_de_usuario))
-    conteudo = _conteudo(token)
-    destinatario = conteudo.get("aud") or "(nenhum)"
-    print(f"token de {nome_de_usuario} para {conteudo['azp']}: aud={destinatario}")
+    do_token = conteudo(token)
+    aud = ", ".join(destinatarios(do_token)) or "(nenhum)"
+    print(f"token de {nome_de_usuario} para {do_token['azp']}: aud={aud}")
     _pedir_eu(token)
 
 
@@ -113,16 +116,16 @@ def vencido() -> None:
     if not TOKEN_GUARDADO.exists():
         sys.exit("Nenhum token guardado: rode antes `entrar ana.vendas`.")
     token = TOKEN_GUARDADO.read_text(encoding="utf-8")
-    conteudo = _conteudo(token)
+    do_token = conteudo(token)
     # Quem decide é o relógio da API, que pode andar alguns segundos atrás do da máquina, e ela
     # aceita alguns segundos de folga depois do vencimento.
-    faltam = conteudo["exp"] + FOLGA_DE_RELOGIO_EM_SEGUNDOS - _relogio_da_api()
+    faltam = do_token["exp"] + FOLGA_DE_RELOGIO_EM_SEGUNDOS - _relogio_da_api()
     if faltam > 0:
         sys.exit(
-            f"O token ainda vale: vence às {_hora(conteudo['exp'])}. "
+            f"O token ainda vale: vence às {_hora(do_token['exp'])}. "
             f"Espere mais {int(faltam) + 1} segundos."
         )
-    print(f"token de {conteudo['preferred_username']}: venceu às {_hora(conteudo['exp'])}")
+    print(f"token de {do_token['preferred_username']}: venceu às {_hora(do_token['exp'])}")
     _pedir_eu(token)
 
 
@@ -143,7 +146,7 @@ def _resumo_de_vendas(rota: str, corpo: dict) -> str:
 def vendas(nome_de_usuario: str, periodo: str = "12m") -> None:
     """Login pelo fluxo de código e as quatro rotas de Vendas com o token desse usuário."""
     token = token_pelo_fluxo_de_codigo(nome_de_usuario, senha_de(nome_de_usuario))
-    print(f"token de {nome_de_usuario}: perfil={_conteudo(token)['perfil']}")
+    print(f"token de {nome_de_usuario}: perfil={conteudo(token)['perfil']}")
     with httpx.Client(base_url=API, timeout=10) as api:
         for rota in ROTAS_DE_VENDAS:
             resposta = pedir(api, rota, token, periodo=periodo)
@@ -163,8 +166,8 @@ def tempos(periodo: str = "24m") -> None:
     Um pedido de aquecimento por rota (pool de conexões e chaves do provedor), depois
     `MEDICOES_POR_ROTA` pedidos medidos do lado de quem chama, com a rede local incluída.
     """
-    usuario = "ana.vendas"
-    token = token_pelo_fluxo_de_codigo(usuario, senha_de(usuario))
+    usuario = usuario_de(Perfil.VENDAS)
+    token = token_pelo_fluxo_de_codigo(usuario.nome_de_usuario, usuario.senha())
     print(f"{MEDICOES_POR_ROTA} pedidos por rota, periodo={periodo}, meta 3 s (RNF-05)")
     with httpx.Client(base_url=API, timeout=30) as api:
         for rota in ROTAS_DE_VENDAS:

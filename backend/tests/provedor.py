@@ -6,11 +6,14 @@ testes, porque o comando de token de demonstração usa o mesmo; aqui ficam só 
 apontam para o provedor do ambiente.
 """
 
+import os
 import secrets
 
 import httpx
+import jwt
 from apoio import variavel
 
+from acesso import Perfil
 from acesso.provedor import (
     DESTINATARIO_DA_API,
     DESTINATARIO_DO_MCP,
@@ -25,11 +28,16 @@ from token_de_demonstracao import (
     USUARIOS_DE_DEMONSTRACAO,
     Aplicacao,
     LoginRecusado,
+    UsuarioDeDemonstracao,
     aplicacoes,
     fluxo_de_codigo,
 )
 
 APLICACAO = APLICACAO_WEB
+# O proxy reverso reúne o provedor e o servidor MCP num endereço só, publicado na porta local: é
+# o endereço que o túnel expõe aos assistentes externos.
+PROXY_DO_AMBIENTE = f"http://127.0.0.1:{os.environ.get('PROXY_PORT', '8088')}"
+CAMINHO_DO_REGISTRO = "/clients-registrations/openid-connect"
 
 __all__ = [
     "DESTINATARIO_DA_API",
@@ -54,6 +62,27 @@ def emissor() -> str:
 def url_das_chaves() -> str:
     """Onde o provedor publica as chaves públicas, alcançado da máquina local."""
     return url_das_chaves_em(endereco_do_provedor())
+
+
+def realm_pelo_proxy() -> str:
+    """O realm alcançado pelo proxy reverso. O emissor dos tokens continua o endereço público."""
+    return f"{PROXY_DO_AMBIENTE}/realms/{REALM}"
+
+
+def usuario_de(perfil: Perfil) -> UsuarioDeDemonstracao:
+    """O usuário de demonstração de um perfil."""
+    return next(u for u in USUARIOS_DE_DEMONSTRACAO if u.perfil == perfil)
+
+
+def conteudo(token: str) -> dict:
+    """O conteúdo do token, sem conferir a assinatura: quem confere é o serviço que o recebe."""
+    return jwt.decode(token, options={"verify_signature": False})
+
+
+def destinatarios(conteudo_do_token: dict) -> list[str]:
+    """O `aud` como lista: o provedor o escreve como texto quando há um só."""
+    aud = conteudo_do_token.get("aud", [])
+    return [aud] if isinstance(aud, str) else aud
 
 
 def senha_de(nome_de_usuario: str) -> str:

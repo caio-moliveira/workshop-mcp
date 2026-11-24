@@ -6,7 +6,6 @@ vão por HTTP ao serviço `mcp` do compose e à API.
 """
 
 import httpx
-import jwt
 import pytest
 import recusa
 from cliente_mcp import MCP_DO_AMBIENTE, assert_recusado, pedir_ao_protocolo
@@ -14,34 +13,30 @@ from provedor import (
     APLICACAO,
     OUTRA_APLICACAO,
     aplicacao,
+    conteudo,
+    destinatarios,
     emissor,
-    senha_de,
     token_pelo_fluxo_de_codigo,
+    usuario_de,
 )
 from recusa import ROTAS_DE_VENDAS, pedir, pedir_eu
 
+from acesso import Perfil
 
-def _conteudo(token: str) -> dict:
-    return jwt.decode(token, options={"verify_signature": False})
-
-
-def _destinatarios(conteudo: dict) -> list[str]:
-    """O `aud` como lista: o provedor o escreve como texto quando há um só."""
-    destinatarios = conteudo.get("aud", [])
-    return [destinatarios] if isinstance(destinatarios, str) else destinatarios
+VENDAS = usuario_de(Perfil.VENDAS)
 
 
 def _token_de_vendas_por(identificador: str) -> str:
-    return token_pelo_fluxo_de_codigo("ana.vendas", senha_de("ana.vendas"), identificador)
+    return token_pelo_fluxo_de_codigo(VENDAS.nome_de_usuario, VENDAS.senha(), identificador)
 
 
 def test_o_token_da_outra_aplicacao_traz_o_perfil_e_so_ela_mesma_como_destinatario():
-    conteudo = _conteudo(_token_de_vendas_por(OUTRA_APLICACAO))
+    do_token = conteudo(_token_de_vendas_por(OUTRA_APLICACAO))
 
-    assert conteudo["azp"] == "pulso-outra-aplicacao"
-    assert _destinatarios(conteudo) == ["pulso-outra-aplicacao"]
-    assert conteudo["perfil"] == "vendas"
-    assert conteudo["preferred_username"] == "ana.vendas"
+    assert do_token["azp"] == "pulso-outra-aplicacao"
+    assert destinatarios(do_token) == ["pulso-outra-aplicacao"]
+    assert do_token["perfil"] == "vendas"
+    assert do_token["preferred_username"] == VENDAS.nome_de_usuario
 
 
 def test_o_servidor_mcp_recusa_o_token_da_outra_aplicacao_e_aceita_o_da_aplicacao():
@@ -99,8 +94,8 @@ def test_a_outra_aplicacao_nao_aceita_senha_direto():
         data={
             "grant_type": "password",
             "client_id": OUTRA_APLICACAO,
-            "username": "ana.vendas",
-            "password": senha_de("ana.vendas"),
+            "username": VENDAS.nome_de_usuario,
+            "password": VENDAS.senha(),
         },
         timeout=10,
     )

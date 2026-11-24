@@ -24,7 +24,7 @@ Fontes dos requisitos:
 | 2 | Login e perfil | 1 | Concluída |
 | 3 | Vendas na tela | 2 | Concluída |
 | 4a | Servidor MCP de Vendas | 3 | Concluída |
-| V1 | Verificação com túnel: Claude e ChatGPT | 4a | Livre |
+| V1 | Verificação com túnel: Claude e ChatGPT | 4a | Concluída (Claude verificado; ChatGPT pendente para a 7) |
 | 4b | Auditoria e limite de frequência | 4a | Livre |
 | 5a | Chat de Vendas no painel lateral | 4b | Depende de decisões (ver final) |
 | 5b | Chat expandido, rastreio e histórico | 5a | Livre |
@@ -93,6 +93,8 @@ As entregas 6 e 7 mantêm seus números, mas ficam para depois: a decisão de nu
 - **Depende de:** 4a.
 - **Cobre:** RF-27 e RF-28 (verificação antecipada; o fechamento é na entrega 7).
 - **Observação:** é uma verificação de risco, não o ambiente definitivo. Se ela mostrar que o fluxo de autorização exige mudanças, elas entram antes da 4b.
+- **Resultado (24/11/2026):** concluída com o Claude, no roteiro `docs/demonstracao/verificacao-v1.md`. O Claude se registrou sozinho, levou ao login de `ana.vendas` e chamou o servidor MCP; `diego.diretoria` viu a lista vazia. O Claude exigiu dois ajustes no realm: a política de escopos do registro anônimo passou a aceitar `openid`, e o escopo `pulso-mcp` passou a trazer o nome do usuário (ADR 0007).
+- **Lacunas:** o ChatGPT não foi verificado, por decisão do usuário. O endereço de retorno dele já é aceito pelo registro anônimo (teste automático), mas o fluxo completo fica para a entrega 7. Do Claude, a verificação registrou as chamadas ao servidor MCP com 200, mas não anotou os números da resposta: conferi-los com o painel na próxima execução.
 
 ### 4b. Auditoria e limite de frequência
 
@@ -143,6 +145,7 @@ As entregas 6 e 7 mantêm seus números, mas ficam para depois: a decisão de nu
   - Um usuário de outro perfil conectado não vê as ferramentas que não são dele.
 - **Depende de:** 6 e V1.
 - **Cobre:** RF-06 (cliente externo), RF-27, RF-28, RF-29, CA-06.
+- **Observação:** a V1 verificou só o Claude. A primeira verificação do ChatGPT (modo desenvolvedor, registro dinâmico) acontece aqui; os passos esperados estão no roteiro da V1.
 
 ### 8. Perfil Produtos
 

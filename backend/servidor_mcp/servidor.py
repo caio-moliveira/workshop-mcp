@@ -90,8 +90,10 @@ class RecursoProtegido(RemoteAuthProvider):
             # O emissor dos tokens é o próprio realm.
             authorization_servers=[AnyHttpUrl(configuracao.emissor)],
             base_url=endereco_publico,
-            # O único escopo que o cliente precisa pedir: perfil e destinatário vêm do realm.
-            scopes_supported=["openid"],
+            # Os escopos que o cliente pede no login. `pulso-mcp` põe no token o destinatário e o
+            # perfil para os clientes registrados dinamicamente (ADR 0007); a validação do token
+            # não olha escopo nenhum.
+            scopes_supported=["openid", "pulso-mcp"],
         )
 
     def get_routes(self, mcp_path: str | None = None) -> list[Route]:

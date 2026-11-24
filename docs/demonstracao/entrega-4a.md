@@ -4,6 +4,8 @@ Este roteiro mostra a entrega 4a no MCP Inspector: o servidor MCP de Vendas, as 
 
 Pré-requisitos: Docker com Docker Compose, [uv](https://docs.astral.sh/uv/), Node.js na versão que o MCP Inspector 2.16 exige (`^22.23.4`, `^24.22.1` ou `>=26.12.1`) e um navegador. O roteiro fixa o Inspector em `@modelcontextprotocol/inspector@2.16.0`, a versão em que ele foi conferido.
 
+**Depois da V1.** A verificação V1 (`docs/demonstracao/verificacao-v1.md`) mudou duas coisas que este roteiro mostra: os metadados de recurso protegido anunciam também o escopo `pulso-mcp` (passo 2), e o realm aceita registro dinâmico de clientes, restrito aos endereços de retorno do Claude e do ChatGPT (ADR 0007). O Inspector continua entrando com o cliente pré-registrado `pulso-inspector`, como abaixo.
+
 **O que foi conferido e como.** Os resultados esperados abaixo foram observados no ambiente local em 24/11/2026, com o Inspector 2.16.0, no modo de linha de comando (`--cli`) e na interface do navegador: o login pela interface, a lista das cinco ferramentas para `ana.vendas`, as chamadas com os números do passo 4, a lista vazia de `diego.diretoria` e a recusa do token de outra aplicação (passo 6).
 
 ## 1. Preparar a configuração e subir
@@ -38,10 +40,10 @@ curl http://localhost:8001/.well-known/oauth-protected-resource/mcp
 ```
 
 ```
-{"resource":"http://localhost:8001/mcp","authorization_servers":["http://localhost:8080/realms/pulso"],"scopes_supported":["openid"],"bearer_methods_supported":["header"]}
+{"resource":"http://localhost:8001/mcp","authorization_servers":["http://localhost:8080/realms/pulso"],"scopes_supported":["openid","pulso-mcp"],"bearer_methods_supported":["header"]}
 ```
 
-Os metadados dizem ao cliente do protocolo MCP que o servidor de autorização é o realm `pulso` do Keycloak. É por aqui que o Inspector descobre onde fazer login.
+Os metadados dizem ao cliente do protocolo MCP que o servidor de autorização é o realm `pulso` do Keycloak. É por aqui que o Inspector descobre onde fazer login. O escopo `pulso-mcp` é o que um assistente externo registrado dinamicamente pede para o token valer no servidor MCP (V1); o Inspector também o pede e recebe o mesmo token de antes.
 
 ## 3. Abrir o Inspector e entrar como Vendas
 
@@ -259,7 +261,7 @@ Os testes novos da entrega 4a:
 | `test_registro_de_ferramentas.py` | 13 | Toda ferramenta publicada vem do registro e serve uma consulta com perfil; esquemas só com os parâmetros previstos, enumerações fechadas e sem propriedades adicionais; descrição em toda ferramenta e parâmetro |
 | `test_token_de_outra_aplicacao.py` | 10 | O token real de `pulso-outra-aplicacao` recusado pelo MCP do compose e pela API (CA-03) |
 | `test_descoberta_oauth.py` | 5 | O 401 aponta os metadados de recurso protegido; os metadados apontam o realm; sem CORS |
-| `test_login_pelo_inspector.py` | 14 | O cliente `pulso-inspector` no realm (público, PKCE, retorno do Inspector), o token dele aceito pelo MCP e recusado pela API, os metadados do realm sem `offline_access` e o registro dinâmico de clientes desligado |
+| `test_login_pelo_inspector.py` | 14 | O cliente `pulso-inspector` no realm (público, PKCE, retorno do Inspector), o token dele aceito pelo MCP e recusado pela API, os metadados do realm sem `offline_access`. Na 4a, também o registro dinâmico de clientes desligado; a V1 o ligou, e o teste deu lugar a `test_registro_dinamico.py` |
 | `test_comando_de_token.py` | 11 | O comando de token de demonstração, rodado como o apresentador o roda |
 
 Requisitos cobertos:

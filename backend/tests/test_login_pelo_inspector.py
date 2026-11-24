@@ -3,12 +3,12 @@ OAuth do serviço `mcp` do compose e um token real desse cliente.
 
 É o caminho que o apresentador mostra no Inspector e que os assistentes externos usarão na V1: o
 401 aponta os metadados de recurso protegido, eles apontam o realm, e o login no realm emite um
-token que vale no servidor MCP e não na API. O registro dinâmico de clientes segue desligado: o
-Inspector entra com o ID de um cliente pré-registrado.
+token que vale no servidor MCP e não na API. O Inspector entra com o ID de um cliente
+pré-registrado; o registro dinâmico, que os assistentes externos usam, está em
+test_registro_dinamico.py.
 """
 
 import httpx
-import jwt
 import pytest
 from apoio import variavel
 from cliente_mcp import (
@@ -24,12 +24,14 @@ from cliente_mcp import (
 from provedor import (
     DESTINATARIO_DO_MCP,
     INSPECTOR,
-    USUARIOS_DE_DEMONSTRACAO,
     administracao,
     aplicacao,
+    conteudo,
+    destinatarios,
     emissor,
     endereco_do_provedor,
     tokens_pelo_fluxo_de_codigo,
+    usuario_de,
 )
 from recusa import assert_recusado as assert_recusado_pela_api
 from recusa import pedir_eu
@@ -45,14 +47,10 @@ OUTRA_ORIGEM = "http://localhost:5173"
 
 def login_pelo_inspector(perfil: Perfil = Perfil.VENDAS) -> dict[str, str]:
     """Os tokens do login de um usuário de demonstração pelo cliente do Inspector, com PKCE."""
-    usuario = next(u for u in USUARIOS_DE_DEMONSTRACAO if u.perfil == perfil)
+    usuario = usuario_de(perfil)
     return tokens_pelo_fluxo_de_codigo(
         usuario.nome_de_usuario, usuario.senha(), CLIENTE_DO_INSPECTOR
     )
-
-
-def _conteudo(token: str) -> dict:
-    return jwt.decode(token, options={"verify_signature": False})
 
 
 @pytest.fixture
@@ -109,12 +107,30 @@ def test_os_metadados_do_realm_nao_anunciam_acesso_offline(caminho):
 
 
 def test_token_do_inspector_traz_o_perfil_e_so_o_destinatario_do_mcp():
-    conteudo = _conteudo(login_pelo_inspector()["access_token"])
+    do_token = conteudo(login_pelo_inspector()["access_token"])
 
-    assert conteudo["perfil"] == "vendas"
-    assert conteudo["azp"] == CLIENTE_DO_INSPECTOR
-    destinatarios = conteudo["aud"] if isinstance(conteudo["aud"], list) else [conteudo["aud"]]
-    assert destinatarios == [DESTINATARIO_DO_MCP]
+    assert do_token["perfil"] == "vendas"
+    assert do_token["azp"] == CLIENTE_DO_INSPECTOR
+    assert destinatarios(do_token) == [DESTINATARIO_DO_MCP]
+
+
+def test_o_inspector_pede_os_escopos_anunciados_e_recebe_o_mesmo_token():
+    """O SDK do Inspector pede os escopos dos metadados de recurso protegido (`openid pulso-mcp`).
+    O provedor recusaria um escopo que o cliente não tem; o `pulso-inspector` o aceita e o token
+    continua com o perfil e só o destinatário do MCP."""
+    usuario = usuario_de(Perfil.VENDAS)
+    with httpx.Client(base_url=MCP_DO_AMBIENTE, timeout=10) as mcp:
+        escopos = " ".join(mcp.get(CAMINHO_DOS_METADADOS).json()["scopes_supported"])
+    inspector = Aplicacao(CLIENTE_DO_INSPECTOR, RETORNO_DO_INSPECTOR, escopos)
+
+    token = fluxo_de_codigo.tokens_pelo_fluxo_de_codigo(
+        emissor(), inspector, usuario.nome_de_usuario, usuario.senha()
+    )["access_token"]
+
+    do_token = conteudo(token)
+    assert do_token["perfil"] == "vendas"
+    assert destinatarios(do_token) == [DESTINATARIO_DO_MCP]
+    assert sorted(f.name for f in listar_ferramentas(MCP_DO_AMBIENTE, token)) == sorted(FERRAMENTAS)
 
 
 def test_token_do_inspector_e_aceito_pelo_servidor_mcp():
@@ -156,7 +172,7 @@ def test_o_realm_declara_o_cliente_do_inspector_publico_com_pkce():
 
 def test_o_login_do_inspector_nao_volta_para_outro_endereco():
     """O retorno é só o do Inspector: o provedor não manda o código para outro lugar."""
-    usuario = next(u for u in USUARIOS_DE_DEMONSTRACAO if u.perfil == Perfil.VENDAS)
+    usuario = usuario_de(Perfil.VENDAS)
 
     with pytest.raises(httpx.HTTPStatusError):
         fluxo_de_codigo.tokens_pelo_fluxo_de_codigo(
@@ -177,7 +193,7 @@ def test_o_provedor_libera_ao_navegador_so_a_origem_do_inspector(origem, liberad
     token. Não é a renovação: o provedor recusa a renovação de um token cujo `iat` é anterior ao
     início da sessão, e isso acontece quando o relógio dele salta entre o login e a emissão.
     """
-    usuario = next(u for u in USUARIOS_DE_DEMONSTRACAO if u.perfil == Perfil.VENDAS)
+    usuario = usuario_de(Perfil.VENDAS)
     pedido = fluxo_de_codigo.troca_do_codigo(
         emissor(), aplicacao(CLIENTE_DO_INSPECTOR), usuario.nome_de_usuario, usuario.senha()
     )
@@ -194,19 +210,3 @@ def test_o_provedor_libera_ao_navegador_so_a_origem_do_inspector(origem, liberad
     if liberada:
         assert troca.status_code == 200
         assert "access_token" in troca.json()
-
-
-def test_o_registro_dinamico_de_clientes_continua_desligado():
-    """Sem cliente pré-registrado não há login: um pedido anônimo de registro é recusado."""
-    with administracao() as realm:
-        antes = {c["clientId"] for c in realm.get("/clients").json()}
-
-    pedido = httpx.post(
-        f"{emissor()}/clients-registrations/openid-connect",
-        json={"client_name": "registrado sem convite", "redirect_uris": [RETORNO_DO_INSPECTOR]},
-        timeout=10,
-    )
-
-    assert pedido.status_code in (401, 403)
-    with administracao() as realm:
-        assert {c["clientId"] for c in realm.get("/clients").json()} == antes

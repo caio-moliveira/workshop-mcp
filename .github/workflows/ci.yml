@@ -29,7 +29,7 @@ jobs:
       - name: Configuração de ambiente de teste
         run: cp .env.example .env
 
-      - name: Subir o ambiente (banco carregado, provedor de identidade, API, servidor MCP e frontend)
+      - name: Subir o ambiente (banco carregado, provedor de identidade, API, servidor MCP, proxy reverso e frontend)
         run: docker compose up -d --build --wait
 
       - name: Testes
