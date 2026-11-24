@@ -4,7 +4,7 @@ Este roteiro mostra a entrega 4a no MCP Inspector: o servidor MCP de Vendas, as 
 
 Pré-requisitos: Docker com Docker Compose, [uv](https://docs.astral.sh/uv/), Node.js na versão que o MCP Inspector 2.16 exige (`^22.23.4`, `^24.22.1` ou `>=26.12.1`) e um navegador. O roteiro fixa o Inspector em `@modelcontextprotocol/inspector@2.16.0`, a versão em que ele foi conferido.
 
-**O que foi conferido e como.** Os resultados esperados abaixo foram observados no ambiente local em 24/11/2026, com o Inspector 2.16.0 no modo de linha de comando (`--cli`). O login pela interface do Inspector no navegador depende de uma pessoa clicando e está marcado como **verificação manual pendente** no passo 3. O mesmo login do Inspector (descoberta, tela de login do pulso, PKCE, troca do código) foi percorrido sem navegador pelo modo de linha de comando, que usa o mesmo código de OAuth da interface: ver a nota do passo 3.
+**O que foi conferido e como.** Os resultados esperados abaixo foram observados no ambiente local em 24/11/2026, com o Inspector 2.16.0, no modo de linha de comando (`--cli`) e na interface do navegador: o login pela interface, a lista das cinco ferramentas para `ana.vendas`, as chamadas com os números do passo 4, a lista vazia de `diego.diretoria` e a recusa do token de outra aplicação (passo 6).
 
 ## 1. Preparar a configuração e subir
 
@@ -43,9 +43,7 @@ curl http://localhost:8001/.well-known/oauth-protected-resource/mcp
 
 Os metadados dizem ao cliente do protocolo MCP que o servidor de autorização é o realm `pulso` do Keycloak. É por aqui que o Inspector descobre onde fazer login.
 
-## 3. Abrir o Inspector e entrar como Vendas (verificação manual pendente)
-
-> **Verificação manual pendente.** Este passo depende de uma pessoa no navegador e ainda não foi executado. Ao executá-lo, registre o resultado de cada item. Se o login falhar, siga o passo 8 (token colado) e guarde a mensagem do Inspector e a saída de `docker compose logs keycloak mcp`.
+## 3. Abrir o Inspector e entrar como Vendas
 
 1. Numa janela do terminal (qualquer pasta):
 
@@ -53,17 +51,19 @@ Os metadados dizem ao cliente do protocolo MCP que o servidor de autorização �
    npx @modelcontextprotocol/inspector@2.16.0
    ```
 
-   O Inspector abre `http://localhost:6274` no navegador, com um token de sessão do próprio Inspector na URL. Use `localhost`, não `127.0.0.1`: o retorno do login registrado no realm é `http://localhost:6274/oauth/callback`.
-2. **Add Server**: transporte **Streamable HTTP**, URL `http://localhost:8001/mcp` (exatamente essa: o `resource` dos metadados precisa casar com ela).
-3. Nas **Server Settings** do servidor, em **OAuth Settings**:
-   - **Client ID**: `pulso-inspector`, sem **Client Secret**;
-   - confira que o **Redirect URI** mostrado é `http://localhost:6274/oauth/callback`.
-4. **Connect**. Esperado: o Inspector recebe o 401, lê os metadados do passo 2 e os do realm e leva à **tela de login do pulso** (o tema do realm, a mesma da aplicação).
-5. Entre como `ana.vendas` (senha em `SENHA_DO_USUARIO_VENDAS`). Esperado: o navegador volta ao Inspector, conectado.
-6. Em **Tools**, liste as ferramentas. Esperado: as cinco de Vendas, nesta ordem: `vendas_indicadores`, `vendas_evolucao`, `vendas_situacao_das_entregas`, `vendas_pedidos_recentes` e `vendas_atrasos`, cada uma com título, descrição e o campo `periodo` (enumeração `30d`, `90d`, `12m`, `24m`, padrão `12m`); `vendas_atrasos` também com `agrupamento` (`rota` ou `lojista`, obrigatório).
-7. Faça as chamadas do passo 4 pela interface e compare com os resultados de lá.
+   O Inspector abre no navegador, com um token de sessão do próprio Inspector na URL (`?MCP_PROXY_AUTH_TOKEN=...`; o link também aparece no terminal).
+2. **Troque `127.0.0.1` por `localhost` na barra de endereço do navegador**, mantendo o resto da URL, e aperte Enter. O Inspector costuma abrir em `http://127.0.0.1:6274` e monta o retorno do login a partir do endereço da página; o realm só aceita `http://localhost:6274/oauth/callback`, e com `127.0.0.1` o Keycloak mostra "Parâmetro inválido: redirect_uri".
+3. **Saia de qualquer sessão do pulso no navegador** antes de conectar: abra `http://localhost:8080/realms/pulso/protocol/openid-connect/logout` e confirme, ou use uma janela anônima. Se o navegador já estiver logado na aplicação, o Keycloak reaproveita essa sessão, não mostra a tela de login, e o Inspector entra com o usuário dela (por exemplo, `diego.diretoria`, com a lista vazia).
+4. **Add Server** → **Add manually**:
+   - **Transport**: **Streamable HTTP**;
+   - **URL**: `http://localhost:8001/mcp` (exatamente essa: o `resource` dos metadados precisa casar com ela);
+   - em **OAuth Settings**, **Client ID** `pulso-inspector`, sem **Client Secret**, e confira que o **Redirect URI** mostrado (não editável) é `http://localhost:6274/oauth/callback`.
 
-**O que já foi verificado sem navegador.** O Inspector 2.16.0 no modo `--cli`, com o servidor configurado com `oauth.clientId: "pulso-inspector"`, a opção de pedir o token de renovação no padrão (ligada) e retorno em `http://localhost:6274/oauth/callback`, fez a descoberta, montou o pedido de autorização (`client_id=pulso-inspector`, `code_challenge_method=S256`, `scope=openid`, `resource=http://localhost:8001/mcp`), recebeu do Keycloak a tela de login, voltou ao retorno com o código e trocou o código por um token. Com `ana.vendas`, `tools/list` devolveu as cinco ferramentas e `vendas_atrasos` com `agrupamento=rota` devolveu o resultado do passo 4; com `bruno.produtos`, a lista veio vazia. A tela de login foi preenchida por um script, no lugar da pessoa. Com a opção ligada, o SDK do Inspector acrescentaria `offline_access` ao pedido se os metadados do realm anunciassem esse escopo, e o Keycloak recusaria a troca do código (os usuários de demonstração não têm acesso offline); por isso o Keycloak do compose publica os metadados sem `scopes_supported`, e o pedido sai só com `openid`. O que falta conferir é só a interface: os nomes dos campos, o redirecionamento do navegador e a volta à página do Inspector.
+   **Import from client config** não serve aqui: ele só importa configurações de Claude Code, Cline, Cursor e VS Code, sem campo para colar um JSON.
+5. **Connect**. Esperado: o Inspector recebe o 401, lê os metadados do passo 2 e os do realm e leva à **tela de login do pulso** (o tema do realm, a mesma da aplicação).
+6. Entre como `ana.vendas` (senha em `SENHA_DO_USUARIO_VENDAS`). Esperado: o navegador volta ao Inspector, conectado.
+7. Em **Tools**, **List Tools**. Esperado: as cinco de Vendas, nesta ordem: `vendas_indicadores`, `vendas_evolucao`, `vendas_situacao_das_entregas`, `vendas_pedidos_recentes` e `vendas_atrasos`, cada uma com título, descrição e o campo `periodo` (enumeração `30d`, `90d`, `12m`, `24m`, padrão `12m`); `vendas_atrasos` também com `agrupamento` (`rota` ou `lojista`, obrigatório).
+8. Clique em cada ferramenta, preencha os campos e **Run Tool**. Os resultados são os da tabela do passo 4.
 
 ## 4. As ferramentas como Vendas
 
@@ -158,7 +158,7 @@ npx @modelcontextprotocol/inspector@2.16.0 --cli http://localhost:8001/mcp --tra
 
 Com `carla.comercial` e `diego.diretoria`, o mesmo: ainda não há ferramentas desses perfis (RF-21).
 
-Pela interface (parte da verificação manual do passo 3): em **Server Settings**, **Clear OAuth state and disconnect**; encerre a sessão do provedor (abra `http://localhost:8080/realms/pulso/protocol/openid-connect/logout` e confirme, ou use uma janela anônima); conecte de novo e entre como `bruno.produtos`. Esperado: **Tools** vazio.
+Pela interface: em **Server Settings**, **Clear OAuth state and disconnect**; encerre a sessão do provedor (abra `http://localhost:8080/realms/pulso/protocol/openid-connect/logout` e confirme, ou use uma janela anônima); conecte de novo e entre como `bruno.produtos`. Esperado: **Tools** → **List Tools** vazio. Sem encerrar a sessão do provedor, o Inspector volta conectado como o usuário anterior, sem tela de login.
 
 **A chamada direta pelo nome.** O Inspector só chama o que a lista mostrou: no modo de linha de comando, `--tool-name vendas_indicadores` com o token de Bruno termina com `Tool 'vendas_indicadores' not found on server.`, uma conferência feita pelo próprio Inspector, sem chamar o servidor. Para mostrar o que o servidor responde (RF-22), mande a chamada crua, com o token de Bruno ainda em `$TOKEN`.
 
@@ -197,7 +197,7 @@ npx @modelcontextprotocol/inspector@2.16.0 --cli http://localhost:8001/mcp --tra
 
 O servidor responde 401 com `WWW-Authenticate: Bearer error="invalid_token", ..., resource_metadata="http://localhost:8001/.well-known/oauth-protected-resource/mcp"`, a mesma recusa de qualquer token inválido: não diz qual verificação falhou. O motivo fica no log do servidor (`docker compose logs mcp`), como `token recusado: Audience doesn't match`. O mesmo token também é recusado pela API.
 
-Pela interface (verificação manual pendente): em **Server Settings**, **Clear OAuth state and disconnect**; em **Custom Headers**, **+ Add Header** com o nome `Authorization` e o valor `Bearer ` seguido do token; conecte. Esperado: a conexão não abre e nenhuma ferramenta aparece. O Inspector pode oferecer o login OAuth por causa do 401; não siga por ele neste passo.
+Pela interface, **encerre antes a sessão do provedor** (logout ou janela anônima, como no passo 3). Em **Server Settings**, **Clear OAuth state and disconnect**; em **Custom Headers**, **+ Add Header** com o nome `Authorization` e o valor `Bearer ` seguido do token; **Connect**. Esperado: o servidor recusa o token (`token recusado: Audience doesn't match` no `docker compose logs mcp`) e o Inspector, por causa do 401, leva à tela de login do pulso em vez de conectar; não entre nela neste passo. Se a sessão do provedor ainda estiver aberta, o Inspector faz esse login sozinho, sem mostrar a tela, recebe um token novo do `pulso-inspector` e **conecta**: o log mostra a recusa seguida de requisições aceitas. A recusa aconteceu, mas a tela não a mostra; por isso, na apresentação, prefira a linha de comando acima, com o log ao lado.
 
 ## 7. Parâmetro fora do previsto
 
@@ -235,7 +235,7 @@ Se o login pelo Inspector falhar no dia, os passos 4 a 7 já usam o token colado
 2. No Inspector, em **Server Settings** do servidor `http://localhost:8001/mcp`, **Clear OAuth state and disconnect**; em **Custom Headers**, **+ Add Header**: nome `Authorization`, valor `Bearer ` seguido do token.
 3. Conecte. Esperado: as cinco ferramentas, sem passar pela tela de login.
 
-O token vale 5 minutos e deixa de valer se o Keycloak for reiniciado; emita outro e troque o valor do cabeçalho. Esta interface também é **verificação manual pendente**; pela linha de comando, o caminho foi conferido nos passos 4 a 7.
+O token vale 5 minutos e deixa de valer se o Keycloak for reiniciado; emita outro e troque o valor do cabeçalho. Pela linha de comando, o caminho foi conferido nos passos 4 a 7.
 
 ## 9. A suíte
 
