@@ -34,7 +34,9 @@ API_DO_AMBIENTE = f"http://127.0.0.1:{os.environ.get('API_PORT', '8000')}"
 ROTA_DA_FERRAMENTA = {
     "vendas_indicadores": "/vendas/indicadores",
 }
-FERRAMENTAS_DE_VENDAS = sorted(ROTA_DA_FERRAMENTA)
+# A ferramenta de atrasos não tem rota na API nem bloco no painel, e exige o agrupamento.
+ARGUMENTOS_OBRIGATORIOS = {"vendas_atrasos": {"agrupamento": "rota"}}
+FERRAMENTAS_DE_VENDAS = sorted([*ROTA_DA_FERRAMENTA, *ARGUMENTOS_OBRIGATORIOS])
 FERRAMENTA_QUE_NUNCA_EXISTIU = "vendas_margem_por_cliente"
 
 
@@ -56,7 +58,7 @@ def test_outros_perfis_recebem_a_lista_vazia(token_de, perfil):
     assert listar_ferramentas(MCP_DO_AMBIENTE, token_de(perfil)) == []
 
 
-@pytest.mark.parametrize("ferramenta", FERRAMENTAS_DE_VENDAS)
+@pytest.mark.parametrize("ferramenta", sorted(ROTA_DA_FERRAMENTA))
 @pytest.mark.parametrize("periodo", PERIODOS)
 def test_a_ferramenta_devolve_o_mesmo_conteudo_da_rota_da_api(token_de, ferramenta, periodo):
     """Tela e agente nunca divergem: a mesma consulta, pelo mesmo mecanismo (RF-13)."""
@@ -75,13 +77,13 @@ def test_a_ferramenta_devolve_o_mesmo_conteudo_da_rota_da_api(token_de, ferramen
 def test_sem_periodo_a_ferramenta_usa_os_ultimos_12_meses(token_de, ferramenta):
     token = token_de(Perfil.VENDAS)
 
-    sem_periodo = chamar(MCP_DO_AMBIENTE, token, ferramenta)
+    obrigatorios = ARGUMENTOS_OBRIGATORIOS.get(ferramenta, {})
+
+    sem_periodo = chamar(MCP_DO_AMBIENTE, token, ferramenta, obrigatorios)
+    com_12_meses = chamar(MCP_DO_AMBIENTE, token, ferramenta, {**obrigatorios, "periodo": "12m"})
 
     assert not sem_periodo.is_error
-    assert (
-        sem_periodo.structured_content
-        == chamar(MCP_DO_AMBIENTE, token, ferramenta, {"periodo": "12m"}).structured_content
-    )
+    assert sem_periodo.structured_content == com_12_meses.structured_content
 
 
 @pytest.mark.parametrize("ferramenta", FERRAMENTAS_DE_VENDAS)
@@ -129,7 +131,28 @@ def test_ferramenta_inexistente_tem_o_mesmo_erro_para_vendas(mcp_do_ambiente, to
 
 @pytest.mark.parametrize("ferramenta", FERRAMENTAS_DE_VENDAS)
 def test_parametro_fora_do_previsto_e_recusado_sem_eco(token_de, ferramenta):
-    resultado = chamar(MCP_DO_AMBIENTE, token_de(Perfil.VENDAS), ferramenta, {"periodo": "7d"})
+    argumentos = {**ARGUMENTOS_OBRIGATORIOS.get(ferramenta, {}), "periodo": "7d"}
+
+    resultado = chamar(MCP_DO_AMBIENTE, token_de(Perfil.VENDAS), ferramenta, argumentos)
+
+    assert texto_do_erro(resultado) == PARAMETRO_INVALIDO
+
+
+@pytest.mark.parametrize("agrupamento", ["rota", "lojista"])
+def test_vendas_chama_os_atrasos_nos_dois_agrupamentos(token_de, agrupamento):
+    """Os valores são conferidos com os dados de origem em test_atrasos_de_vendas.py."""
+    resultado = chamar(
+        MCP_DO_AMBIENTE, token_de(Perfil.VENDAS), "vendas_atrasos", {"agrupamento": agrupamento}
+    )
+
+    assert not resultado.is_error
+    assert resultado.structured_content["agrupamento"] == agrupamento
+    assert resultado.structured_content["grupos"]
+
+
+@pytest.mark.parametrize("argumentos", [{}, {"agrupamento": "categoria"}], ids=str)
+def test_atrasos_sem_agrupamento_valido_e_recusado_sem_eco(token_de, argumentos):
+    resultado = chamar(MCP_DO_AMBIENTE, token_de(Perfil.VENDAS), "vendas_atrasos", argumentos)
 
     assert texto_do_erro(resultado) == PARAMETRO_INVALIDO
 
@@ -172,7 +195,7 @@ def test_o_servidor_responde_sem_sessao(mcp_do_ambiente, token_de):
     resposta = pedir_ao_protocolo(mcp_do_ambiente, token_de(Perfil.VENDAS), "tools/list")
 
     assert resposta.status_code == 200
-    assert [f["name"] for f in resposta.json()["result"]["tools"]] == FERRAMENTAS_DE_VENDAS
+    assert sorted(f["name"] for f in resposta.json()["result"]["tools"]) == FERRAMENTAS_DE_VENDAS
     assert "mcp-session-id" not in resposta.headers
 
 
