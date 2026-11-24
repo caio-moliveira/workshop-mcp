@@ -4,25 +4,29 @@ Um cliente MCP faz a chamada como um assistente faria, e o teste confere a linha
 lida com a credencial do dono, logo depois da resposta.
 """
 
+from datetime import timedelta
+
 from apoio import ultima_chamada_de, valor
 from cliente_mcp import MCP_DO_AMBIENTE, chamar
 from provedor import conteudo
 
 from acesso import Perfil
 
-# O relógio dos contêineres pode se afastar do desta máquina: o horário é comparado com o do
-# Postgres, que roda ao lado do servidor MCP.
+# O horário da linha vem do relógio do servidor MCP, que pode se afastar do desta máquina e até
+# do Postgres em alguns segundos (visto depois de um reinício do Docker). O teste confere que a
+# linha é nova e que o horário é próximo, sem exigir dois relógios em acordo.
 AGORA_NO_BANCO = "select clock_timestamp()"
+FOLGA_ENTRE_RELOGIOS = timedelta(minutes=1)
 
 
 def test_a_chamada_permitida_fica_na_auditoria_antes_da_resposta(token_de, conexao_dono):
     token = token_de(Perfil.VENDAS)
     do_token = conteudo(token)
-    antes = valor(conexao_dono, AGORA_NO_BANCO)
+    anterior = ultima_chamada_de(do_token["sub"])
 
     resultado = chamar(MCP_DO_AMBIENTE, token, "vendas_indicadores", {"periodo": "30d"})
 
-    depois = valor(conexao_dono, AGORA_NO_BANCO)
+    agora = valor(conexao_dono, AGORA_NO_BANCO)
     assert not resultado.is_error
     # Lida logo depois da resposta: a linha já precisa estar no banco.
     linha = ultima_chamada_de(do_token["sub"])
@@ -33,4 +37,5 @@ def test_a_chamada_permitida_fica_na_auditoria_antes_da_resposta(token_de, conex
     assert linha["parametros"] == {"periodo": "30d"}
     assert linha["parametros_cortados"] is False
     assert linha["resultado"] == "permitida"
-    assert antes <= linha["horario"] <= depois
+    assert anterior is None or linha["id"] > anterior["id"]
+    assert abs(linha["horario"] - agora) < FOLGA_ENTRE_RELOGIOS
