@@ -72,11 +72,13 @@ def api(criar_api) -> TestClient:
     return criar_api()
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def token_de() -> Callable[[Perfil], str]:
     """O token de acesso do usuário de demonstração de um perfil, pelo fluxo de código.
 
-    Guardado entre testes para não refazer o login a cada pedido, e trocado antes de vencer.
+    Guardado entre os testes de um módulo para não refazer o login a cada pedido, e trocado antes
+    de vencer. Não passa de um módulo a outro: test_provedor_sem_estado reinicia o provedor, que
+    volta com chaves novas e passa a recusar os tokens assinados antes.
     """
     guardados: dict[Perfil, tuple[str, float]] = {}
 
