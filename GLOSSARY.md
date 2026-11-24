@@ -42,6 +42,18 @@ _Avoid_: Tool (sozinho), endpoint, função
 Um assistente de IA de terceiros, como o Claude ou o ChatGPT, conectado ao servidor MCP com o login do usuário.
 _Avoid_: Cliente externo, cliente MCP (Cliente é quem compra)
 
+**Chamada**:
+O pedido de um usuário para executar uma ferramenta, qualquer que seja o desfecho: permitida, negada, com parâmetro inválido, com falha ou barrada pelo limite de frequência. Listar as ferramentas não é chamada.
+_Avoid_: Requisição, acesso, uso
+
+**Auditoria**:
+O registro permanente de todas as chamadas, com usuário, perfil, ferramenta, parâmetros, resultado e horário. Nenhuma ferramenta a lê, e a recarga não a apaga.
+_Avoid_: Log (que é o diagnóstico do serviço), histórico (que é o da conversa), trilha
+
+**Limite de frequência**:
+O número máximo de chamadas que um usuário pode fazer numa janela de tempo. Quando ele passa do limite, só as chamadas dele são barradas.
+_Avoid_: Rate limit, cota, throttling
+
 **Dados de origem**:
 Os dados brutos da empresa, que nenhum perfil lê diretamente.
 _Avoid_: Origem (sozinho), tabelas de origem, base bruta
