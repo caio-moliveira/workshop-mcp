@@ -208,6 +208,17 @@ def test_a_rota_vai_da_uf_do_lojista_a_uf_do_cliente_e_o_lojista_vem_pelo_nome(
             assert grupo["grupo"] in lojistas
 
 
+def test_na_carga_padrao_cada_lojista_tem_um_nome_so_dele(conexao_dono):
+    """O grupo de lojista é o lojista, não o nome: dois de mesmo nome viriam em dois grupos com o
+    mesmo rótulo. Nos dados de demonstração isso nunca acontece, porque nenhum nome se repete."""
+    lojistas, nomes = conexao_dono.execute(
+        "select count(*), count(distinct nome) from dados_de_origem.lojista"
+    ).fetchone()
+
+    assert lojistas > 0
+    assert nomes == lojistas
+
+
 @pytest.mark.parametrize("agrupamento", AGRUPAMENTOS)
 def test_sem_periodo_vale_o_de_12_meses(mcp, respostas, agrupamento):
     sem_periodo = chamar(mcp, _token_de(Perfil.VENDAS), FERRAMENTA, {"agrupamento": agrupamento})
