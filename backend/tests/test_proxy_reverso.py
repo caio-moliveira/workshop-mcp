@@ -104,7 +104,10 @@ def test_metadados_do_realm_atras_do_tunel_seguem_o_endereco_https_dele(proxy, f
     continua o endereço público configurado, um só por vez."""
     resposta = proxy.get(
         f"/.well-known/{formato}/realms/{REALM}",
-        headers={"Host": ENDERECO_DE_UM_TUNEL.removeprefix("https://"), "X-Forwarded-Proto": "https"},
+        headers={
+            "Host": ENDERECO_DE_UM_TUNEL.removeprefix("https://"),
+            "X-Forwarded-Proto": "https",
+        },
     )
 
     assert resposta.status_code == 200

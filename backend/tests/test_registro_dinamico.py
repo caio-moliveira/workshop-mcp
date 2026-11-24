@@ -68,7 +68,7 @@ def _assistente(retorno: str = RETORNO_DO_CLAUDE, escopo: str = ESCOPO_DO_MCP) -
 
 
 def _token(assistente: Aplicacao, perfil: Perfil = Perfil.VENDAS) -> str:
-    """O login do usuário de demonstração do perfil, pelo proxy, e o token que o assistente recebe."""
+    """O login do usuário de demonstração do perfil, pelo proxy, e o token do assistente."""
     usuario = usuario_de(perfil)
     return fluxo_de_codigo.tokens_pelo_fluxo_de_codigo(
         realm_pelo_proxy(), assistente, usuario.nome_de_usuario, usuario.senha()
