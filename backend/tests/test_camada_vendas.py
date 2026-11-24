@@ -1,5 +1,7 @@
 """A camada de leitura de Vendas: o papel de Vendas lê só a própria camada (ADR 0002)."""
 
+from datetime import date
+
 import psycopg
 import pytest
 from apoio import (
@@ -8,6 +10,9 @@ from apoio import (
     rodar_carga,
     tabelas_dos_dados_de_origem,
 )
+
+# A data de referência do arquivo de configuração versionado da carga.
+DATA_DE_REFERENCIA_PADRAO = date(2026, 11, 30)
 
 # O contrato da camada: as views e suas colunas, em ordem.
 COLUNAS_DA_CAMADA = {
@@ -34,6 +39,7 @@ COLUNAS_DA_CAMADA = {
     ],
     "pagamento": ["pedido_id", "forma", "parcelas", "valor", "situacao"],
     "entrega": ["pedido_id", "data_prometida", "data_entrega", "situacao"],
+    "referencia": ["data_referencia"],
 }
 
 
@@ -197,6 +203,27 @@ def test_vendas_calcula_atrasos_por_rota_e_por_lojista(conexao_vendas, conexao_d
 
     assert por_rota_na_camada == por_rota_na_origem
     assert len(por_lojista_na_camada) == 5
+
+
+def _data_de_referencia_lida_por_vendas() -> date:
+    with conectar_como_vendas() as conexao:
+        linhas = conexao.execute("select data_referencia from vendas.referencia").fetchall()
+    assert len(linhas) == 1
+    return linhas[0][0]
+
+
+def test_vendas_le_a_data_de_referencia_gravada_pela_carga():
+    assert _data_de_referencia_lida_por_vendas() == DATA_DE_REFERENCIA_PADRAO
+
+
+def test_data_de_referencia_sobreposta_vale_para_a_camada_e_a_recarga_a_devolve():
+    rodar_carga("DATA_REFERENCIA=2025-11-30")
+    try:
+        assert _data_de_referencia_lida_por_vendas() == date(2025, 11, 30)
+    finally:
+        rodar_carga()
+
+    assert _data_de_referencia_lida_por_vendas() == DATA_DE_REFERENCIA_PADRAO
 
 
 def test_recarga_recria_a_camada_e_o_papel_com_as_mesmas_permissoes():

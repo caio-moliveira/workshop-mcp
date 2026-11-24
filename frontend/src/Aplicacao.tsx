@@ -7,6 +7,7 @@ import { LoadingSkeleton } from "./componentes/LoadingSkeleton";
 import { PageHeading } from "./componentes/PageHeading";
 import { DESCRICAO_DOS_PERFIS } from "./perfis";
 import type { Sessao } from "./sessao/sessao";
+import { PainelDeVendas } from "./vendas/PainelDeVendas";
 
 export function Aplicacao({ sessao }: { sessao: Sessao }) {
   const estado = useSyncExternalStore(sessao.inscrever, sessao.obterEstado);
@@ -36,17 +37,24 @@ export function Aplicacao({ sessao }: { sessao: Sessao }) {
     case "pronta": {
       const { usuario } = estado;
       const perfil = DESCRICAO_DOS_PERFIS[usuario.perfil];
+      const primeiroNome = usuario.nome.split(" ")[0] ?? usuario.nome;
       return (
         <AppShell usuario={usuario} aoSair={() => void sessao.sair()}>
-          <PageHeading
-            contexto={perfil.nome}
-            titulo={perfil.rotuloDoPainel}
-            subtitulo={`Olá, ${usuario.nome.split(" ")[0]}. Aqui você acompanha os dados do seu perfil.`}
-          />
-          <EmptyState
-            titulo="O painel chega em breve"
-            descricao={`Os indicadores de ${perfil.nome} aparecem aqui na próxima entrega. Seu acesso já está pronto.`}
-          />
+          {usuario.perfil === "vendas" ? (
+            <PainelDeVendas fonte={sessao} primeiroNome={primeiroNome} />
+          ) : (
+            <>
+              <PageHeading
+                contexto={perfil.nome}
+                titulo={perfil.rotuloDoPainel}
+                subtitulo={`Olá, ${primeiroNome}. Aqui você acompanha os dados do seu perfil.`}
+              />
+              <EmptyState
+                titulo="O painel chega em breve"
+                descricao={`Os indicadores de ${perfil.nome} aparecem aqui em uma das próximas entregas. Seu acesso já está pronto.`}
+              />
+            </>
+          )}
         </AppShell>
       );
     }

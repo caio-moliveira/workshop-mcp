@@ -21,8 +21,8 @@ Fontes dos requisitos:
 | # | Entrega | Depende de | Situação |
 | --- | --- | --- | --- |
 | 1 | Fundação de dados | — | Concluída |
-| 2 | Login e perfil | 1 | Livre |
-| 3 | Vendas na tela | 2 | Livre |
+| 2 | Login e perfil | 1 | Concluída |
+| 3 | Vendas na tela | 2 | Concluída |
 | 4a | Servidor MCP de Vendas | 3 | Livre |
 | V1 | Verificação com túnel: Claude e ChatGPT | 4a | Livre |
 | 4b | Auditoria e limite de frequência | 4a | Livre |

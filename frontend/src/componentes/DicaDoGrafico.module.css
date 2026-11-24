@@ -1,0 +1,44 @@
+.dica {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco-2);
+  min-width: 180px;
+  padding: var(--espaco-3);
+  border: 1px solid var(--border);
+  border-radius: var(--raio-da-dica);
+  background: var(--surface);
+  box-shadow: var(--sombra-flutuante);
+  font-size: var(--texto-label);
+}
+
+.titulo {
+  color: var(--text-primary);
+  font-weight: var(--peso-semibold);
+}
+
+.linhas {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco-1);
+  margin: 0;
+}
+
+.linha {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--espaco-4);
+}
+
+.rotulo {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+}
+
+.valor {
+  margin: 0;
+  color: var(--text-primary);
+  font-weight: var(--peso-medio);
+  font-variant-numeric: tabular-nums;
+}

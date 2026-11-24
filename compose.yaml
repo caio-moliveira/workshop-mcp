@@ -70,7 +70,8 @@ services:
       timeout: 3s
       retries: 60
 
-  # API das telas. Valida o token: emissor público, chaves buscadas pela rede interna.
+  # API das telas. Valida o token: emissor público, chaves buscadas pela rede interna. Lê o banco
+  # só pelo mecanismo de consultas, com o papel do perfil de quem pede.
   api:
     build:
       context: backend
@@ -78,6 +79,7 @@ services:
     env_file: backend/.env
     environment:
       ENDERECO_INTERNO_DO_PROVEDOR: http://keycloak:8080
+      POSTGRES_HOST: postgres
     ports:
       - "127.0.0.1:${API_PORT:-8000}:8000"
     depends_on:

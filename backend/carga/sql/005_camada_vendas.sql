@@ -42,5 +42,10 @@ create view vendas.entrega as
 select pedido_id, data_prometida, data_entrega, situacao
 from dados_de_origem.entrega;
 
+-- O último dia coberto pelos dados: as consultas de Vendas calculam o período a partir dele.
+create view vendas.referencia as
+select data_referencia
+from dados_de_origem.referencia;
+
 grant usage on schema vendas to vendas;
 grant select on all tables in schema vendas to vendas;

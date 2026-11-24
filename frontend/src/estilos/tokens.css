@@ -22,6 +22,11 @@
   --serie-3: #c49a58;
   --serie-4: #a6b0a8;
 
+  /* §7 Gráficos */
+  --grade-do-grafico: #e9ede7;
+  --raio-da-dica: 10px;
+  --altura-do-grafico: 280px;
+
   /* §2 Identificação dos perfis: só em ícone, linha curta ou chip */
   --perfil-vendas: #376b57;
   --perfil-produtos: #4968c9;
