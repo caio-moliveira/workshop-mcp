@@ -11,6 +11,10 @@ from acesso import Perfil
 from token_de_demonstracao.fluxo_de_codigo import Aplicacao
 
 APLICACAO_WEB = "pulso-web"
+# O login pelo MCP Inspector: o retorno é a página que o Inspector abre na máquina local, e repete o
+# `redirectUris` do cliente no realm.
+INSPECTOR = "pulso-inspector"
+RETORNO_DO_INSPECTOR = "http://localhost:6274/oauth/callback"
 # Um cliente do mesmo realm que não é a aplicação: o token dele não vale na API nem no servidor
 # MCP (CA-03). Ninguém escuta no retorno: o fluxo lê o código do redirecionamento, sem segui-lo.
 # O endereço repete o `redirectUris` do cliente no realm.
@@ -60,6 +64,7 @@ def aplicacoes(endereco_do_frontend: str) -> dict[str, Aplicacao]:
     """Os clientes do realm que fazem login, por identificador, com o retorno de cada um."""
     conhecidas = [
         Aplicacao(APLICACAO_WEB, f"{endereco_do_frontend}/"),
+        Aplicacao(INSPECTOR, RETORNO_DO_INSPECTOR),
         Aplicacao(OUTRA_APLICACAO, RETORNO_DA_OUTRA_APLICACAO),
     ]
     return {aplicacao.identificador: aplicacao for aplicacao in conhecidas}

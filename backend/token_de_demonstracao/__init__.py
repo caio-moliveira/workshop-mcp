@@ -8,6 +8,7 @@ as dependências do grupo `dev`, e não entra nas imagens dos serviços.
 
 from token_de_demonstracao.cadastro import (
     APLICACAO_WEB,
+    INSPECTOR,
     OUTRA_APLICACAO,
     USUARIOS_DE_DEMONSTRACAO,
     UsuarioDeDemonstracao,
@@ -23,6 +24,7 @@ from token_de_demonstracao.fluxo_de_codigo import (
 
 __all__ = [
     "APLICACAO_WEB",
+    "INSPECTOR",
     "OUTRA_APLICACAO",
     "USUARIOS_DE_DEMONSTRACAO",
     "Aplicacao",

@@ -40,6 +40,7 @@ def _sem_rastro_de_pilha_nem_senha(resultado) -> None:
     ("aplicacao", "destinatarios"),
     [
         ("pulso-web", ["pulso-api", "pulso-mcp"]),
+        ("pulso-inspector", ["pulso-mcp"]),
         ("pulso-outra-aplicacao", ["pulso-outra-aplicacao"]),
     ],
 )
@@ -97,7 +98,10 @@ def test_o_erro_de_usuario_ou_aplicacao_desconhecidos_diz_quais_existem():
     assert "ana.vendas, bruno.produtos, carla.comercial, diego.diretoria" in (
         _rodar("fulano.inexistente", "pulso-web").stderr
     )
-    assert "pulso-web, pulso-outra-aplicacao" in _rodar("ana.vendas", "pulso-x").stderr
+    assert (
+        "pulso-web, pulso-inspector, pulso-outra-aplicacao"
+        in _rodar("ana.vendas", "pulso-x").stderr
+    )
 
 
 def test_senha_recusada_pelo_provedor_termina_com_erro_claro():

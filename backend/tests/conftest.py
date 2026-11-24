@@ -74,7 +74,8 @@ def criar_mcp(executor_de_consultas) -> Callable[..., Starlette]:
     """Cria a aplicação do servidor MCP pela fábrica, dentro do processo.
 
     Como em `criar_api`: cada parâmetro da configuração de acesso pode ser trocado, e o executor
-    de consultas também, com `consultas=`. O destinatário exigido é o do servidor MCP.
+    de consultas também, com `consultas=`. O destinatário exigido é o do servidor MCP, e o
+    endereço público anunciado nos metadados de recurso protegido é o do ambiente.
     """
 
     def criar(consultas: ExecutorDeConsultas | None = None, **sobreposicoes) -> Starlette:
@@ -84,7 +85,9 @@ def criar_mcp(executor_de_consultas) -> Callable[..., Starlette]:
             chaves=ChavesDoProvedor(url_das_chaves()),
         )
         return criar_aplicacao_mcp(
-            replace(configuracao, **sobreposicoes), consultas or executor_de_consultas
+            replace(configuracao, **sobreposicoes),
+            consultas or executor_de_consultas,
+            endereco_publico=variavel("ENDERECO_PUBLICO_DO_MCP"),
         )
 
     return criar

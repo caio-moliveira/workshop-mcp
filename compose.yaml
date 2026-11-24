@@ -112,7 +112,9 @@ services:
 
   # Servidor MCP: as mesmas consultas como ferramentas para agentes de IA, em /mcp, sem estado.
   # Importa o acesso e as consultas direto, sem passar pela API. Só aceita tokens cujo
-  # destinatário inclui pulso-mcp (ADR 0006).
+  # destinatário inclui pulso-mcp (ADR 0006). Publica os metadados de recurso protegido em
+  # /.well-known/oauth-protected-resource/mcp, com ENDERECO_PUBLICO_DO_MCP como recurso, e a
+  # recusa sem token os aponta: é por eles que o MCP Inspector chega ao login do realm.
   mcp:
     build:
       context: backend
