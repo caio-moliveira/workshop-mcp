@@ -1,4 +1,5 @@
-/* Quatro KPIs em linha no desktop; 2×2 abaixo disso, inclusive no celular (FE §11). */
+/* Quatro KPIs em linha no desktop; 2×2 abaixo disso, inclusive no celular; uma coluna estreita
+   no celular pequeno, onde a receita não cabe em meio cartão sem reduzir o texto (FE §11). */
 .grade {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -14,5 +15,11 @@
 @media (max-width: 767px) {
   .grade {
     gap: var(--espaco-3);
+  }
+}
+
+@media (max-width: 479px) {
+  .grade {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

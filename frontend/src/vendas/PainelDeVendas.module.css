@@ -16,6 +16,12 @@
   min-width: 0;
 }
 
+/* Lado a lado, os dois blocos têm a mesma altura, em qualquer estado (gráfico, erro, vazio). */
+.principal > *,
+.complementar > * {
+  height: 100%;
+}
+
 @media (max-width: 1279px) {
   .principal,
   .complementar {
