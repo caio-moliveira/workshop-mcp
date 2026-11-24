@@ -80,7 +80,7 @@ O serviço `mcp` do compose expõe as consultas de Vendas como ferramentas MCP, 
 
 - **Ferramentas:** `vendas_indicadores`, `vendas_evolucao`, `vendas_situacao_das_entregas`, `vendas_pedidos_recentes` e `vendas_atrasos`, todas do perfil Vendas, declaradas em `backend/servidor_mcp/ferramentas.py`. Os outros perfis recebem a lista vazia, e uma chamada a uma ferramenta de outro perfil recebe o mesmo erro de uma ferramenta inexistente.
 - **Token:** só aceita tokens do realm cujo destinatário inclui `pulso-mcp`. O token da aplicação (`pulso-web`) traz `pulso-api` e `pulso-mcp` (ADR 0006); o do cliente `pulso-inspector`, só `pulso-mcp`. Sem token ou com token recusado: `401`, com o `WWW-Authenticate` apontando os metadados de recurso protegido em `/.well-known/oauth-protected-resource/mcp`.
-- **Endereço público:** `ENDERECO_PUBLICO_DO_MCP` no `backend/.env` (sem o `/mcp`), o recurso anunciado nos metadados. Precisa ser o endereço que o cliente MCP digita.
+- **Endereço público:** `ENDERECO_PUBLICO_DO_MCP` no `backend/.env` (sem o `/mcp`), o recurso anunciado nos metadados. Precisa ser o endereço digitado no cliente do protocolo MCP (o Inspector, um assistente externo).
 - **Saúde:** `GET /saude`, sem token.
 
 Para conectar o [MCP Inspector](https://github.com/modelcontextprotocol/inspector), use o cliente `pulso-inspector` do realm; o passo a passo está em `docs/demonstracao/entrega-4a.md`. Para colar um token sem passar pela tela de login, emita um de um usuário de demonstração, dentro de `backend/`:

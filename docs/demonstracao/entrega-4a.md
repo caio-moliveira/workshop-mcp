@@ -41,7 +41,7 @@ curl http://localhost:8001/.well-known/oauth-protected-resource/mcp
 {"resource":"http://localhost:8001/mcp","authorization_servers":["http://localhost:8080/realms/pulso"],"scopes_supported":["openid"],"bearer_methods_supported":["header"]}
 ```
 
-Os metadados dizem ao cliente MCP que o servidor de autorização é o realm `pulso` do Keycloak. É por aqui que o Inspector descobre onde fazer login.
+Os metadados dizem ao cliente do protocolo MCP que o servidor de autorização é o realm `pulso` do Keycloak. É por aqui que o Inspector descobre onde fazer login.
 
 ## 3. Abrir o Inspector e entrar como Vendas (verificação manual pendente)
 

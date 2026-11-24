@@ -7,7 +7,7 @@ Um marketplace brasileiro que conecta lojistas a clientes finais, cujos dados s�
 ### Acesso
 
 **Usuário**:
-Uma pessoa da empresa que consulta os dados pelo `pulso.`, pela aplicação ou por um cliente externo.
+Uma pessoa da empresa que consulta os dados pelo `pulso.`, pela aplicação ou por um assistente externo.
 _Avoid_: Cliente (que é quem compra), conta, login
 
 **Usuário de demonstração**:
