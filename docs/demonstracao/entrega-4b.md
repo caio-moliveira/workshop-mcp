@@ -4,7 +4,7 @@ Este roteiro mostra a entrega 4b pelo terminal: toda chamada ao servidor MCP vir
 
 Pré-requisitos: Docker com Docker Compose e [uv](https://docs.astral.sh/uv/). O MCP Inspector não é necessário: as chamadas saem como no fim do passo 5 do roteiro da 4a, com o JSON-RPC cru, para que cada resposta e cada linha da auditoria possam ser conferidas no terminal.
 
-**O que foi conferido e como.** Os resultados abaixo foram observados no ambiente local em 24/11/2026, nos dois terminais: as linhas dos passos 3 a 5, a barreira na 31ª chamada, a auditoria intacta depois da recarga e as recusas do passo 7. Os horários e o identificador do usuário mudam a cada execução; os demais valores, não.
+**O que foi conferido e como.** Os resultados abaixo foram observados no ambiente local em 24/11/2026, nos dois terminais: as linhas dos passos 3 a 5, a barreira na 31ª chamada, a auditoria intacta depois da recarga e as recusas do passo 7. Os horários mudam a cada execução; os demais valores, não.
 
 ## 1. Preparar a configuração e subir
 
@@ -45,7 +45,7 @@ A tabela tem uma linha por chamada, com o desfecho final:
 | Coluna | O que guarda |
 | --- | --- |
 | `horario` | A chegada da chamada, com fuso. O `psql` do contêiner mostra em UTC (`+00`). |
-| `id_do_usuario` | O `sub` do token: é por ele que o usuário é identificado e que o limite conta. Muda a cada subida do Keycloak, que importa o realm sem identificadores fixos. |
+| `id_do_usuario` | O `sub` do token: é por ele que o usuário é identificado e que o limite conta. Os usuários de demonstração têm identificador fixo no realm: o mesmo usuário tem o mesmo `sub` a cada subida do Keycloak. |
 | `nome_do_usuario` | O nome que veio no token, como `Ana Ribeiro`, e não o login `ana.vendas`. |
 | `perfil` | O perfil do token já validado, nunca algo enviado pelo assistente (RS-03). |
 | `ferramenta` | O nome pedido, como chegou, mesmo que não exista (cortado acima de 200 caracteres). |
@@ -99,7 +99,7 @@ docker compose exec postgres psql -U dono -d auditoria -x -c "select horario, id
 ```
 -[ RECORD 1 ]-------+-------------------------------------
 horario             | 2026-11-24 21:24:37.599351+00
-id_do_usuario       | 74769ade-ef94-49cd-a2d0-5c74f5e568d5
+id_do_usuario       | 97bfb2e3-99f7-4091-aafd-10af557ea6d2
 nome_do_usuario     | Ana Ribeiro
 perfil              | vendas
 ferramenta          | vendas_indicadores
