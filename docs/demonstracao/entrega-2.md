@@ -145,7 +145,7 @@ Com o ambiente no ar, dentro de `backend/`:
 uv run pytest
 ```
 
-Resultado esperado: `138 passed`, em cerca de três minutos e meio. A suíte recarrega o banco algumas vezes e reinicia o Keycloak, o que encerra as sessões abertas e troca as chaves de assinatura: por isso ela vem depois do passo 5. Os testes da entrega 2 obtêm tokens do Keycloak do compose pelo mesmo fluxo do navegador, sem mocks:
+Resultado esperado: `145 passed`, em cerca de quatro minutos. A suíte recarrega o banco algumas vezes e reinicia o Keycloak, o que encerra as sessões abertas e troca as chaves de assinatura: por isso ela vem depois do passo 5. Os testes da entrega 2 obtêm tokens do Keycloak do compose pelo mesmo fluxo do navegador, sem mocks:
 
 | Arquivo | O que verifica |
 | --- | --- |
