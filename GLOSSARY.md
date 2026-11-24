@@ -44,6 +44,10 @@ _Avoid_: Origem (sozinho), tabelas de origem, base bruta
 O último dia coberto pelos dados. Nada acontece depois dela, e ela não depende do dia em que os dados são gerados.
 _Avoid_: Data atual, hoje, data de corte
 
+**Período**:
+A janela de dias, terminando na data de referência, sobre a qual um painel ou indicador é calculado: últimos 30 dias, 90 dias, 12 meses ou 24 meses.
+_Avoid_: Intervalo, filtro de datas, janela
+
 **Carga**:
 O processo que cria o banco inteiro a partir do nada: estrutura, dados e permissões.
 _Avoid_: Seed, ingestão, migração, importação
@@ -77,6 +81,18 @@ _Avoid_: Prazo vencido (é outra coisa), demora
 **Prazo vencido**:
 A situação de um pedido ainda em trânsito cuja data prometida já passou na data de referência.
 _Avoid_: Atraso, pendente
+
+**Receita**:
+A soma dos pagamentos aprovados dos pedidos de um período, com itens e frete.
+_Avoid_: Faturamento, vendas (que é o perfil), GMV
+
+**Taxa de atraso**:
+A parte dos pedidos entregues que chegou com atraso. Pedidos com prazo vencido não entram.
+_Avoid_: Índice de atraso, atrasos (sozinho)
+
+**Taxa de aprovação**:
+A parte dos pedidos cujo pagamento foi aprovado.
+_Avoid_: Conversão (que é do Comercial)
 
 **Recompra**:
 O fato de um cliente fazer um segundo pedido com pagamento aprovado.
