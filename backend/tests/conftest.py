@@ -25,6 +25,7 @@ from acesso import ChavesDoProvedor, ConfiguracaoDeAcesso, Perfil
 from api import criar_aplicacao
 from auditoria import Auditoria, AuditoriaNoBanco
 from consultas import Credencial, ExecutorDeConsultas, credenciais_do_ambiente
+from servidor_mcp import LimiteDeFrequencia
 from servidor_mcp import criar_aplicacao as criar_aplicacao_mcp
 
 # O token de acesso vale 5 minutos; um token guardado é trocado bem antes de vencer.
@@ -84,7 +85,8 @@ def criar_mcp(executor_de_consultas, auditoria_local) -> Callable[..., Starlette
     """Cria a aplicação do servidor MCP pela fábrica, dentro do processo.
 
     Como em `criar_api`: cada parâmetro da configuração de acesso pode ser trocado, e o executor
-    de consultas também, com `consultas=`, e a auditoria, com `auditoria=`. O destinatário
+    de consultas também, com `consultas=`, a auditoria, com `auditoria=`, e o limite de
+    frequência, com `limite=` (sem ele, o padrão do servidor). O destinatário
     exigido é o do servidor MCP, e o endereço público anunciado nos metadados de recurso
     protegido é o do ambiente.
     """
@@ -92,6 +94,7 @@ def criar_mcp(executor_de_consultas, auditoria_local) -> Callable[..., Starlette
     def criar(
         consultas: ExecutorDeConsultas | None = None,
         auditoria: Auditoria | None = None,
+        limite: LimiteDeFrequencia | None = None,
         **sobreposicoes,
     ) -> Starlette:
         configuracao = ConfiguracaoDeAcesso(
@@ -104,6 +107,7 @@ def criar_mcp(executor_de_consultas, auditoria_local) -> Callable[..., Starlette
             consultas or executor_de_consultas,
             auditoria or auditoria_local,
             endereco_publico=variavel("ENDERECO_PUBLICO_DO_MCP"),
+            limite=limite,
         )
 
     return criar
