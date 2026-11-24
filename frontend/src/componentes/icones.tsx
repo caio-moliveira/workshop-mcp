@@ -68,3 +68,21 @@ export function IconeEmBreve() {
     </Icone>
   );
 }
+
+export function IconeCadeado() {
+  return (
+    <Icone>
+      <rect x="5" y="11" width="14" height="9" rx="2" />
+      <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+    </Icone>
+  );
+}
+
+/** Seta de tendência, menor que os ícones de navegação: acompanha o texto do TrendBadge. */
+export function IconeTendencia({ sentido }: { sentido: "sobe" | "desce" }) {
+  return (
+    <Icone width="14" height="14">
+      {sentido === "sobe" ? <path d="M7 17 17 7M9 7h8v8" /> : <path d="M7 7l10 10M17 9v8H9" />}
+    </Icone>
+  );
+}

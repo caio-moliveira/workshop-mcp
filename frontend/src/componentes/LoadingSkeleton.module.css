@@ -85,6 +85,26 @@
   border-radius: var(--raio-card);
 }
 
+/* Cartão de indicador: mesma moldura e mesmas alturas do KpiCard. */
+.cartao {
+  composes: cartao from "./KpiCard.module.css";
+}
+
+.rotuloDoCartao {
+  width: 45%;
+  height: 21px;
+}
+
+.valorDoCartao {
+  width: 70%;
+  height: 34px;
+}
+
+.legendaDoCartao {
+  width: 55%;
+  height: 22px;
+}
+
 @keyframes pulsar {
   50% {
     opacity: 0.55;

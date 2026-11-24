@@ -1,0 +1,45 @@
+.filtro {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: var(--raio-botao);
+  background: var(--surface);
+}
+
+.opcao {
+  height: 32px;
+  padding: 0 var(--espaco-3);
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--texto-label);
+  font-weight: var(--peso-medio);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background var(--transicao-rapida),
+    color var(--transicao-rapida);
+}
+
+.opcao:hover {
+  background: var(--surface-muted);
+  color: var(--text-primary);
+}
+
+.opcao[aria-pressed="true"] {
+  background: var(--brand-ink);
+  color: var(--bg-app);
+}
+
+@media (max-width: 767px) {
+  .filtro {
+    width: 100%;
+  }
+
+  .opcao {
+    flex: 1;
+    padding: 0 var(--espaco-2);
+  }
+}

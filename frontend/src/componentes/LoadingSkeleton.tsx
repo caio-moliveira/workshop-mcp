@@ -1,7 +1,24 @@
 import estilos from "./LoadingSkeleton.module.css";
 
-/** Esqueleto da estrutura enquanto a aplicação confirma quem é o usuário (FE §10). */
-export function LoadingSkeleton() {
+interface Propriedades {
+  /**
+   * `pagina`: a estrutura inteira, enquanto a aplicação confirma quem é o usuário.
+   * `cartao`: um cartão de indicador, proporcional ao KpiCard. Quem o usa anuncia o carregamento.
+   */
+  forma?: "pagina" | "cartao";
+}
+
+/** Esqueleto proporcional ao que vai aparecer, sem piscar a tela (FE §10). */
+export function LoadingSkeleton({ forma = "pagina" }: Propriedades) {
+  if (forma === "cartao") {
+    return (
+      <div className={estilos.cartao} aria-hidden="true">
+        <span className={`${estilos.bloco} ${estilos.rotuloDoCartao}`} />
+        <span className={`${estilos.bloco} ${estilos.valorDoCartao}`} />
+        <span className={`${estilos.bloco} ${estilos.legendaDoCartao}`} />
+      </div>
+    );
+  }
   return (
     <div className={estilos.shell} role="status" aria-live="polite">
       <span className="visualmente-oculto">Confirmando seu acesso…</span>

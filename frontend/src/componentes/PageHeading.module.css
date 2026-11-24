@@ -1,6 +1,21 @@
 .cabecalho {
   display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--espaco-4) var(--espaco-6);
+}
+
+.textos {
+  display: flex;
   flex-direction: column;
+  gap: var(--espaco-2);
+  min-width: 0;
+}
+
+.filtros {
+  display: flex;
+  flex-wrap: wrap;
   gap: var(--espaco-2);
 }
 

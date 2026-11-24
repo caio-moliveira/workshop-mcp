@@ -100,8 +100,11 @@ Checagens (as mesmas da CI):
 ```
 npm run typecheck
 npm run lint
+npm test
 npm run build
 ```
+
+`npm test` roda o Vitest nas funções puras: formatação, período da URL, variação e validação das respostas da API.
 
 ## Credenciais do banco
 
@@ -109,6 +112,8 @@ npm run build
 - `vendas` (`SENHA_DO_PAPEL_VENDAS`): lê apenas o esquema `vendas`, a camada de leitura do perfil Vendas, e é recusado nos dados de origem (ADR 0002).
 
 As senhas ficam em `backend/.env`, que não é versionado.
+
+A API lê o banco só pelo mecanismo de consultas (`backend/consultas`): cada consulta declara um perfil, e o executor conecta com o papel desse perfil (`SENHA_DO_PAPEL_<PERFIL>`). Um perfil sem senha configurada é negado em toda consulta.
 
 ## Recarga
 

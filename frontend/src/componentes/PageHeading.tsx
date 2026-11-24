@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import estilos from "./PageHeading.module.css";
 
 interface Propriedades {
@@ -5,15 +7,20 @@ interface Propriedades {
   contexto: string;
   titulo: string;
   subtitulo: string;
+  /** Filtros discretos, alinhados à direita (FE §5), como o PeriodFilter. */
+  filtros?: ReactNode;
 }
 
-/** Cabeçalho do conteúdo (FE §5). Os filtros chegam com os painéis. */
-export function PageHeading({ contexto, titulo, subtitulo }: Propriedades) {
+/** Cabeçalho do conteúdo (FE §5). */
+export function PageHeading({ contexto, titulo, subtitulo, filtros }: Propriedades) {
   return (
     <header className={estilos.cabecalho}>
-      <p className={estilos.contexto}>{contexto}</p>
-      <h1 className={estilos.titulo}>{titulo}</h1>
-      <p className={estilos.subtitulo}>{subtitulo}</p>
+      <div className={estilos.textos}>
+        <p className={estilos.contexto}>{contexto}</p>
+        <h1 className={estilos.titulo}>{titulo}</h1>
+        <p className={estilos.subtitulo}>{subtitulo}</p>
+      </div>
+      {filtros && <div className={estilos.filtros}>{filtros}</div>}
     </header>
   );
 }
