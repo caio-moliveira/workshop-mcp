@@ -184,7 +184,7 @@ services:
   # Túnel rápido do cloudflared (*.trycloudflare.com, sem conta): publica o proxy na internet com
   # HTTPS, para o Claude e o ChatGPT alcançarem o ambiente local (V1). Só sobe quando pedido:
   #   docker compose --profile tunel up -d --wait
-  # O endereço muda a cada execução e aparece no log (docker compose logs tunel); os passos para
+  # O endereço muda a cada execução, inclusive quando o compose recria o serviço, e aparece no log (docker compose logs tunel); os passos para
   # ligar o modo túnel estão em backend/.env.example. Só alcança o proxy, pela rede interna: o
   # banco e o console de administração continuam fora do alcance.
   tunel:
