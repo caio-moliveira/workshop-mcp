@@ -146,6 +146,14 @@ docker compose run --rm --build carga
 
 ## Testes
 
+O servidor MCP do compose precisa estar com o limite de frequência alto: a suíte faz centenas de chamadas com o mesmo usuário, e o limite padrão (30 por minuto) as barraria. O limite de verdade é testado com o servidor criado dentro do processo. Na raiz do projeto:
+
+```
+LIMITE_DE_CHAMADAS_POR_USUARIO=100000 docker compose up -d --wait mcp
+```
+
+Sem isso, a suíte para logo no começo e avisa. Para voltar ao limite da demonstração, suba o `mcp` de novo sem a variável.
+
 Com o ambiente no ar, dentro de `backend/`:
 
 ```

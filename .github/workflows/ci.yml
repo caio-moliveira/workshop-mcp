@@ -31,6 +31,10 @@ jobs:
 
       - name: Subir o ambiente (banco carregado, provedor de identidade, API, servidor MCP, proxy reverso e frontend)
         run: docker compose up -d --build --wait
+        env:
+          # A suíte faz centenas de chamadas com o mesmo usuário; o limite de verdade é testado
+          # com o servidor criado dentro do processo.
+          LIMITE_DE_CHAMADAS_POR_USUARIO: "100000"
 
       - name: Testes
         run: uv run pytest

@@ -9,7 +9,7 @@ from dataclasses import replace
 
 import psycopg
 import pytest
-from apoio import BANCO_DA_AUDITORIA, banco_local, conectar_como_dono, variavel
+from apoio import BANCO_DA_AUDITORIA, banco_local, compose, conectar_como_dono, variavel
 from fastapi.testclient import TestClient
 from provedor import (
     DESTINATARIO_DA_API,
@@ -30,6 +30,29 @@ from servidor_mcp import criar_aplicacao as criar_aplicacao_mcp
 
 # O token de acesso vale 5 minutos; um token guardado é trocado bem antes de vencer.
 VALIDADE_DO_TOKEN_GUARDADO_EM_SEGUNDOS = 3 * 60
+
+# O limite de frequência que o serviço `mcp` do compose precisa ter para a suíte: ela faz
+# centenas de chamadas com o mesmo usuário. O limite de verdade é testado dentro do processo.
+LIMITE_MINIMO_DO_MCP_PARA_A_SUITE = 10_000
+
+
+@pytest.fixture(scope="session", autouse=True)
+def mcp_do_ambiente_sem_limite_baixo() -> None:
+    """Para a suíte logo no começo se o `mcp` do compose estiver com o limite da demonstração.
+
+    Sem isto, dezenas de testes do servidor MCP falhariam com "Muitas chamadas", sem pista da
+    causa. Se o serviço não responde, quem avisa são os próprios testes.
+    """
+    saida = compose("exec", "-T", "mcp", "printenv", "LIMITE_DE_CHAMADAS_POR_USUARIO")
+    if saida.returncode != 0 or not saida.stdout.strip().isdigit():
+        return
+    if int(saida.stdout.strip()) < LIMITE_MINIMO_DO_MCP_PARA_A_SUITE:
+        pytest.exit(
+            "o serviço mcp do compose está com o limite de frequência baixo "
+            f"({saida.stdout.strip()} chamadas); suba-o com "
+            "LIMITE_DE_CHAMADAS_POR_USUARIO=100000 docker compose up -d --wait mcp",
+            returncode=2,
+        )
 
 
 @pytest.fixture
