@@ -9,7 +9,7 @@ from dataclasses import replace
 
 import psycopg
 import pytest
-from apoio import banco_local, conectar_como_dono, variavel
+from apoio import BANCO_DA_AUDITORIA, banco_local, conectar_como_dono, variavel
 from fastapi.testclient import TestClient
 from provedor import (
     DESTINATARIO_DA_API,
@@ -23,7 +23,8 @@ from starlette.applications import Starlette
 
 from acesso import ChavesDoProvedor, ConfiguracaoDeAcesso, Perfil
 from api import criar_aplicacao
-from consultas import ExecutorDeConsultas, credenciais_do_ambiente
+from auditoria import Auditoria, AuditoriaNoBanco
+from consultas import Credencial, ExecutorDeConsultas, credenciais_do_ambiente
 from servidor_mcp import criar_aplicacao as criar_aplicacao_mcp
 
 # O token de acesso vale 5 minutos; um token guardado é trocado bem antes de vencer.
@@ -42,6 +43,15 @@ def executor_de_consultas() -> Iterator[ExecutorDeConsultas]:
     """O executor de consultas com as credenciais do ambiente, apontado para o banco local."""
     with ExecutorDeConsultas(banco_local(), credenciais_do_ambiente()) as executor:
         yield executor
+
+
+@pytest.fixture(scope="session")
+def auditoria_local() -> Iterator[AuditoriaNoBanco]:
+    """A auditoria do ambiente, com a credencial do papel `auditoria`, pela máquina local."""
+    banco = replace(banco_local(), nome=BANCO_DA_AUDITORIA)
+    credencial = Credencial("auditoria", variavel("SENHA_DO_PAPEL_AUDITORIA"))
+    with AuditoriaNoBanco(banco, credencial) as registro:
+        yield registro
 
 
 @pytest.fixture(scope="session")
@@ -70,15 +80,20 @@ def criar_api(executor_de_consultas) -> Callable[..., TestClient]:
 
 
 @pytest.fixture(scope="session")
-def criar_mcp(executor_de_consultas) -> Callable[..., Starlette]:
+def criar_mcp(executor_de_consultas, auditoria_local) -> Callable[..., Starlette]:
     """Cria a aplicação do servidor MCP pela fábrica, dentro do processo.
 
     Como em `criar_api`: cada parâmetro da configuração de acesso pode ser trocado, e o executor
-    de consultas também, com `consultas=`. O destinatário exigido é o do servidor MCP, e o
-    endereço público anunciado nos metadados de recurso protegido é o do ambiente.
+    de consultas também, com `consultas=`, e a auditoria, com `auditoria=`. O destinatário
+    exigido é o do servidor MCP, e o endereço público anunciado nos metadados de recurso
+    protegido é o do ambiente.
     """
 
-    def criar(consultas: ExecutorDeConsultas | None = None, **sobreposicoes) -> Starlette:
+    def criar(
+        consultas: ExecutorDeConsultas | None = None,
+        auditoria: Auditoria | None = None,
+        **sobreposicoes,
+    ) -> Starlette:
         configuracao = ConfiguracaoDeAcesso(
             emissor=emissor(),
             destinatario=DESTINATARIO_DO_MCP,
@@ -87,6 +102,7 @@ def criar_mcp(executor_de_consultas) -> Callable[..., Starlette]:
         return criar_aplicacao_mcp(
             replace(configuracao, **sobreposicoes),
             consultas or executor_de_consultas,
+            auditoria or auditoria_local,
             endereco_publico=variavel("ENDERECO_PUBLICO_DO_MCP"),
         )
 

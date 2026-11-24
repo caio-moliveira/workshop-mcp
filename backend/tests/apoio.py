@@ -60,6 +60,26 @@ def conectar_como_vendas(banco: str | None = None) -> psycopg.Connection:
     return _conectar("vendas", variavel("SENHA_DO_PAPEL_VENDAS"), banco)
 
 
+# O banco próprio da auditoria, fora da recarga (ADR 0008).
+BANCO_DA_AUDITORIA = "auditoria"
+
+
+def ultima_chamada_de(id_do_usuario: str) -> dict | None:
+    """A linha mais recente da auditoria de um usuário (o `sub` do token), lida com o papel dono.
+
+    Filtrar pelo usuário deixa cada teste conferir a própria chamada sem depender dos outros.
+    """
+    with conectar_como_dono(BANCO_DA_AUDITORIA) as conexao:
+        cursor = conexao.execute(
+            "select * from auditoria.chamada where id_do_usuario = %s order by id desc limit 1",
+            (id_do_usuario,),
+        )
+        linha = cursor.fetchone()
+        if linha is None:
+            return None
+        return dict(zip([coluna.name for coluna in cursor.description], linha, strict=True))
+
+
 def compose(*argumentos: str) -> subprocess.CompletedProcess[str]:
     """Executa um comando do Docker Compose na raiz do projeto."""
     return subprocess.run(
