@@ -36,9 +36,7 @@ FERRAMENTA_QUE_NUNCA_EXISTIU = "vendas_margem_por_cliente"
 def token_novo(perfil: Perfil) -> tuple[str, str]:
     """Um token de um usuário que nunca chamou nada, e o identificador dele."""
     sub = str(uuid.uuid4())
-    token = assinar(
-        conteudo_valido(aud=DESTINATARIO_DO_MCP, sub=sub, perfil=perfil.value), CHAVE
-    )
+    token = assinar(conteudo_valido(aud=DESTINATARIO_DO_MCP, sub=sub, perfil=perfil.value), CHAVE)
     return token, sub
 
 
