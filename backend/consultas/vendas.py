@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 from enum import StrEnum
+from typing import NamedTuple
 
 import psycopg
 
@@ -258,12 +259,20 @@ class AgrupamentoDeAtrasos(StrEnum):
 # A lista de grupos é limitada: a resposta diz quantos grupos têm atraso e se houve corte.
 LIMITE_DE_GRUPOS_COM_ATRASO = 10
 
-# O texto de SQL de cada agrupamento: o nome que identifica o grupo na resposta e o que distingue
-# um grupo de outro (dois lojistas de mesmo nome não se somam). Só estes textos, escritos aqui,
-# entram na consulta; o valor recebido de fora apenas escolhe um deles.
+
+class _TextoDoGrupo(NamedTuple):
+    """O texto de SQL de um agrupamento de atrasos."""
+
+    # O que identifica o grupo na resposta.
+    nome: str
+    # O que distingue um grupo de outro: dois lojistas de mesmo nome não se somam.
+    chave: str
+
+
+# Só estes textos, escritos aqui, entram na consulta; o valor recebido de fora apenas escolhe um.
 _GRUPO_DE_ATRASOS = {
-    AgrupamentoDeAtrasos.ROTA: ("p.rota", "p.rota"),
-    AgrupamentoDeAtrasos.LOJISTA: ("p.lojista_nome", "p.lojista_id::text"),
+    AgrupamentoDeAtrasos.ROTA: _TextoDoGrupo(nome="p.rota", chave="p.rota"),
+    AgrupamentoDeAtrasos.LOJISTA: _TextoDoGrupo(nome="p.lojista_nome", chave="p.lojista_id::text"),
 }
 
 
@@ -279,14 +288,14 @@ def atrasos(
     atrasos para o que tem menos; no empate, pelo nome, em ordem de código dos caracteres. Só os
     primeiros com ao menos um atraso são devolvidos.
     """
-    nome, chave = _GRUPO_DE_ATRASOS[agrupamento]
+    texto = _GRUPO_DE_ATRASOS[agrupamento]
     datas = _datas_do(periodo, conexao)
     linhas = conexao.execute(
         f"""
         with entregues as (
             select
-                {nome} as nome,
-                {chave} as chave,
+                {texto.nome} as nome,
+                {texto.chave} as chave,
                 e.situacao = 'Entregue com atraso' as com_atraso
             from vendas.pedido p
             join vendas.entrega e on e.pedido_id = p.id
