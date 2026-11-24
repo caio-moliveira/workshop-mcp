@@ -1,11 +1,14 @@
 """A auditoria protegida contra leitura e alteração e preservada pela recarga (RF-32, ADR 0008)."""
 
 import uuid
+from dataclasses import replace
 
 import psycopg
 import pytest
-from apoio import conectar_como_auditoria, ultima_chamada_de
+from apoio import BANCO_DA_AUDITORIA, banco_local, conectar_como_auditoria, ultima_chamada_de
 from psycopg.types.json import Jsonb
+
+from consultas import credenciais_do_ambiente
 
 # Como o servidor MCP grava: sem `returning`, que exigiria `select`.
 GRAVACAO = """
@@ -48,3 +51,21 @@ def test_o_papel_auditoria_nao_le_nao_altera_nem_apaga(comando):
         conexao.execute(comando)
     # A linha gravada continua lá, intacta.
     assert ultima_chamada_de(usuario)["resultado"] == "permitida"
+
+
+# As ferramentas do servidor MCP leem o banco só pelo executor de consultas, com o papel do
+# perfil, e o papel `auditoria` não lê: se nenhum papel de perfil alcança o banco da auditoria,
+# nenhuma ferramenta o lê (RF-32).
+@pytest.mark.parametrize("credencial", credenciais_do_ambiente().values(), ids=repr)
+def test_o_papel_de_cada_perfil_nao_se_conecta_ao_banco_da_auditoria(credencial):
+    banco = replace(banco_local(), nome=BANCO_DA_AUDITORIA)
+
+    with pytest.raises(psycopg.OperationalError, match="permission denied"):
+        psycopg.connect(
+            host=banco.host,
+            port=banco.porta,
+            dbname=banco.nome,
+            user=credencial.papel,
+            password=credencial.senha,
+            connect_timeout=5,
+        ).close()
