@@ -110,6 +110,40 @@ services:
       timeout: 3s
       retries: 30
 
+  # Servidor MCP: as mesmas consultas como ferramentas para agentes de IA, em /mcp, sem estado.
+  # Importa o acesso e as consultas direto, sem passar pela API. Só aceita tokens cujo
+  # destinatário inclui pulso-mcp (ADR 0006).
+  mcp:
+    build:
+      context: backend
+      dockerfile: servidor_mcp/Dockerfile
+    env_file: backend/.env
+    environment:
+      ENDERECO_INTERNO_DO_PROVEDOR: http://keycloak:8080
+      POSTGRES_HOST: postgres
+    ports:
+      # Só a máquina local alcança o servidor MCP.
+      - "127.0.0.1:${MCP_PORT:-8001}:8001"
+    depends_on:
+      keycloak:
+        condition: service_healthy
+      # Como a API, só sobe com o banco carregado.
+      carga:
+        condition: service_completed_successfully
+    healthcheck:
+      # Uma rota própria, fora do protocolo: responde 200 sem token, e não deixa no log uma
+      # recusa a cada verificação.
+      test:
+        - CMD
+        - python
+        - -c
+        - |
+          import urllib.request
+          urllib.request.urlopen("http://127.0.0.1:8001/saude", timeout=2)
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
   # Frontend: o build servido por nginx. Os endereços do provedor e da API entram ao subir o
   # contêiner, em /configuracao.json, sem rebuild. Abra em http://localhost:5173, o endereço que
   # o provedor aceita como retorno do login (ENDERECO_DO_FRONTEND).
