@@ -39,6 +39,7 @@ from acesso import (
 from auditoria import Auditoria, AuditoriaIndisponivel, Resultado
 from consultas import AcessoNegado, ConsultaFalhou, ExecutorDeConsultas, ParametroInvalido
 from servidor_mcp.ferramentas import FERRAMENTAS, Ferramenta
+from servidor_mcp.limite import LimiteDeFrequencia
 
 registro = logging.getLogger("servidor_mcp")
 
@@ -244,6 +245,35 @@ class FerramentasDoPerfil(Middleware):
         return await call_next(context)
 
 
+class ChamadaLimitada(ErroDaChamada):
+    """A chamada barrada pelo limite de frequência: um erro de ferramenta, não um HTTP 429.
+
+    Como erro de ferramenta, o assistente explica ao usuário o que houve, em vez de tratar como
+    queda do servidor.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(mensagens.MUITAS_CHAMADAS, Resultado.LIMITADA)
+
+
+class LimiteDasChamadas(Middleware):
+    """Barra quem passou do limite de frequência, antes do filtro de ferramentas do perfil.
+
+    Vem antes do filtro para que as chamadas negadas e com parâmetro inválido também contem: quem
+    sonda o servidor é contido. Listar ferramentas não passa por aqui.
+    """
+
+    def __init__(self, limite: LimiteDeFrequencia) -> None:
+        self._limite = limite
+
+    async def on_call_tool(self, context: MiddlewareContext, call_next) -> ToolResult:
+        usuario = _usuario_do_token()
+        if usuario is not None and not self._limite.admitir(usuario.id):
+            registro.warning("usuário %s passou do limite de frequência", usuario.id)
+            raise ChamadaLimitada()
+        return await call_next(context)
+
+
 class AuditoriaDasChamadas(Middleware):
     """Grava cada chamada na auditoria, com o desfecho, antes de a resposta sair (RF-30).
 
@@ -296,10 +326,12 @@ def criar_servidor(
     consultas: ExecutorDeConsultas,
     auditoria: Auditoria,
     endereco_publico: str,
+    limite: LimiteDeFrequencia | None = None,
 ) -> FastMCP:
     """O servidor MCP com as ferramentas do registro. Só ferramentas: sem recursos nem prompts.
 
-    Toda chamada fica na `auditoria`. O `endereco_publico` é onde quem está fora do ambiente
+    Toda chamada fica na `auditoria`, e cada usuário cabe no `limite` de frequência (sem ele, o
+    padrão de 30 chamadas por minuto). O `endereco_publico` é onde quem está fora do ambiente
     alcança o servidor (sem o `/mcp`): é o recurso anunciado nos metadados de recurso protegido.
     """
     servidor = FastMCP(
@@ -310,7 +342,11 @@ def criar_servidor(
         ),
         auth=RecursoProtegido(configuracao, endereco_publico),
         # O primeiro da lista é o mais externo.
-        middleware=[AuditoriaDasChamadas(auditoria), FerramentasDoPerfil(consultas)],
+        middleware=[
+            AuditoriaDasChamadas(auditoria),
+            LimiteDasChamadas(limite or LimiteDeFrequencia()),
+            FerramentasDoPerfil(consultas),
+        ],
         # Rede de segurança: uma exceção que escape não leva o próprio texto a quem chamou.
         mask_error_details=True,
     )
@@ -329,6 +365,7 @@ def criar_aplicacao(
     consultas: ExecutorDeConsultas,
     auditoria: Auditoria,
     endereco_publico: str,
+    limite: LimiteDeFrequencia | None = None,
 ) -> Starlette:
     """A aplicação HTTP do servidor MCP: streamable HTTP sem estado, em `/mcp` (RF-26).
 
@@ -336,6 +373,6 @@ def criar_aplicacao(
     chamada na auditoria. Publica os metadados de recurso protegido em
     `/.well-known/oauth-protected-resource/mcp`.
     """
-    return criar_servidor(configuracao, consultas, auditoria, endereco_publico).http_app(
+    return criar_servidor(configuracao, consultas, auditoria, endereco_publico, limite).http_app(
         path=CAMINHO, stateless_http=True, json_response=True
     )
