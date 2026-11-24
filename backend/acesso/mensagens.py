@@ -17,5 +17,7 @@ PARAMETRO_INVALIDO = "Parâmetro inválido."
 # O provedor ou o banco fora do ar não é negação nem token inválido: quem chama não deve mandar o
 # usuário ao login.
 SERVICO_INDISPONIVEL = "Serviço indisponível."
+# O usuário passou do limite de frequência do servidor MCP: não diz qual é o limite.
+MUITAS_CHAMADAS = "Muitas chamadas em pouco tempo. Tente de novo em instantes."
 # Qualquer falha não prevista.
 ERRO_INTERNO = "Erro interno."

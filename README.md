@@ -82,6 +82,8 @@ O serviço `mcp` do compose expõe as consultas de Vendas como ferramentas MCP, 
 - **Ferramentas:** `vendas_indicadores`, `vendas_evolucao`, `vendas_situacao_das_entregas`, `vendas_pedidos_recentes` e `vendas_atrasos`, todas do perfil Vendas, declaradas em `backend/servidor_mcp/ferramentas.py`. Os outros perfis recebem a lista vazia, e uma chamada a uma ferramenta de outro perfil recebe o mesmo erro de uma ferramenta inexistente.
 - **Token:** só aceita tokens do realm cujo destinatário inclui `pulso-mcp`. O token da aplicação (`pulso-web`) traz `pulso-api` e `pulso-mcp` (ADR 0006); o do cliente `pulso-inspector`, só `pulso-mcp`. Sem token ou com token recusado: `401`, com o `WWW-Authenticate` apontando os metadados de recurso protegido em `/.well-known/oauth-protected-resource/mcp`.
 - **Endereço público:** `ENDERECO_PUBLICO_DO_MCP` no `backend/.env` (sem o `/mcp`), o recurso anunciado nos metadados. Precisa ser o endereço digitado no cliente do protocolo MCP (o Inspector, um assistente externo).
+- **Auditoria:** toda chamada de ferramenta vira uma linha na tabela `auditoria.chamada`, no banco `auditoria`, com usuário, perfil, ferramenta, parâmetros, resultado e horário. A recarga não a apaga, e só o papel dono a lê (ADR 0008).
+- **Limite de frequência:** 30 chamadas por usuário por minuto; `LIMITE_DE_CHAMADAS_POR_USUARIO` e `JANELA_DO_LIMITE_EM_SEGUNDOS`, no shell que roda o compose, trocam os valores.
 - **Saúde:** `GET /saude`, sem token.
 
 Para conectar o [MCP Inspector](https://github.com/modelcontextprotocol/inspector), use o cliente `pulso-inspector` do realm; o passo a passo está em `docs/demonstracao/entrega-4a.md`. Para colar um token sem passar pela tela de login, emita um de um usuário de demonstração, dentro de `backend/`:
@@ -131,6 +133,7 @@ npm run build
 
 - `dono` (`POSTGRES_USER`): usado pela carga; recria o banco inteiro.
 - `vendas` (`SENHA_DO_PAPEL_VENDAS`): lê apenas o esquema `vendas`, a camada de leitura do perfil Vendas, e é recusado nos dados de origem (ADR 0002).
+- `auditoria` (`SENHA_DO_PAPEL_AUDITORIA`): usado pelo servidor MCP; só insere na tabela da auditoria, sem ler, alterar nem apagar (ADR 0008).
 
 As senhas ficam em `backend/.env`, que não é versionado.
 
@@ -145,6 +148,14 @@ docker compose run --rm --build carga
 ```
 
 ## Testes
+
+O servidor MCP do compose precisa estar com o limite de frequência alto: a suíte faz centenas de chamadas com o mesmo usuário, e o limite padrão (30 por minuto) as barraria. O limite de verdade é testado com o servidor criado dentro do processo. Na raiz do projeto:
+
+```
+LIMITE_DE_CHAMADAS_POR_USUARIO=100000 docker compose up -d --wait mcp
+```
+
+Sem isso, a suíte para logo no começo e avisa. Para voltar ao limite da demonstração, suba o `mcp` de novo sem a variável.
 
 Com o ambiente no ar, dentro de `backend/`:
 
@@ -167,6 +178,7 @@ Os roteiros, com comandos e resultados esperados, estão em `docs/demonstracao/`
 - Entrega 2, login e perfil: `docs/demonstracao/entrega-2.md`.
 - Entrega 3, Vendas na tela: `docs/demonstracao/entrega-3.md`.
 - Entrega 4a, servidor MCP de Vendas: `docs/demonstracao/entrega-4a.md`.
+- Entrega 4b, auditoria e limite de frequência: `docs/demonstracao/entrega-4b.md`.
 
 ## Parar o ambiente
 
