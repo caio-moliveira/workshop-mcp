@@ -11,6 +11,7 @@ from consultas.executor import (
     ConsultaFalhou,
     Credencial,
     ExecutorDeConsultas,
+    banco_do_ambiente,
     credenciais_do_ambiente,
 )
 from consultas.periodo import PERIODO_PADRAO, DatasDoPeriodo, ParametroInvalido, Periodo
@@ -27,6 +28,7 @@ __all__ = [
     "ExecutorDeConsultas",
     "ParametroInvalido",
     "Periodo",
+    "banco_do_ambiente",
     "consulta",
     "credenciais_do_ambiente",
 ]
