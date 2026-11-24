@@ -23,6 +23,7 @@ from cliente_mcp import (
 )
 from provedor import (
     DESTINATARIO_DO_MCP,
+    INSPECTOR,
     USUARIOS_DE_DEMONSTRACAO,
     administracao,
     emissor,
@@ -33,8 +34,9 @@ from recusa import pedir_eu
 
 from acesso import Perfil
 from servidor_mcp.ferramentas import FERRAMENTAS
+from token_de_demonstracao import Aplicacao, fluxo_de_codigo
 
-CLIENTE_DO_INSPECTOR = "pulso-inspector"
+CLIENTE_DO_INSPECTOR = INSPECTOR
 RETORNO_DO_INSPECTOR = f"{ORIGEM_DO_INSPECTOR}/oauth/callback"
 OUTRA_ORIGEM = "http://localhost:5173"
 
@@ -43,10 +45,7 @@ def login_pelo_inspector(perfil: Perfil = Perfil.VENDAS) -> dict[str, str]:
     """Os tokens do login de um usuário de demonstração pelo cliente do Inspector, com PKCE."""
     usuario = next(u for u in USUARIOS_DE_DEMONSTRACAO if u.perfil == perfil)
     return tokens_pelo_fluxo_de_codigo(
-        usuario.nome_de_usuario,
-        usuario.senha(),
-        aplicacao=CLIENTE_DO_INSPECTOR,
-        retorno=RETORNO_DO_INSPECTOR,
+        usuario.nome_de_usuario, usuario.senha(), CLIENTE_DO_INSPECTOR
     )
 
 
@@ -138,11 +137,11 @@ def test_o_login_do_inspector_nao_volta_para_outro_endereco():
     usuario = next(u for u in USUARIOS_DE_DEMONSTRACAO if u.perfil == Perfil.VENDAS)
 
     with pytest.raises(httpx.HTTPStatusError):
-        tokens_pelo_fluxo_de_codigo(
+        fluxo_de_codigo.tokens_pelo_fluxo_de_codigo(
+            emissor(),
+            Aplicacao(CLIENTE_DO_INSPECTOR, f"{OUTRA_ORIGEM}/oauth/callback"),
             usuario.nome_de_usuario,
             usuario.senha(),
-            aplicacao=CLIENTE_DO_INSPECTOR,
-            retorno=f"{OUTRA_ORIGEM}/oauth/callback",
         )
 
 
