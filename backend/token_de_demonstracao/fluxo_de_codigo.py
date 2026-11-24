@@ -3,6 +3,8 @@
 É a única implementação do percurso: os testes e o comando de token de demonstração a usam. Os
 clientes do realm que fazem login não aceitam senha direto (ADR 0004), então quem precisa de um
 token real sem abrir um navegador abre a tela de login, envia o formulário e troca o código.
+Os clientes registrados dinamicamente pedem também o consentimento do usuário, que o percurso
+aceita (ADR 0007).
 """
 
 import base64
@@ -11,7 +13,7 @@ import html
 import re
 import secrets
 from dataclasses import dataclass
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, urljoin, urlparse
 
 import httpx
 
@@ -20,10 +22,12 @@ TEMPO_LIMITE_EM_SEGUNDOS = 10
 
 @dataclass(frozen=True)
 class Aplicacao:
-    """Um cliente do realm que faz login pelo fluxo de código: o identificador e o retorno."""
+    """Um cliente do realm que faz login pelo fluxo de código: o identificador, o retorno e os
+    escopos que ele pede no login, separados por espaço."""
 
     identificador: str
     retorno: str
+    escopo: str = "openid"
 
 
 class LoginRecusado(Exception):
@@ -59,7 +63,7 @@ def abrir_tela_de_login(
         params={
             "client_id": aplicacao.identificador,
             "response_type": "code",
-            "scope": "openid",
+            "scope": aplicacao.escopo,
             "redirect_uri": aplicacao.retorno,
             "state": secrets.token_urlsafe(16),
             "code_challenge": desafio,
@@ -83,13 +87,46 @@ def enviar_credenciais(
     acao = re.search(r'<form[^>]*id="kc-form-login"[^>]*action="([^"]+)"', pagina.text)
     if not acao:
         raise TelaDeLoginInesperada("a página de login não tem o formulário esperado")
-    # O provedor marca os cookies como Secure. Navegadores os enviam em localhost mesmo sem
-    # HTTPS; o cookiejar do Python não, então o cabeçalho é montado aqui.
-    cookies = "; ".join(f"{c.name}={c.value}" for c in pagina.cookies.jar)
     return navegador.post(
         html.unescape(acao.group(1)),
         data={"username": nome_de_usuario, "password": senha},
-        headers={"Cookie": cookies},
+        headers={"Cookie": _cookies(navegador)},
+    )
+
+
+def _cookies(navegador: httpx.Client) -> str:
+    """O cabeçalho `Cookie` da sessão de login no provedor.
+
+    O provedor marca os cookies como Secure. Navegadores os enviam em localhost mesmo sem HTTPS;
+    o cookiejar do Python não, então o cabeçalho é montado aqui.
+    """
+    return "; ".join(f"{c.name}={c.value}" for c in navegador.cookies.jar)
+
+
+def consentir(navegador: httpx.Client, resposta: httpx.Response) -> httpx.Response:
+    """Aceita a tela de consentimento, se o provedor a pedir depois das credenciais, e devolve a
+    resposta seguinte, sem segui-la. Sem pedido de consentimento, devolve a mesma resposta.
+
+    O provedor pede o consentimento aos clientes registrados dinamicamente: o usuário vê que um
+    assistente quer acesso em nome dele e confirma.
+    """
+    destino = resposta.headers.get("location", "")
+    if resposta.status_code != 302 or "/login-actions/required-action" not in destino:
+        return resposta
+    tela = navegador.get(destino, headers={"Cookie": _cookies(navegador)})
+    tela.raise_for_status()
+    formulario = re.search(
+        r'id="kc-oauth".*?<form[^>]*action="([^"]+)"(.*?)</form>', tela.text, re.S
+    )
+    if not formulario:
+        raise TelaDeLoginInesperada("a tela de consentimento não tem o formulário esperado")
+    ocultos = dict(
+        re.findall(r'<input type="hidden" name="([^"]+)" value="([^"]*)"', formulario.group(2))
+    )
+    return navegador.post(
+        urljoin(destino, html.unescape(formulario.group(1))),
+        data={**ocultos, "accept": "Sim"},
+        headers={"Cookie": _cookies(navegador)},
     )
 
 
@@ -110,8 +147,11 @@ def troca_do_codigo(
     """
     verificador = _novo_verificador()
     with httpx.Client(timeout=TEMPO_LIMITE_EM_SEGUNDOS) as navegador:
-        resposta = enviar_credenciais(
-            navegador, emissor, aplicacao, _desafio_de(verificador), nome_de_usuario, senha
+        resposta = consentir(
+            navegador,
+            enviar_credenciais(
+                navegador, emissor, aplicacao, _desafio_de(verificador), nome_de_usuario, senha
+            ),
         )
     destino = resposta.headers.get("location", "")
     if resposta.status_code != 302 or not destino.startswith(aplicacao.retorno):

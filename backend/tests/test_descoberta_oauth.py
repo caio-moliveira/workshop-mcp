@@ -56,6 +56,14 @@ def test_os_metadados_respondem_sem_token_e_apontam_o_realm(http):
     assert metadados["authorization_servers"] == [emissor()]
 
 
+def test_os_metadados_anunciam_o_escopo_que_faz_o_token_valer_no_servidor(http):
+    """O assistente externo pede no login os escopos anunciados aqui; `pulso-mcp` é o que põe no
+    token o destinatário `pulso-mcp` e a claim `perfil` (ADR 0007)."""
+    metadados = http.get(CAMINHO_DOS_METADADOS).json()
+
+    assert metadados["scopes_supported"] == ["openid", "pulso-mcp"]
+
+
 @pytest.mark.parametrize("origem", [ORIGEM_DO_INSPECTOR, "http://outro.exemplo"])
 def test_o_servidor_nao_libera_cors_para_navegador_nenhum(http, origem):
     """O Inspector fala com o servidor MCP e com o provedor pelo backend dele, não pelo
