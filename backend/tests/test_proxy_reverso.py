@@ -91,6 +91,38 @@ def test_arquivos_do_tema_de_login_respondem_pelo_proxy(proxy):
         assert proxy.get(arquivo).status_code == 200, arquivo
 
 
+ENDERECO_DE_UM_TUNEL = "https://exemplo-de-tunel.trycloudflare.com"
+
+
+@pytest.mark.parametrize("formato", METADADOS_DO_REALM)
+def test_metadados_do_realm_atras_do_tunel_seguem_o_endereco_https_dele(proxy, formato):
+    """O túnel entrega ao proxy o pedido com o host público e `X-Forwarded-Proto: https`. O
+    provedor confia nesses cabeçalhos: o canal interno sai no endereço HTTPS do túnel, e o emissor
+    continua o endereço público configurado, um só por vez."""
+    resposta = proxy.get(
+        f"/.well-known/{formato}/realms/{REALM}",
+        headers={"Host": ENDERECO_DE_UM_TUNEL.removeprefix("https://"), "X-Forwarded-Proto": "https"},
+    )
+
+    assert resposta.status_code == 200
+    metadados = resposta.json()
+    assert metadados["issuer"] == emissor()
+    assert metadados["token_endpoint"] == (
+        f"{ENDERECO_DE_UM_TUNEL}/realms/{REALM}/protocol/openid-connect/token"
+    )
+    assert metadados["jwks_uri"].startswith(ENDERECO_DE_UM_TUNEL + "/")
+
+
+def test_tunel_so_sobe_com_o_perfil_tunel():
+    sem_perfil = compose("config", "--services")
+    com_perfil = compose("--profile", "tunel", "config", "--services")
+
+    assert sem_perfil.returncode == 0, sem_perfil.stderr
+    assert com_perfil.returncode == 0, com_perfil.stderr
+    assert "tunel" not in sem_perfil.stdout.split()
+    assert "tunel" in com_perfil.stdout.split()
+
+
 @pytest.mark.parametrize(
     "caminho",
     [
