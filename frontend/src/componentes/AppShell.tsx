@@ -1,18 +1,18 @@
 import { useEffect, useState, type ReactNode } from "react";
 
-import type { Eu } from "../api";
+import type { UsuarioAutenticado } from "../api";
 import estilos from "./AppShell.module.css";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 
 interface Propriedades {
-  eu: Eu;
+  usuario: UsuarioAutenticado;
   aoSair: () => void;
   children: ReactNode;
 }
 
 /** Estrutura global da aplicação: sidebar, topbar e a área de conteúdo (FE §5). */
-export function AppShell({ eu, aoSair, children }: Propriedades) {
+export function AppShell({ usuario, aoSair, children }: Propriedades) {
   const [navegacaoAberta, setNavegacaoAberta] = useState(false);
 
   useEffect(() => {
@@ -26,7 +26,7 @@ export function AppShell({ eu, aoSair, children }: Propriedades) {
 
   return (
     <div className={estilos.shell}>
-      <Sidebar eu={eu} aberta={navegacaoAberta} aoFechar={() => setNavegacaoAberta(false)} />
+      <Sidebar usuario={usuario} aberta={navegacaoAberta} aoFechar={() => setNavegacaoAberta(false)} />
       {navegacaoAberta && (
         <div
           className={estilos.fundo}
@@ -36,7 +36,7 @@ export function AppShell({ eu, aoSair, children }: Propriedades) {
       )}
       <div className={estilos.principal}>
         <Topbar
-          eu={eu}
+          usuario={usuario}
           navegacaoAberta={navegacaoAberta}
           aoAbrirNavegacao={() => setNavegacaoAberta(true)}
           aoSair={aoSair}

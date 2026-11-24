@@ -73,7 +73,11 @@ O perfil vem do grupo do usuário no realm e viaja no token como a claim `perfil
 
 ## Frontend
 
-Abra `http://localhost:5173`. A aplicação leva ao login do Keycloak (fluxo de código com PKCE pelo cliente público `pulso-web`, ADR 0004), volta com o token só em memória e chama `GET /eu`; o nome e o perfil mostrados vêm dessa resposta. O token é renovado em silêncio antes de vencer, recarregar a página volta sem pedir senha enquanto a sessão do provedor estiver ativa, e uma renovação que falha ou um `401` da API levam de volta ao login. O botão **Sair** encerra a sessão também no Keycloak.
+Abra `http://localhost:5173`. A aplicação leva ao login do Keycloak (fluxo de código com PKCE pelo cliente público `pulso-web`, ADR 0004), volta com o token só em memória e chama `GET /eu`; o nome e o perfil mostrados vêm dessa resposta. Recarregar a página volta sem pedir senha enquanto a sessão do provedor estiver ativa. O botão **Sair** encerra a sessão também no Keycloak.
+
+**Inatividade.** A sessão termina depois de 30 minutos sem uso. O token só é renovado se o usuário interagiu com a página (ponteiro, teclado, rolagem ou volta à aba) desde a última renovação, porque cada renovação prorroga a sessão no Keycloak. Passados os 30 minutos sem interação, a aplicação encerra a sessão também no Keycloak e volta à tela de login. O valor vem de `INATIVIDADE_DA_SESSAO_EM_SEGUNDOS` no `compose.yaml`, que o realm e o `/configuracao.json` usam. Para encurtar numa demonstração, mantendo-o acima dos 5 minutos do token de acesso: `INATIVIDADE_DA_SESSAO_EM_SEGUNDOS=360 docker compose up -d --wait keycloak frontend`.
+
+**Recusa da API.** Uma renovação que falha leva de volta ao login. Um `401` da API leva ao login só se a API já tinha aceitado um token nesta carga da página; se ela recusa de cara o token que o provedor acabou de emitir, entrar de novo não resolveria (o login voltaria em silêncio com outro token igual), e a aplicação mostra o erro com a ação **Sair**.
 
 **Configuração.** O build não carrega endereço nenhum. O navegador busca `/configuracao.json` ao abrir a aplicação:
 

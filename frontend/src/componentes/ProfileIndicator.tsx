@@ -1,6 +1,4 @@
-import type { CSSProperties } from "react";
-
-import { DESCRICAO_DOS_PERFIS, type Perfil } from "../perfis";
+import { corDoPerfil, DESCRICAO_DOS_PERFIS, type Perfil } from "../perfis";
 import estilos from "./ProfileIndicator.module.css";
 
 interface Propriedades {
@@ -19,14 +17,13 @@ function iniciais(nome: string): string {
 /** Mostra o perfil atual com a cor de identificação do perfil (FE §2), só em detalhes. */
 export function ProfileIndicator({ perfil, nome }: Propriedades) {
   const descricao = DESCRICAO_DOS_PERFIS[perfil];
-  const cor = { "--cor-do-perfil": descricao.cor } as CSSProperties;
 
   if (nome === undefined) {
     return (
-      <span className={estilos.chip} style={cor}>
+      <span className={estilos.chip} style={corDoPerfil(perfil)}>
         <span className={estilos.ponto} aria-hidden="true" />
         <span>
-          <span className={estilos.oculto}>Perfil </span>
+          <span className="visualmente-oculto">Perfil </span>
           {descricao.nome}
         </span>
       </span>
@@ -34,7 +31,7 @@ export function ProfileIndicator({ perfil, nome }: Propriedades) {
   }
 
   return (
-    <div className={estilos.completo} style={cor}>
+    <div className={estilos.completo} style={corDoPerfil(perfil)}>
       <span className={estilos.avatar} aria-hidden="true">
         {iniciais(nome)}
       </span>
@@ -42,7 +39,7 @@ export function ProfileIndicator({ perfil, nome }: Propriedades) {
         <span className={estilos.nome}>{nome}</span>
         <span className={estilos.perfil}>
           <span className={estilos.linha} aria-hidden="true" />
-          <span className={estilos.oculto}>Perfil </span>
+          <span className="visualmente-oculto">Perfil </span>
           {descricao.nome}
         </span>
       </span>

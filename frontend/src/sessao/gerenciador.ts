@@ -11,7 +11,8 @@ export const RETORNO_DA_RENOVACAO = `${window.location.origin}/renovacao.html`;
  * O cliente OIDC do navegador: fluxo de código com PKCE (S256), sem segredo (ADR 0004).
  *
  * O token fica só em memória. Recarregar a página o apaga, e a volta é silenciosa enquanto a
- * sessão do provedor estiver ativa. A renovação usa o refresh token, também em memória.
+ * sessão do provedor estiver ativa. A renovação usa o refresh token, também em memória, e é
+ * pedida pela Sessao.
  */
 export function criarGerenciador(enderecoDoProvedor: string): UserManager {
   return new UserManager({
@@ -23,8 +24,10 @@ export function criarGerenciador(enderecoDoProvedor: string): UserManager {
     response_type: "code",
     scope: "openid",
     userStore: new WebStorageStateStore({ store: new InMemoryWebStorage() }),
-    // Renova um minuto antes de vencer (o token de acesso dura 5 minutos).
-    automaticSilentRenew: true,
+    // Sem renovação automática: renovar mantém viva a sessão do provedor, e a Sessao só renova o
+    // token de quem usou a aplicação (sessao.ts). O aviso vem um minuto antes de o token vencer
+    // (ele dura 5 minutos).
+    automaticSilentRenew: false,
     accessTokenExpiringNotificationTimeInSeconds: 60,
     monitorSession: false,
   });

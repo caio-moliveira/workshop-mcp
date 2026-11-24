@@ -10,6 +10,8 @@ function configuracaoDeDesenvolvimento(ambiente: Record<string, string>): Plugin
   const configuracao = {
     enderecoDoProvedor: ambiente.ENDERECO_PUBLICO_DO_PROVEDOR ?? "http://localhost:8080",
     enderecoDaApi: ambiente.ENDERECO_DA_API ?? `http://127.0.0.1:${ambiente.API_PORT ?? "8000"}`,
+    // O mesmo padrão de x-sessao no compose.yaml, que o provedor do ambiente usa.
+    inatividadeDaSessaoEmSegundos: Number(ambiente.INATIVIDADE_DA_SESSAO_EM_SEGUNDOS ?? "1800"),
   };
   return {
     name: "configuracao-de-desenvolvimento",

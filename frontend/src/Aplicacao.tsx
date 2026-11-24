@@ -20,18 +20,28 @@ export function Aplicacao({ sessao }: { sessao: Sessao }) {
         <ErrorState
           titulo="O pulso. está fora do ar"
           descricao="Não conseguimos falar com o servidor agora. Sua sessão continua ativa."
-          aoTentarDeNovo={() => void sessao.tentarDeNovo()}
+          acao="Tentar de novo"
+          aoAcionar={() => void sessao.tentarDeNovo()}
+        />
+      );
+    case "recusada":
+      return (
+        <ErrorState
+          titulo="Não foi possível confirmar seu acesso"
+          descricao="O servidor não aceitou a sua entrada. Saia e entre de novo; se continuar, fale com quem administra o pulso."
+          acao="Sair"
+          aoAcionar={() => void sessao.sair()}
         />
       );
     case "pronta": {
-      const { eu } = estado;
-      const perfil = DESCRICAO_DOS_PERFIS[eu.perfil];
+      const { usuario } = estado;
+      const perfil = DESCRICAO_DOS_PERFIS[usuario.perfil];
       return (
-        <AppShell eu={eu} aoSair={() => void sessao.sair()}>
+        <AppShell usuario={usuario} aoSair={() => void sessao.sair()}>
           <PageHeading
             contexto={perfil.nome}
-            titulo={perfil.area}
-            subtitulo={`Olá, ${eu.nome.split(" ")[0]}. Aqui você acompanha os dados do seu perfil.`}
+            titulo={perfil.rotuloDoPainel}
+            subtitulo={`Olá, ${usuario.nome.split(" ")[0]}. Aqui você acompanha os dados do seu perfil.`}
           />
           <EmptyState
             titulo="O painel chega em breve"
