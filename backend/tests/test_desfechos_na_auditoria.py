@@ -5,6 +5,7 @@ auditoria do ambiente. Cada token tem um usuário novo, e o teste lê a última 
 credencial do dono.
 """
 
+import asyncio
 import uuid
 
 import pytest
@@ -21,12 +22,15 @@ from cliente_mcp import (
     listar_ferramentas,
     texto_do_erro,
 )
+from fastmcp import Client
 from provedor import DESTINATARIO_DO_MCP
 from starlette.testclient import TestClient
 
-from acesso import Perfil
+from acesso import ConfiguracaoDeAcesso, Perfil
 from auditoria import AuditoriaIndisponivel
 from consultas import BancoDeDados, ExecutorDeConsultas, credenciais_do_ambiente
+from servidor_mcp import LimiteDeFrequencia
+from servidor_mcp.servidor import criar_servidor
 
 CHAVE = nova_chave()
 FERRAMENTA = "vendas_indicadores"
@@ -197,3 +201,40 @@ def test_sem_auditoria_a_chamada_e_recusada_com_servico_indisponivel(
 
     assert texto_do_erro(resultado) == INDISPONIVEL
     assert "auditoria fora do ar" in caplog.text
+
+
+class _AuditoriaQueAnota:
+    """Uma auditoria que só guarda o que recebeu."""
+
+    def __init__(self) -> None:
+        self.chamadas = []
+
+    def registrar(self, *chamada):
+        self.chamadas.append(chamada)
+
+
+def test_chamada_sem_usuario_autenticado_e_recusada_e_fica_no_log(executor_de_consultas, caplog):
+    """Pela memória, sem HTTP, nenhum token chega: sem usuário não há registro, nem resposta."""
+    configuracao = ConfiguracaoDeAcesso(
+        emissor="http://emissor.invalid",
+        destinatario=DESTINATARIO_DO_MCP,
+        chaves=ChavesLocais(CHAVE),
+    )
+    auditoria = _AuditoriaQueAnota()
+    servidor = criar_servidor(
+        configuracao,
+        executor_de_consultas,
+        auditoria,
+        "http://mcp.invalid",
+        LimiteDeFrequencia(chamadas=10, janela_em_segundos=60),
+    )
+
+    async def chamar_sem_token():
+        async with Client(servidor) as cliente:
+            return await cliente.call_tool(FERRAMENTA, {"periodo": "30d"}, raise_on_error=False)
+
+    resultado = asyncio.run(chamar_sem_token())
+
+    assert texto_do_erro(resultado) == ERRO_INTERNO
+    assert auditoria.chamadas == []
+    assert "sem usuário autenticado" in caplog.text

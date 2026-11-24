@@ -303,7 +303,14 @@ class AuditoriaDasChamadas(Middleware):
     ) -> None:
         usuario = _usuario_do_token()
         if usuario is None:
-            return
+            # O token é conferido na chegada: sem usuário, algo saiu do lugar. Sem ele não há
+            # registro, e nenhuma chamada é respondida sem registro (ADR 0008).
+            registro.error(
+                "chamada %s a %r sem usuário autenticado: recusada sem registro",
+                resultado,
+                context.message.name,
+            )
+            raise _erro(mensagens.ERRO_INTERNO, Resultado.FALHA)
         try:
             # A gravação bloqueia numa conexão do pool: fora do laço de eventos.
             await anyio.to_thread.run_sync(
