@@ -91,6 +91,17 @@ PERIODO = Parametro(
     padrao=PERIODO_PADRAO,
 )
 
+AGRUPAMENTO_DOS_ATRASOS = Parametro(
+    nome="agrupamento",
+    enumeracao=vendas.AgrupamentoDeAtrasos,
+    descricao=(
+        "Como agrupar os pedidos entregues para ver onde o atraso se concentra: 'rota' = por "
+        "trajeto do pedido, do estado (UF) do lojista ao estado (UF) do cliente, por exemplo "
+        "'SP → BA'; 'lojista' = pela empresa que vendeu, identificada pelo nome. Obrigatório. "
+        "Para investigar a causa dos atrasos, chame uma vez com cada valor."
+    ),
+)
+
 # Cada ferramenta e a consulta que ela serve. O nome começa pelo perfil (ADR 0005). Uma
 # ferramenta fora deste registro não é publicada.
 FERRAMENTAS: dict[str, Ferramenta] = {
@@ -110,5 +121,33 @@ FERRAMENTAS: dict[str, Ferramenta] = {
             "pedidos ainda em trânsito com prazo vencido não contam como atraso."
         ),
         parametros=(PERIODO,),
+    ),
+    "vendas_atrasos": Ferramenta(
+        consulta=vendas.atrasos,
+        titulo="Atrasos por rota ou lojista",
+        descricao=(
+            "Onde o atraso de entrega se concentra em um período: lista as rotas ou os lojistas "
+            "com mais pedidos entregues depois da data prometida. Use para responder o que está "
+            "causando os atrasos, quais rotas ou lojistas atrasam mais e se o atraso é "
+            "espalhado ou concentrado em poucos; para a taxa de atraso geral e sua comparação "
+            "com o período anterior, use vendas_indicadores. Só entram pedidos já entregues, no "
+            "prazo ou com atraso: pedidos ainda em trânsito, inclusive os de prazo vencido, não "
+            "contam como entregues nem como atraso. Cada item de 'grupos' traz 'grupo' (a rota, "
+            "como 'SP → BA', ou o nome do lojista), 'entregues' (pedidos entregues do grupo), "
+            "'atrasos' (quantos deles chegaram com atraso), 'taxa_de_atraso' (atrasos do grupo "
+            "÷ entregues do próprio grupo, de 0 a 1: o quanto aquele grupo atrasa) e "
+            "'participacao' (atrasos do grupo ÷ todos os atrasos do período, de 0 a 1: o "
+            "quanto do problema vem dele). As duas medidas dizem coisas diferentes: um grupo "
+            "pequeno pode ter taxa de atraso alta e participação baixa, e um grupo grande o "
+            "contrário. Os grupos vêm ordenados por 'atrasos', do maior para o menor, e a "
+            "lista traz no máximo os 10 primeiros com ao menos um atraso: 'grupos_com_atraso' "
+            "diz quantos grupos têm atraso ao todo e 'lista_cortada' é verdadeiro quando há "
+            "mais grupos do que os listados, caso em que as participações listadas somam "
+            "menos que 1. 'total' traz os pedidos entregues, os atrasos e a taxa de atraso do "
+            "período inteiro (nula se nada foi entregue), incluindo os grupos fora da lista. "
+            "'periodo' traz as datas de início e fim usadas, em formato ISO, e 'agrupamento' "
+            "repete o agrupamento pedido."
+        ),
+        parametros=(PERIODO, AGRUPAMENTO_DOS_ATRASOS),
     ),
 }
