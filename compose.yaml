@@ -51,6 +51,13 @@ services:
       KC_DB: dev-mem
       KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
       KC_HEALTH_ENABLED: "true"
+      # Os metadados do realm, nos dois formatos (OpenID Connect e RFC 8414), saem sem
+      # `scopes_supported`. Um cliente do protocolo MCP (o SDK do Inspector) acrescenta
+      # `offline_access` ao pedido sempre que o provedor o anuncia, e os usuários não têm acesso
+      # offline: o login pararia na troca do código. Sem o anúncio, o pedido sai só com o escopo
+      # dos metadados do recurso protegido.
+      KC_SPI_WELL_KNOWN__OPENID_CONFIGURATION__INCLUDE_CLIENT_SCOPES: "false"
+      KC_SPI_WELL_KNOWN__OAUTH_AUTHORIZATION_SERVER__INCLUDE_CLIENT_SCOPES: "false"
     volumes:
       - ./keycloak/realm:/opt/keycloak/data/import:ro
       # Tema de login do pulso. (FE §9), escolhido no realm. Em start-dev o Keycloak não guarda

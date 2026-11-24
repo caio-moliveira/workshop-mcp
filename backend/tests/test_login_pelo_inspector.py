@@ -28,6 +28,7 @@ from provedor import (
     administracao,
     aplicacao,
     emissor,
+    endereco_do_provedor,
     tokens_pelo_fluxo_de_codigo,
 )
 from recusa import assert_recusado as assert_recusado_pela_api
@@ -82,6 +83,26 @@ def test_os_metadados_respondem_sem_token_e_apontam_o_realm(mcp_do_ambiente):
     # tokens, ao login e ao endpoint de token.
     realm = httpx.get(f"{emissor()}/.well-known/openid-configuration", timeout=10).json()
     assert realm["issuer"] == emissor()
+
+
+@pytest.mark.parametrize(
+    "caminho",
+    [
+        # RFC 8414 com o caminho do emissor depois do .well-known: o que o SDK do Inspector lê.
+        "/.well-known/oauth-authorization-server/realms/pulso",
+        "/realms/pulso/.well-known/oauth-authorization-server",
+        "/realms/pulso/.well-known/openid-configuration",
+    ],
+)
+def test_os_metadados_do_realm_nao_anunciam_acesso_offline(caminho):
+    """O SDK do Inspector pede `offline_access` quando os metadados do realm o anunciam e a opção
+    de pedir o token de renovação está ligada (o padrão). Os usuários não têm acesso offline, e o
+    login pararia na troca do código; sem o anúncio, o pedido sai só com `openid`."""
+    metadados = httpx.get(f"{endereco_do_provedor()}{caminho}", timeout=10)
+
+    assert metadados.status_code == 200
+    assert metadados.json()["issuer"] == emissor()
+    assert "offline_access" not in metadados.json().get("scopes_supported", [])
 
 
 # --- Token real do cliente do Inspector ---
