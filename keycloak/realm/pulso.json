@@ -79,6 +79,18 @@
       "protocol": "openid-connect"
     },
     {
+      "clientId": "pulso-mcp",
+      "name": "Servidor MCP do pulso.",
+      "description": "Destinatário dos tokens que o servidor MCP aceita. Não emite tokens.",
+      "enabled": true,
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "protocol": "openid-connect"
+    },
+    {
       "clientId": "pulso-web",
       "name": "Aplicação pulso.",
       "enabled": true,
@@ -104,6 +116,17 @@
           "protocolMapper": "oidc-audience-mapper",
           "config": {
             "included.client.audience": "pulso-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "destinatario-pulso-mcp",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.client.audience": "pulso-mcp",
             "access.token.claim": "true",
             "id.token.claim": "false",
             "introspection.token.claim": "true"

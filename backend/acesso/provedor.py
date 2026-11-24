@@ -3,6 +3,8 @@
 REALM = "pulso"
 # O destinatário (aud) que um token precisa trazer para ser aceito pela API.
 DESTINATARIO_DA_API = "pulso-api"
+# O destinatário que um token precisa trazer para ser aceito pelo servidor MCP (ADR 0006).
+DESTINATARIO_DO_MCP = "pulso-mcp"
 
 
 def emissor_em(endereco_do_provedor: str) -> str:

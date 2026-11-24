@@ -16,9 +16,15 @@ import httpx
 from apoio import variavel
 
 from acesso import Perfil
-from acesso.provedor import DESTINATARIO_DA_API, REALM, emissor_em, url_das_chaves_em
+from acesso.provedor import (
+    DESTINATARIO_DA_API,
+    DESTINATARIO_DO_MCP,
+    REALM,
+    emissor_em,
+    url_das_chaves_em,
+)
 
-__all__ = ["DESTINATARIO_DA_API", "REALM"]
+__all__ = ["DESTINATARIO_DA_API", "DESTINATARIO_DO_MCP", "REALM"]
 
 APLICACAO = "pulso-web"
 
