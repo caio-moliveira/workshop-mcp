@@ -86,18 +86,28 @@ describe("rótulos dos pontos", () => {
   });
 });
 
+const PERIODO = { inicio: "2026-11-01", fim: "2026-11-30" };
+
 describe("evolução sem pedidos", () => {
   it("vazia quando nenhum ponto tem pedido", () => {
     const zerado = { inicio: "2026-11-01", pedidos: 0, receita: 0 };
-    expect(semPedidos({ agrupamento: "dia", pontos: [] })).toBe(true);
-    expect(semPedidos({ agrupamento: "dia", pontos: [zerado] })).toBe(true);
+    expect(
+      semPedidos({ periodo: PERIODO, agrupamento: "dia", pontos: [] }),
+    ).toBe(true);
+    expect(
+      semPedidos({ periodo: PERIODO, agrupamento: "dia", pontos: [zerado] }),
+    ).toBe(true);
   });
 
   it("com dados quando algum ponto tem pedido", () => {
     const zerado = { inicio: "2026-11-01", pedidos: 0, receita: 0 };
     const comPedido = { inicio: "2026-11-02", pedidos: 1, receita: 0 };
     expect(
-      semPedidos({ agrupamento: "dia", pontos: [zerado, comPedido] }),
+      semPedidos({
+        periodo: PERIODO,
+        agrupamento: "dia",
+        pontos: [zerado, comPedido],
+      }),
     ).toBe(false);
   });
 });
