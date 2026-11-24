@@ -64,6 +64,11 @@ def conectar_como_vendas(banco: str | None = None) -> psycopg.Connection:
 BANCO_DA_AUDITORIA = "auditoria"
 
 
+def conectar_como_auditoria() -> psycopg.Connection:
+    """Abre uma conexão no banco da auditoria com a credencial do papel `auditoria`."""
+    return _conectar("auditoria", variavel("SENHA_DO_PAPEL_AUDITORIA"), BANCO_DA_AUDITORIA)
+
+
 def ultima_chamada_de(id_do_usuario: str) -> dict | None:
     """A linha mais recente da auditoria de um usuário (o `sub` do token), lida com o papel dono.
 
