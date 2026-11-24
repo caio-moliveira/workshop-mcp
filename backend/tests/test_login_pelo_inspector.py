@@ -3,8 +3,9 @@ OAuth do serviço `mcp` do compose e um token real desse cliente.
 
 É o caminho que o apresentador mostra no Inspector e que os assistentes externos usarão na V1: o
 401 aponta os metadados de recurso protegido, eles apontam o realm, e o login no realm emite um
-token que vale no servidor MCP e não na API. O registro dinâmico de clientes segue desligado: o
-Inspector entra com o ID de um cliente pré-registrado.
+token que vale no servidor MCP e não na API. O Inspector entra com o ID de um cliente
+pré-registrado; o registro dinâmico, que os assistentes externos usam, está em
+test_registro_dinamico.py.
 """
 
 import httpx
@@ -117,6 +118,25 @@ def test_token_do_inspector_traz_o_perfil_e_so_o_destinatario_do_mcp():
     assert destinatarios == [DESTINATARIO_DO_MCP]
 
 
+def test_o_inspector_pede_os_escopos_anunciados_e_recebe_o_mesmo_token():
+    """O SDK do Inspector pede os escopos dos metadados de recurso protegido (`openid pulso-mcp`).
+    O provedor recusaria um escopo que o cliente não tem; o `pulso-inspector` o aceita e o token
+    continua com o perfil e só o destinatário do MCP."""
+    usuario = next(u for u in USUARIOS_DE_DEMONSTRACAO if u.perfil == Perfil.VENDAS)
+    with httpx.Client(base_url=MCP_DO_AMBIENTE, timeout=10) as mcp:
+        escopos = " ".join(mcp.get(CAMINHO_DOS_METADADOS).json()["scopes_supported"])
+    inspector = Aplicacao(CLIENTE_DO_INSPECTOR, RETORNO_DO_INSPECTOR, escopos)
+
+    token = fluxo_de_codigo.tokens_pelo_fluxo_de_codigo(
+        emissor(), inspector, usuario.nome_de_usuario, usuario.senha()
+    )["access_token"]
+
+    conteudo = _conteudo(token)
+    assert conteudo["perfil"] == "vendas"
+    assert conteudo["aud"] in (DESTINATARIO_DO_MCP, [DESTINATARIO_DO_MCP])
+    assert sorted(f.name for f in listar_ferramentas(MCP_DO_AMBIENTE, token)) == sorted(FERRAMENTAS)
+
+
 def test_token_do_inspector_e_aceito_pelo_servidor_mcp():
     token = login_pelo_inspector()["access_token"]
 
@@ -194,19 +214,3 @@ def test_o_provedor_libera_ao_navegador_so_a_origem_do_inspector(origem, liberad
     if liberada:
         assert troca.status_code == 200
         assert "access_token" in troca.json()
-
-
-def test_o_registro_dinamico_de_clientes_continua_desligado():
-    """Sem cliente pré-registrado não há login: um pedido anônimo de registro é recusado."""
-    with administracao() as realm:
-        antes = {c["clientId"] for c in realm.get("/clients").json()}
-
-    pedido = httpx.post(
-        f"{emissor()}/clients-registrations/openid-connect",
-        json={"client_name": "registrado sem convite", "redirect_uris": [RETORNO_DO_INSPECTOR]},
-        timeout=10,
-    )
-
-    assert pedido.status_code in (401, 403)
-    with administracao() as realm:
-        assert {c["clientId"] for c in realm.get("/clients").json()} == antes
