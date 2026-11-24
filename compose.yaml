@@ -23,7 +23,9 @@ services:
       timeout: 3s
       retries: 30
 
-  # Roda uma vez e termina; sobe o Postgres antes, pela dependência.
+  # Roda uma vez e termina; sobe o Postgres antes, pela dependência. Também cria o banco, o papel
+  # e a tabela da auditoria, se faltarem, sem nunca apagá-los (ADR 0008); a senha do papel,
+  # SENHA_DO_PAPEL_AUDITORIA, vem do .env.
   carga:
     build:
       context: backend
@@ -126,7 +128,8 @@ services:
   # Importa o acesso e as consultas direto, sem passar pela API. Só aceita tokens cujo
   # destinatário inclui pulso-mcp (ADR 0006). Publica os metadados de recurso protegido em
   # /.well-known/oauth-protected-resource/mcp, com ENDERECO_PUBLICO_DO_MCP como recurso, e a
-  # recusa sem token os aponta: é por eles que o MCP Inspector chega ao login do realm.
+  # recusa sem token os aponta: é por eles que o MCP Inspector chega ao login do realm. Grava
+  # cada chamada no banco da auditoria com o papel `auditoria` (SENHA_DO_PAPEL_AUDITORIA, do .env).
   mcp:
     build:
       context: backend

@@ -148,13 +148,13 @@ def test_uma_ferramenta_sem_consulta_nao_pode_ser_registrada():
             )
 
 
-def test_uma_ferramenta_fora_do_registro_nao_e_publicada(executor_de_consultas):
+def test_uma_ferramenta_fora_do_registro_nao_e_publicada(executor_de_consultas, auditoria_local):
     """Mesmo acrescentada direto ao servidor, por engano, ela não é listada nem chamada."""
     configuracao = ConfiguracaoDeAcesso(
         emissor=emissor(), destinatario=DESTINATARIO_DO_MCP, chaves=ChavesLocais(CHAVE)
     )
     servidor = criar_servidor(
-        configuracao, executor_de_consultas, variavel("ENDERECO_PUBLICO_DO_MCP")
+        configuracao, executor_de_consultas, auditoria_local, variavel("ENDERECO_PUBLICO_DO_MCP")
     )
 
     @servidor.tool

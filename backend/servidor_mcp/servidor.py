@@ -6,6 +6,7 @@ perfil pelo executor de consultas, os mesmos que a API usa (RF-13).
 
 import logging
 from collections.abc import Sequence
+from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -35,6 +36,7 @@ from acesso import (
     autenticar,
     mensagens,
 )
+from auditoria import Auditoria, Resultado
 from consultas import AcessoNegado, ConsultaFalhou, ExecutorDeConsultas, ParametroInvalido
 from servidor_mcp.ferramentas import FERRAMENTAS, Ferramenta
 
@@ -234,13 +236,44 @@ class FerramentasDoPerfil(Middleware):
         return await call_next(context)
 
 
+class AuditoriaDasChamadas(Middleware):
+    """Grava cada chamada na auditoria, com o desfecho, antes de a resposta sair (RF-30).
+
+    Fica por fora de todas as outras etapas, para enxergar o desfecho de cada uma. O horário é o
+    da chegada da chamada.
+    """
+
+    def __init__(self, auditoria: Auditoria) -> None:
+        self._auditoria = auditoria
+
+    async def on_call_tool(self, context: MiddlewareContext, call_next) -> ToolResult:
+        chegada = datetime.now(UTC)
+        resposta = await call_next(context)
+        usuario = _usuario_do_token()
+        if usuario is not None:
+            # A gravação bloqueia numa conexão do pool: fora do laço de eventos.
+            await anyio.to_thread.run_sync(
+                lambda: self._auditoria.registrar(
+                    usuario,
+                    context.message.name,
+                    context.message.arguments or {},
+                    Resultado.PERMITIDA,
+                    chegada,
+                )
+            )
+        return resposta
+
+
 def criar_servidor(
-    configuracao: ConfiguracaoDeAcesso, consultas: ExecutorDeConsultas, endereco_publico: str
+    configuracao: ConfiguracaoDeAcesso,
+    consultas: ExecutorDeConsultas,
+    auditoria: Auditoria,
+    endereco_publico: str,
 ) -> FastMCP:
     """O servidor MCP com as ferramentas do registro. Só ferramentas: sem recursos nem prompts.
 
-    O `endereco_publico` é onde quem está fora do ambiente alcança o servidor (sem o `/mcp`): é o
-    recurso anunciado nos metadados de recurso protegido.
+    Toda chamada fica na `auditoria`. O `endereco_publico` é onde quem está fora do ambiente
+    alcança o servidor (sem o `/mcp`): é o recurso anunciado nos metadados de recurso protegido.
     """
     servidor = FastMCP(
         "pulso.",
@@ -249,7 +282,8 @@ def criar_servidor(
             "disponíveis dependem do perfil do usuário autenticado."
         ),
         auth=RecursoProtegido(configuracao, endereco_publico),
-        middleware=[FerramentasDoPerfil(consultas)],
+        # O primeiro da lista é o mais externo.
+        middleware=[AuditoriaDasChamadas(auditoria), FerramentasDoPerfil(consultas)],
         # Rede de segurança: uma exceção que escape não leva o próprio texto a quem chamou.
         mask_error_details=True,
     )
@@ -264,13 +298,17 @@ def criar_servidor(
 
 
 def criar_aplicacao(
-    configuracao: ConfiguracaoDeAcesso, consultas: ExecutorDeConsultas, endereco_publico: str
+    configuracao: ConfiguracaoDeAcesso,
+    consultas: ExecutorDeConsultas,
+    auditoria: Auditoria,
+    endereco_publico: str,
 ) -> Starlette:
     """A aplicação HTTP do servidor MCP: streamable HTTP sem estado, em `/mcp` (RF-26).
 
-    Valida tokens pela configuração dada e lê o banco só pelo executor de consultas. Publica os
-    metadados de recurso protegido em `/.well-known/oauth-protected-resource/mcp`.
+    Valida tokens pela configuração dada, lê o banco só pelo executor de consultas e grava cada
+    chamada na auditoria. Publica os metadados de recurso protegido em
+    `/.well-known/oauth-protected-resource/mcp`.
     """
-    return criar_servidor(configuracao, consultas, endereco_publico).http_app(
+    return criar_servidor(configuracao, consultas, auditoria, endereco_publico).http_app(
         path=CAMINHO, stateless_http=True, json_response=True
     )
