@@ -100,10 +100,11 @@ def pedir_tokens(emissor: str, dados: dict[str, str]) -> dict[str, str]:
     return resposta.json()
 
 
-def tokens_pelo_fluxo_de_codigo(
+def troca_do_codigo(
     emissor: str, aplicacao: Aplicacao, nome_de_usuario: str, senha: str
 ) -> dict[str, str]:
-    """Faz login como um navegador e devolve a resposta do provedor: token de acesso e outros.
+    """Faz login como um navegador e devolve o pedido, ainda não enviado, que troca o código de
+    autorização por tokens no endpoint de token.
 
     Levanta `LoginRecusado` se o provedor não devolver o código de autorização.
     """
@@ -115,13 +116,20 @@ def tokens_pelo_fluxo_de_codigo(
     destino = resposta.headers.get("location", "")
     if resposta.status_code != 302 or not destino.startswith(aplicacao.retorno):
         raise LoginRecusado(nome_de_usuario)
-    return pedir_tokens(
-        emissor,
-        {
-            "grant_type": "authorization_code",
-            "client_id": aplicacao.identificador,
-            "code": parse_qs(urlparse(destino).query)["code"][0],
-            "redirect_uri": aplicacao.retorno,
-            "code_verifier": verificador,
-        },
-    )
+    return {
+        "grant_type": "authorization_code",
+        "client_id": aplicacao.identificador,
+        "code": parse_qs(urlparse(destino).query)["code"][0],
+        "redirect_uri": aplicacao.retorno,
+        "code_verifier": verificador,
+    }
+
+
+def tokens_pelo_fluxo_de_codigo(
+    emissor: str, aplicacao: Aplicacao, nome_de_usuario: str, senha: str
+) -> dict[str, str]:
+    """Faz login como um navegador e devolve a resposta do provedor: token de acesso e outros.
+
+    Levanta `LoginRecusado` se o provedor não devolver o código de autorização.
+    """
+    return pedir_tokens(emissor, troca_do_codigo(emissor, aplicacao, nome_de_usuario, senha))

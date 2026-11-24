@@ -26,6 +26,7 @@ from provedor import (
     INSPECTOR,
     USUARIOS_DE_DEMONSTRACAO,
     administracao,
+    aplicacao,
     emissor,
     tokens_pelo_fluxo_de_codigo,
 )
@@ -149,22 +150,29 @@ def test_o_login_do_inspector_nao_volta_para_outro_endereco():
     ("origem", "liberada"), [(ORIGEM_DO_INSPECTOR, True), (OUTRA_ORIGEM, False)]
 )
 def test_o_provedor_libera_ao_navegador_so_a_origem_do_inspector(origem, liberada):
-    """O endpoint de token responde ao navegador da origem do Inspector, e de nenhuma outra."""
-    renovacao = httpx.post(
+    """O endpoint de token responde ao navegador da origem do Inspector, e de nenhuma outra.
+
+    O pedido é a troca do código, o primeiro que o navegador do Inspector faria ao endpoint de
+    token. Não é a renovação: o provedor recusa a renovação de um token cujo `iat` é anterior ao
+    início da sessão, e isso acontece quando o relógio dele salta entre o login e a emissão.
+    """
+    usuario = next(u for u in USUARIOS_DE_DEMONSTRACAO if u.perfil == Perfil.VENDAS)
+    pedido = fluxo_de_codigo.troca_do_codigo(
+        emissor(), aplicacao(CLIENTE_DO_INSPECTOR), usuario.nome_de_usuario, usuario.senha()
+    )
+
+    troca = httpx.post(
         f"{emissor()}/protocol/openid-connect/token",
-        data={
-            "grant_type": "refresh_token",
-            "client_id": CLIENTE_DO_INSPECTOR,
-            "refresh_token": login_pelo_inspector()["refresh_token"],
-        },
+        data=pedido,
         headers={"Origin": origem},
         timeout=10,
     )
 
-    liberou = renovacao.headers.get("access-control-allow-origin") == origem
+    liberou = troca.headers.get("access-control-allow-origin") == origem
     assert liberou is liberada
     if liberada:
-        assert renovacao.status_code == 200
+        assert troca.status_code == 200
+        assert "access_token" in troca.json()
 
 
 def test_o_registro_dinamico_de_clientes_continua_desligado():
