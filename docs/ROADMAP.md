@@ -94,7 +94,7 @@ As entregas 6 e 7 mantêm seus números, mas ficam para depois: a decisão de nu
 - **Cobre:** RF-27 e RF-28 (verificação antecipada; o fechamento é na entrega 7).
 - **Observação:** é uma verificação de risco, não o ambiente definitivo. Se ela mostrar que o fluxo de autorização exige mudanças, elas entram antes da 4b.
 - **Resultado (24/11/2026):** concluída com o Claude, no roteiro `docs/demonstracao/verificacao-v1.md`. O Claude se registrou sozinho, levou ao login de `ana.vendas` e chamou o servidor MCP; `diego.diretoria` viu a lista vazia. O Claude exigiu dois ajustes no realm: a política de escopos do registro anônimo passou a aceitar `openid`, e o escopo `pulso-mcp` passou a trazer o nome do usuário (ADR 0007).
-- **Lacuna:** o ChatGPT não foi verificado, por decisão do usuário. O endereço de retorno dele já é aceito pelo registro anônimo (teste automático), mas o fluxo completo fica para a entrega 7.
+- **Lacunas:** o ChatGPT não foi verificado, por decisão do usuário. O endereço de retorno dele já é aceito pelo registro anônimo (teste automático), mas o fluxo completo fica para a entrega 7. Do Claude, a verificação registrou as chamadas ao servidor MCP com 200, mas não anotou os números da resposta: conferi-los com o painel na próxima execução.
 
 ### 4b. Auditoria e limite de frequência
 

@@ -2,13 +2,13 @@
 
 O assistente (o Claude ou o ChatGPT) se registra sozinho no realm, sem convite, com o endereço de
 retorno dele, e leva o usuário ao login pedindo o escopo `pulso-mcp`, anunciado nos metadados de
-recurso protegido. Os pedidos vão por HTTP ao provedor, ao serviço `mcp` do compose e à API, como
-os servidores do assistente fariam; o código de autorização é capturado do redirecionamento, sem
-segui-lo até o assistente.
+recurso protegido. Os pedidos vão por HTTP, como os servidores do assistente fariam: o registro, o
+login e o token pelo endereço local do proxy reverso, o mesmo que o túnel publica; as ferramentas ao
+serviço `mcp` do compose e o `/eu` à API. O emissor esperado continua o endereço público. O código
+de autorização é capturado do redirecionamento, sem segui-lo até o assistente.
 """
 
 import httpx
-import jwt
 import pytest
 from cliente_mcp import (
     MCP_DO_AMBIENTE,
@@ -18,14 +18,19 @@ from cliente_mcp import (
     pedir_ao_protocolo,
 )
 from provedor import (
+    CAMINHO_DO_REGISTRO,
     DESTINATARIO_DO_MCP,
     administracao,
+    conteudo,
+    destinatarios,
     emissor,
-    senha_de,
+    realm_pelo_proxy,
+    usuario_de,
 )
 from recusa import assert_recusado as assert_recusado_pela_api
 from recusa import pedir_eu
 
+from acesso import Perfil
 from servidor_mcp.ferramentas import FERRAMENTAS
 from token_de_demonstracao import Aplicacao, fluxo_de_codigo
 
@@ -42,7 +47,7 @@ def _registrar(retorno: str) -> httpx.Response:
     registro anônimo precisa aceitar.
     """
     return httpx.post(
-        f"{emissor()}/clients-registrations/openid-connect",
+        realm_pelo_proxy() + CAMINHO_DO_REGISTRO,
         json={
             "client_name": "assistente externo",
             "redirect_uris": [retorno],
@@ -62,31 +67,25 @@ def _assistente(retorno: str = RETORNO_DO_CLAUDE, escopo: str = ESCOPO_DO_MCP) -
     return Aplicacao(registro.json()["client_id"], retorno, escopo)
 
 
-def _token(assistente: Aplicacao, nome_de_usuario: str = "ana.vendas") -> str:
+def _token(assistente: Aplicacao, perfil: Perfil = Perfil.VENDAS) -> str:
+    """O login do usuário de demonstração do perfil, pelo proxy, e o token do assistente."""
+    usuario = usuario_de(perfil)
     return fluxo_de_codigo.tokens_pelo_fluxo_de_codigo(
-        emissor(), assistente, nome_de_usuario, senha_de(nome_de_usuario)
+        realm_pelo_proxy(), assistente, usuario.nome_de_usuario, usuario.senha()
     )["access_token"]
-
-
-def _conteudo(token: str) -> dict:
-    return jwt.decode(token, options={"verify_signature": False})
-
-
-def _destinatarios(conteudo: dict) -> list[str]:
-    """O `aud` como lista: o provedor o escreve como texto quando há um só."""
-    destinatarios = conteudo.get("aud", [])
-    return [destinatarios] if isinstance(destinatarios, str) else destinatarios
 
 
 # --- O registro ---
 
 
 def test_os_metadados_do_realm_anunciam_o_endpoint_de_registro():
-    metadados = httpx.get(f"{emissor()}/.well-known/oauth-authorization-server", timeout=10).json()
+    """Pelo proxy, o emissor é o público e o registro sai no endereço por onde o pedido chegou."""
+    metadados = httpx.get(
+        f"{realm_pelo_proxy()}/.well-known/oauth-authorization-server", timeout=10
+    ).json()
 
-    assert metadados["registration_endpoint"] == (
-        f"{emissor()}/clients-registrations/openid-connect"
-    )
+    assert metadados["issuer"] == emissor()
+    assert metadados["registration_endpoint"] == realm_pelo_proxy() + CAMINHO_DO_REGISTRO
 
 
 @pytest.mark.parametrize("retorno", [RETORNO_DO_CLAUDE, RETORNO_DO_CHATGPT])
@@ -124,13 +123,14 @@ def test_o_registro_com_retorno_fora_dos_hosts_confiaveis_e_recusado(retorno):
 def test_o_token_do_assistente_traz_o_perfil_e_so_o_destinatario_do_mcp():
     """Login e consentimento do usuário: o token traz o que o servidor MCP exige e não vale na API
     (ADR 0006)."""
-    conteudo = _conteudo(_token(_assistente()))
+    do_token = conteudo(_token(_assistente()))
 
-    assert _destinatarios(conteudo) == [DESTINATARIO_DO_MCP]
-    assert conteudo["perfil"] == "vendas"
+    assert do_token["iss"] == emissor()
+    assert destinatarios(do_token) == [DESTINATARIO_DO_MCP]
+    assert do_token["perfil"] == "vendas"
     # O nome vem do escopo pulso-mcp: o cliente registrado com escopo, como o Claude faz, não
     # recebe o profile, e o servidor MCP exige o nome.
-    assert conteudo["name"] == "Ana Ribeiro"
+    assert do_token["name"] == usuario_de(Perfil.VENDAS).nome
 
 
 @pytest.mark.parametrize("retorno", [RETORNO_DO_CLAUDE, RETORNO_DO_CHATGPT])
@@ -145,7 +145,7 @@ def test_vendas_lista_as_cinco_ferramentas_e_chama_uma(retorno):
 
 def test_a_diretoria_recebe_a_lista_vazia():
     """Mesmo assistente, outro perfil: o servidor MCP só lista as ferramentas do perfil do token."""
-    assert listar_ferramentas(MCP_DO_AMBIENTE, _token(_assistente(), "diego.diretoria")) == []
+    assert listar_ferramentas(MCP_DO_AMBIENTE, _token(_assistente(), Perfil.DIRETORIA)) == []
 
 
 def test_a_api_recusa_o_token_do_assistente(api):
@@ -157,6 +157,6 @@ def test_sem_pedir_o_escopo_o_token_e_recusado_pelo_servidor_mcp():
     perfil, e o servidor MCP o recusa pelo mesmo caminho de sempre."""
     token = _token(_assistente(escopo="openid"))
 
-    assert DESTINATARIO_DO_MCP not in _destinatarios(_conteudo(token))
+    assert DESTINATARIO_DO_MCP not in destinatarios(conteudo(token))
     with httpx.Client(base_url=MCP_DO_AMBIENTE, timeout=10) as mcp:
         assert_recusado(pedir_ao_protocolo(mcp, token, "tools/list"))

@@ -5,7 +5,6 @@ internet, e comparam as respostas com as do serviço alcançado direto.
 """
 
 import json
-import os
 import re
 from collections.abc import Iterator
 
@@ -19,9 +18,13 @@ from cliente_mcp import (
     assert_recusado,
     pedir_ao_protocolo,
 )
-from provedor import REALM, emissor, endereco_do_provedor, tela_de_login
-
-PROXY_DO_AMBIENTE = f"http://127.0.0.1:{os.environ.get('PROXY_PORT', '8088')}"
+from provedor import (
+    PROXY_DO_AMBIENTE,
+    REALM,
+    emissor,
+    endereco_do_provedor,
+    tela_de_login,
+)
 
 
 @pytest.fixture
@@ -101,7 +104,10 @@ def test_metadados_do_realm_atras_do_tunel_seguem_o_endereco_https_dele(proxy, f
     continua o endereço público configurado, um só por vez."""
     resposta = proxy.get(
         f"/.well-known/{formato}/realms/{REALM}",
-        headers={"Host": ENDERECO_DE_UM_TUNEL.removeprefix("https://"), "X-Forwarded-Proto": "https"},
+        headers={
+            "Host": ENDERECO_DE_UM_TUNEL.removeprefix("https://"),
+            "X-Forwarded-Proto": "https",
+        },
     )
 
     assert resposta.status_code == 200
