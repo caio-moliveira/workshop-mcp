@@ -1,0 +1,59 @@
+/* A rolagem fica na moldura da tabela, nunca na página (FE §11). */
+.rolagem {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  border-radius: 0 0 var(--raio-card) var(--raio-card);
+}
+
+.tabela {
+  width: 100%;
+  min-width: 980px;
+  border-collapse: collapse;
+  font-size: var(--texto-corpo);
+}
+
+.tabela th {
+  height: 40px;
+  padding: 0 var(--espaco-4);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-muted);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: var(--peso-semibold);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.tabela td {
+  height: 54px;
+  padding: 0 var(--espaco-4);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-primary);
+  white-space: nowrap;
+  transition: background var(--transicao-rapida);
+}
+
+.tabela tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.tabela tbody tr:hover td {
+  background: var(--bg-app);
+}
+
+.tabela .fim {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* No celular, a primeira coluna (a essencial) fica à vista enquanto o resto rola. */
+@media (max-width: 767px) {
+  .tabela th:first-child,
+  .tabela td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    box-shadow: inset -1px 0 0 var(--border);
+  }
+}

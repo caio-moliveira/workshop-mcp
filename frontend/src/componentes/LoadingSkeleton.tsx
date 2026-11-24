@@ -4,12 +4,27 @@ interface Propriedades {
   /**
    * `pagina`: a estrutura inteira, enquanto a aplicação confirma quem é o usuário.
    * `cartao`: um cartão de indicador, proporcional ao KpiCard. Quem o usa anuncia o carregamento.
+   * `tabela`: as linhas de uma DataTable, com a mesma altura. Quem o usa anuncia o carregamento.
    */
-  forma?: "pagina" | "cartao";
+  forma?: "pagina" | "cartao" | "tabela";
+  /** Quantas linhas a tabela vai ter. */
+  linhas?: number;
 }
 
 /** Esqueleto proporcional ao que vai aparecer, sem piscar a tela (FE §10). */
-export function LoadingSkeleton({ forma = "pagina" }: Propriedades) {
+export function LoadingSkeleton({ forma = "pagina", linhas = 8 }: Propriedades) {
+  if (forma === "tabela") {
+    return (
+      <div className={estilos.tabela} aria-hidden="true">
+        <span className={estilos.cabecalhoDaTabela} />
+        {Array.from({ length: linhas }, (_, indice) => (
+          <span key={indice} className={estilos.linhaDaTabela}>
+            <span className={`${estilos.bloco} ${estilos.celulaDaTabela}`} />
+          </span>
+        ))}
+      </div>
+    );
+  }
   if (forma === "cartao") {
     return (
       <div className={estilos.cartao} aria-hidden="true">

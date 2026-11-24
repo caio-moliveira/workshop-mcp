@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   formatarData,
+  formatarDataHora,
   formatarMoeda,
   formatarNumero,
   formatarPercentual,
@@ -38,6 +39,15 @@ describe("formatação em pt-BR", () => {
     expect(formatarPontosPercentuais(0.012)).toBe("+1,2 p.p.");
     expect(formatarPontosPercentuais(-0.0349)).toBe("-3,5 p.p.");
     expect(formatarPontosPercentuais(0)).toBe("0,0 p.p.");
+  });
+
+  it("instante ISO como data e hora de Brasília, venha com o fuso que vier", () => {
+    expect(formatarDataHora("2026-11-30T14:05:09-03:00")).toBe("30/11/2026, 14:05");
+    expect(formatarDataHora("2026-11-30T17:05:09+00:00")).toBe("30/11/2026, 14:05");
+  });
+
+  it("instante da madrugada em UTC cai na noite anterior em Brasília", () => {
+    expect(formatarDataHora("2026-11-01T02:30:00+00:00")).toBe("31/10/2026, 23:30");
   });
 
   it("data ISO no formato brasileiro, sem deslocar o dia pelo fuso", () => {

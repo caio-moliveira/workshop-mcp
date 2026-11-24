@@ -34,6 +34,21 @@ export function formatarPontosPercentuais(diferenca: number): string {
   return `${PONTOS_COM_SINAL.format(diferenca * 100)} p.p.`;
 }
 
+// O fuso do negócio: os dias do painel são os de Brasília, não os do navegador.
+const DATA_HORA = new Intl.DateTimeFormat("pt-BR", {
+  timeZone: "America/Sao_Paulo",
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
+/** Um instante ISO com fuso ("2026-11-30T17:05:09+00:00") em data e hora de Brasília. */
+export function formatarDataHora(iso: string): string {
+  return DATA_HORA.format(new Date(iso));
+}
+
 /** Uma data ISO ("2026-11-30") no formato brasileiro, sem passar por fuso horário. */
 export function formatarData(iso: string): string {
   const [ano, mes, dia] = iso.slice(0, 10).split("-");
