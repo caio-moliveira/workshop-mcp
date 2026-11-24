@@ -5,7 +5,6 @@ internet, e comparam as respostas com as do serviço alcançado direto.
 """
 
 import json
-import os
 import re
 from collections.abc import Iterator
 
@@ -19,9 +18,13 @@ from cliente_mcp import (
     assert_recusado,
     pedir_ao_protocolo,
 )
-from provedor import REALM, emissor, endereco_do_provedor, tela_de_login
-
-PROXY_DO_AMBIENTE = f"http://127.0.0.1:{os.environ.get('PROXY_PORT', '8088')}"
+from provedor import (
+    PROXY_DO_AMBIENTE,
+    REALM,
+    emissor,
+    endereco_do_provedor,
+    tela_de_login,
+)
 
 
 @pytest.fixture
