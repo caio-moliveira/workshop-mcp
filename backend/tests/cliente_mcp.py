@@ -11,6 +11,7 @@ import os
 from collections.abc import Awaitable, Callable
 
 import httpx2
+from apoio import variavel
 from fastmcp import Client
 from fastmcp.client.client import CallToolResult
 from fastmcp.client.transports import StreamableHttpTransport
@@ -19,6 +20,10 @@ from starlette.applications import Starlette
 
 MCP_DO_AMBIENTE = f"http://127.0.0.1:{os.environ.get('MCP_PORT', '8001')}"
 CAMINHO = "/mcp"
+# Onde o servidor publica os metadados de recurso protegido do `/mcp` (RFC 9728).
+CAMINHO_DOS_METADADOS = "/.well-known/oauth-protected-resource/mcp"
+# Origem da página do MCP Inspector, aberto com `npx @modelcontextprotocol/inspector`.
+ORIGEM_DO_INSPECTOR = "http://localhost:6274"
 # A versão do protocolo MCP sem sessão, a que o cliente do FastMCP 4 negocia com o servidor.
 PROTOCOLO_SEM_SESSAO = "2026-07-28"
 
@@ -112,6 +117,11 @@ def assert_recusado(resposta) -> None:
     assert resposta.status_code == 401
     assert resposta.headers["www-authenticate"].startswith("Bearer")
     assert "mcp-session-id" not in resposta.headers
+
+
+def apontamento_dos_metadados() -> str:
+    """O parâmetro do `WWW-Authenticate` que leva aos metadados, no endereço público do servidor."""
+    return f'resource_metadata="{variavel("ENDERECO_PUBLICO_DO_MCP")}{CAMINHO_DOS_METADADOS}"'
 
 
 def texto_do_erro(resultado: CallToolResult) -> str:

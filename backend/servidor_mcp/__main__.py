@@ -34,5 +34,7 @@ def banco_do_ambiente() -> BancoDeDados:
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     with ExecutorDeConsultas(banco_do_ambiente(), credenciais_do_ambiente()) as consultas:
-        aplicacao = criar_aplicacao(configuracao_do_ambiente(), consultas)
+        aplicacao = criar_aplicacao(
+            configuracao_do_ambiente(), consultas, os.environ["ENDERECO_PUBLICO_DO_MCP"]
+        )
         uvicorn.run(aplicacao, host="0.0.0.0", port=PORTA)

@@ -97,15 +97,17 @@ def _pedir_token(dados: dict[str, str], emissor_do_realm: str | None = None) -> 
     return _pedir_tokens(dados, emissor_do_realm)["access_token"]
 
 
-def _abrir_tela_de_login(navegador: httpx.Client, desafio: str) -> httpx.Response:
+def _abrir_tela_de_login(
+    navegador: httpx.Client, desafio: str, aplicacao: str = APLICACAO, retorno: str | None = None
+) -> httpx.Response:
     """Pede a autorização como a aplicação faria e devolve a tela de login do provedor."""
     pagina = navegador.get(
         f"{_base()}/auth",
         params={
-            "client_id": APLICACAO,
+            "client_id": aplicacao,
             "response_type": "code",
             "scope": "openid",
-            "redirect_uri": _retorno(),
+            "redirect_uri": retorno or _retorno(),
             "state": secrets.token_urlsafe(16),
             "code_challenge": desafio,
             "code_challenge_method": "S256",
@@ -116,10 +118,15 @@ def _abrir_tela_de_login(navegador: httpx.Client, desafio: str) -> httpx.Respons
 
 
 def _enviar_credenciais(
-    navegador: httpx.Client, desafio: str, nome_de_usuario: str, senha: str
+    navegador: httpx.Client,
+    desafio: str,
+    nome_de_usuario: str,
+    senha: str,
+    aplicacao: str = APLICACAO,
+    retorno: str | None = None,
 ) -> httpx.Response:
     """Preenche o formulário da tela de login e devolve a resposta do provedor, sem segui-la."""
-    pagina = _abrir_tela_de_login(navegador, desafio)
+    pagina = _abrir_tela_de_login(navegador, desafio, aplicacao, retorno)
     acao = re.search(r'<form[^>]*id="kc-form-login"[^>]*action="([^"]+)"', pagina.text)
     assert acao, "a página de login não tem o formulário esperado"
     # O provedor marca os cookies como Secure. Navegadores os enviam em localhost mesmo sem
@@ -158,8 +165,14 @@ def token_pelo_fluxo_de_codigo(nome_de_usuario: str, senha: str) -> str:
     return tokens_pelo_fluxo_de_codigo(nome_de_usuario, senha)["access_token"]
 
 
-def tokens_pelo_fluxo_de_codigo(nome_de_usuario: str, senha: str) -> dict[str, str]:
-    """O mesmo login, devolvendo a resposta inteira do provedor: token de acesso, de id e outros."""
+def tokens_pelo_fluxo_de_codigo(
+    nome_de_usuario: str, senha: str, aplicacao: str = APLICACAO, retorno: str | None = None
+) -> dict[str, str]:
+    """O mesmo login, devolvendo a resposta inteira do provedor: token de acesso, de id e outros.
+
+    Por padrão o login é o da aplicação; `aplicacao` e `retorno` escolhem outro cliente do realm.
+    """
+    retorno = retorno or _retorno()
     verificador = secrets.token_urlsafe(48)
     desafio = (
         base64.urlsafe_b64encode(hashlib.sha256(verificador.encode()).digest())
@@ -167,16 +180,18 @@ def tokens_pelo_fluxo_de_codigo(nome_de_usuario: str, senha: str) -> dict[str, s
         .decode()
     )
     with httpx.Client(timeout=10) as navegador:
-        resposta = _enviar_credenciais(navegador, desafio, nome_de_usuario, senha)
+        resposta = _enviar_credenciais(
+            navegador, desafio, nome_de_usuario, senha, aplicacao, retorno
+        )
     destino = resposta.headers.get("location", "")
-    if resposta.status_code != 302 or not destino.startswith(_retorno()):
+    if resposta.status_code != 302 or not destino.startswith(retorno):
         raise LoginRecusado(nome_de_usuario)
     return _pedir_tokens(
         {
             "grant_type": "authorization_code",
-            "client_id": APLICACAO,
+            "client_id": aplicacao,
             "code": parse_qs(urlparse(destino).query)["code"][0],
-            "redirect_uri": _retorno(),
+            "redirect_uri": retorno,
             "code_verifier": verificador,
         }
     )
