@@ -41,7 +41,7 @@ Depois, na raiz do projeto:
 docker compose up -d --build --wait
 ```
 
-O comando sobe o Postgres, roda a carga (que recria o banco do zero), sobe o Keycloak com o realm importado, a API, o servidor MCP e, por último, o frontend. Ele só termina quando tudo está pronto, e termina com código diferente de zero se algo falhar, inclusive a carga.
+O comando sobe o Postgres, roda a carga (que recria o banco do zero), sobe o Keycloak com o realm importado, a API, o servidor MCP, o proxy reverso e, por último, o frontend. Ele só termina quando tudo está pronto, e termina com código diferente de zero se algo falhar, inclusive a carga.
 
 | Serviço | Endereço local | Porta configurável por |
 | --- | --- | --- |
@@ -50,6 +50,7 @@ O comando sobe o Postgres, roda a carga (que recria o banco do zero), sobe o Key
 | API | `http://127.0.0.1:8000` | `API_PORT` |
 | Servidor MCP | `http://127.0.0.1:8001/mcp` | `MCP_PORT` |
 | Frontend | `http://localhost:5173` | (fixa: é o retorno do login, `ENDERECO_DO_FRONTEND`) |
+| Proxy reverso (provedor e servidor MCP num endereço só) | `http://127.0.0.1:8088` | `PROXY_PORT` |
 
 Todos ficam presos à máquina local.
 
