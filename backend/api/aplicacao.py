@@ -49,6 +49,7 @@ ROTAS_SO_AUTENTICADAS = frozenset({"/eu"})
 ROTAS_DE_DADOS: dict[str, Consulta] = {
     "/vendas/indicadores": vendas.indicadores,
     "/vendas/evolucao": vendas.evolucao,
+    "/vendas/situacao-das-entregas": vendas.situacao_das_entregas,
     "/vendas/pedidos-recentes": vendas.pedidos_recentes,
 }
 

@@ -155,6 +155,39 @@ def evolucao(conexao: psycopg.Connection, periodo: Periodo) -> dict:
     }
 
 
+# As quatro situações de entrega, da entrega em aberto à concluída. A resposta traz sempre as
+# quatro, nesta ordem, mesmo as que não têm pedido no período.
+SITUACOES_DE_ENTREGA = ("Em trânsito", "Prazo vencido", "Entregue no prazo", "Entregue com atraso")
+
+
+@consulta(Perfil.VENDAS)
+def situacao_das_entregas(conexao: psycopg.Connection, periodo: Periodo) -> dict:
+    """Quantos pedidos do período estão em cada situação de entrega.
+
+    Pedido com pagamento recusado não tem entrega e não entra em nenhuma situação.
+    """
+    intervalo = terminado_em(periodo, _data_de_referencia(conexao))
+    contagens = dict(
+        conexao.execute(
+            f"""
+            select e.situacao, count(*)
+            from vendas.pedido p
+            join vendas.entrega e on e.pedido_id = p.id
+            where {DIA_DO_PEDIDO} between %s and %s
+            group by e.situacao
+            """,
+            (intervalo.inicio, intervalo.fim),
+        ).fetchall()
+    )
+    return {
+        "periodo": {"inicio": intervalo.inicio.isoformat(), "fim": intervalo.fim.isoformat()},
+        "situacoes": [
+            {"situacao": situacao, "pedidos": contagens.get(situacao, 0)}
+            for situacao in SITUACOES_DE_ENTREGA
+        ],
+    }
+
+
 @consulta(Perfil.VENDAS)
 def pedidos_recentes(conexao: psycopg.Connection, periodo: Periodo) -> dict:
     """Os pedidos mais recentes do período, do mais novo para o mais antigo.
