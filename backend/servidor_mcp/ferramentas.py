@@ -56,6 +56,11 @@ class Ferramenta:
     descricao: str
     parametros: tuple[Parametro, ...]
 
+    def __post_init__(self) -> None:
+        # Sem consulta não há perfil, e sem perfil não há ferramenta (RS-05).
+        if not isinstance(self.consulta, Consulta):
+            raise TypeError(f"a ferramenta {self.titulo} precisa servir uma Consulta")
+
     def esquema_de_entrada(self) -> dict[str, Any]:
         """O esquema JSON dos argumentos: só os parâmetros previstos, nada além deles."""
         esquema: dict[str, Any] = {

@@ -20,6 +20,7 @@ from cliente_mcp import (
     pedir_ao_protocolo,
     texto_do_erro,
 )
+from provedor import senha_de, token_de_outro_servico
 from recusa import pedir
 
 from acesso import Perfil
@@ -154,6 +155,15 @@ def test_sem_token_todo_pedido_e_recusado_com_401(mcp_do_ambiente, pedido):
 
 def test_token_que_nao_veio_do_provedor_e_recusado_com_401(mcp_do_ambiente):
     assert_recusado(pedir_ao_protocolo(mcp_do_ambiente, "um-token-qualquer", "tools/list"))
+
+
+def test_token_real_emitido_para_outro_servico_e_recusado_com_401(mcp_do_ambiente):
+    """Mesmo provedor, mesmo usuário, assinatura válida: sem `pulso-mcp` entre os destinatários,
+    o token não entra (RS-02)."""
+    token = token_de_outro_servico("ana.vendas", senha_de("ana.vendas"))
+
+    assert_recusado(pedir_ao_protocolo(mcp_do_ambiente, token, "tools/list"))
+    assert_recusado(chamar_pelo_protocolo(mcp_do_ambiente, token, "vendas_indicadores"))
 
 
 def test_o_servidor_responde_sem_sessao(mcp_do_ambiente, token_de):

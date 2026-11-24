@@ -19,6 +19,8 @@ from starlette.applications import Starlette
 
 MCP_DO_AMBIENTE = f"http://127.0.0.1:{os.environ.get('MCP_PORT', '8001')}"
 CAMINHO = "/mcp"
+# A versão do protocolo MCP sem sessão, a que o cliente do FastMCP 4 negocia com o servidor.
+PROTOCOLO_SEM_SESSAO = "2026-07-28"
 
 # O erro único de ferramenta inexistente ou de outro perfil, e os demais erros genéricos (RS-08).
 FERRAMENTA_DESCONHECIDA = "Ferramenta desconhecida."
@@ -62,11 +64,21 @@ def chamar(
     )
 
 
-def pedir_ao_protocolo(http, token: str | None, metodo: str, parametros: dict | None = None):
+def pedir_ao_protocolo(
+    http,
+    token: str | None,
+    metodo: str,
+    parametros: dict | None = None,
+    versao: str | None = None,
+):
     """Um pedido JSON-RPC cru a `/mcp`, sem cliente MCP no meio, para ver a resposta HTTP inteira.
 
     `http` é qualquer cliente HTTP com `.post`: o `TestClient` da aplicação no processo (dentro de
     um `with`, que a inicia) ou um `httpx.Client` apontado para o servidor do ambiente.
+
+    Sem `versao`, o pedido segue o protocolo anterior a 2026-07-28, que o servidor sem estado
+    responde sem `initialize`. Com `PROTOCOLO_SEM_SESSAO`, segue o protocolo novo, o que o cliente
+    do FastMCP negocia: a versão vai no cabeçalho e em `_meta`.
     """
     cabecalhos = {"Accept": "application/json, text/event-stream"}
     if token:
@@ -74,13 +86,24 @@ def pedir_ao_protocolo(http, token: str | None, metodo: str, parametros: dict | 
     corpo = {"jsonrpc": "2.0", "id": 1, "method": metodo}
     if parametros is not None:
         corpo["params"] = parametros
+    if versao:
+        cabecalhos |= {"MCP-Protocol-Version": versao, "Mcp-Method": metodo}
+        if parametros and "name" in parametros:
+            cabecalhos["Mcp-Name"] = parametros["name"]
+        envelope = {
+            "io.modelcontextprotocol/protocolVersion": versao,
+            "io.modelcontextprotocol/clientCapabilities": {},
+        }
+        corpo["params"] = {**(parametros or {}), "_meta": envelope}
     return http.post(CAMINHO, json=corpo, headers=cabecalhos)
 
 
-def chamar_pelo_protocolo(http, token: str, ferramenta: str, argumentos: dict | None = None):
+def chamar_pelo_protocolo(
+    http, token: str, ferramenta: str, argumentos: dict | None = None, versao: str | None = None
+):
     """A resposta HTTP crua de uma chamada de ferramenta, para comparar byte a byte."""
     return pedir_ao_protocolo(
-        http, token, "tools/call", {"name": ferramenta, "arguments": argumentos or {}}
+        http, token, "tools/call", {"name": ferramenta, "arguments": argumentos or {}}, versao
     )
 
 

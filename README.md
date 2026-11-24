@@ -9,8 +9,10 @@ Consulta de dados por perfil com servidor MCP. Os requisitos estão em `docs/PRD
 ├── compose.yaml      # ambiente completo em contêineres
 ├── backend/          # projeto Python (uv)
 │   ├── carga/        # recria o banco a partir do nada
-│   ├── acesso/       # valida o token e extrai o perfil (compartilhado com o futuro MCP)
+│   ├── acesso/       # valida o token e extrai o perfil (compartilhado pela API e pelo servidor MCP)
+│   ├── consultas/    # lê o banco com o papel do perfil (compartilhado pela API e pelo servidor MCP)
 │   ├── api/          # API das telas (FastAPI)
+│   ├── servidor_mcp/ # servidor MCP: as consultas como ferramentas (FastMCP)
 │   └── tests/
 ├── frontend/         # aplicação no navegador (React + TypeScript + Vite), servida por nginx
 ├── keycloak/realm/   # configuração versionada do provedor de identidade
@@ -39,13 +41,14 @@ Depois, na raiz do projeto:
 docker compose up -d --build --wait
 ```
 
-O comando sobe o Postgres, roda a carga (que recria o banco do zero), sobe o Keycloak com o realm importado, a API e, por último, o frontend. Ele só termina quando tudo está pronto, e termina com código diferente de zero se algo falhar, inclusive a carga.
+O comando sobe o Postgres, roda a carga (que recria o banco do zero), sobe o Keycloak com o realm importado, a API, o servidor MCP e, por último, o frontend. Ele só termina quando tudo está pronto, e termina com código diferente de zero se algo falhar, inclusive a carga.
 
 | Serviço | Endereço local | Porta configurável por |
 | --- | --- | --- |
 | Postgres | `127.0.0.1:5433` | `POSTGRES_PORT` |
 | Keycloak | `http://localhost:8080` | (fixa: é o emissor dos tokens) |
 | API | `http://127.0.0.1:8000` | `API_PORT` |
+| Servidor MCP | `http://127.0.0.1:8001/mcp` | `MCP_PORT` |
 | Frontend | `http://localhost:5173` | (fixa: é o retorno do login, `ENDERECO_DO_FRONTEND`) |
 
 Todos ficam presos à máquina local.

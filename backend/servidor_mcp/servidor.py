@@ -185,7 +185,12 @@ class FerramentasDoPerfil(Middleware):
 
     async def on_call_tool(self, context: MiddlewareContext, call_next) -> ToolResult:
         if not self._visivel(context.message.name):
-            registro.warning("ferramenta negada ou inexistente: %r", context.message.name)
+            usuario = _usuario_do_token()
+            registro.warning(
+                "perfil %s pediu uma ferramenta de outro perfil ou inexistente: %r",
+                usuario.perfil if usuario else None,
+                context.message.name,
+            )
             raise _erro(FERRAMENTA_DESCONHECIDA)
         return await call_next(context)
 
