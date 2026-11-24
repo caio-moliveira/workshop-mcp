@@ -1,4 +1,4 @@
-"""O período de um painel: a janela de dias que termina na data de referência (glossário)."""
+"""O período de um painel: os dias que terminam na data de referência (glossário)."""
 
 import calendar
 from dataclasses import dataclass
@@ -32,15 +32,19 @@ _MESES = {Periodo.DOZE_MESES: 12, Periodo.VINTE_E_QUATRO_MESES: 24}
 
 
 @dataclass(frozen=True)
-class Intervalo:
-    """Dias de `inicio` a `fim`, inclusive, no horário de Brasília."""
+class DatasDoPeriodo:
+    """Os dias de um período, de `inicio` a `fim`, inclusive, no horário de Brasília."""
 
     inicio: date
     fim: date
 
-    def anterior(self, periodo: Periodo) -> "Intervalo":
-        """O intervalo de mesmo tamanho que termina na véspera deste."""
+    def anterior(self, periodo: Periodo) -> "DatasDoPeriodo":
+        """As datas do período de mesmo tamanho que termina na véspera deste."""
         return terminado_em(periodo, self.inicio - timedelta(days=1))
+
+    def como_json(self) -> dict[str, str]:
+        """O `{"inicio", "fim"}` das respostas, em datas ISO."""
+        return {"inicio": self.inicio.isoformat(), "fim": self.fim.isoformat()}
 
 
 def _menos_meses(dia: date, meses: int) -> date:
@@ -51,8 +55,14 @@ def _menos_meses(dia: date, meses: int) -> date:
     return date(ano, mes + 1, min(dia.day, ultimo_dia))
 
 
-def terminado_em(periodo: Periodo, fim: date) -> Intervalo:
+def terminado_em(periodo: Periodo, fim: date) -> DatasDoPeriodo:
     """Os últimos 30 ou 90 dias, ou 12 ou 24 meses, terminando em `fim` (inclusive)."""
     if periodo in _DIAS:
-        return Intervalo(fim - timedelta(days=_DIAS[periodo] - 1), fim)
-    return Intervalo(_menos_meses(fim, _MESES[periodo]) + timedelta(days=1), fim)
+        return DatasDoPeriodo(fim - timedelta(days=_DIAS[periodo] - 1), fim)
+    return DatasDoPeriodo(_menos_meses(fim, _MESES[periodo]) + timedelta(days=1), fim)
+
+
+def inicio_dos_dados(data_de_referencia: date) -> date:
+    """O primeiro dia coberto pelos dados: eles cobrem os 24 meses que terminam na data de
+    referência (PRD de dados)."""
+    return terminado_em(Periodo.VINTE_E_QUATRO_MESES, data_de_referencia).inicio

@@ -32,7 +32,7 @@ where (p.momento_compra at time zone 'America/Sao_Paulo')::date between %s and %
 """
 
 
-def _inicio_do_intervalo(dia: date, agrupamento: str) -> date:
+def _inicio_do_ponto(dia: date, agrupamento: str) -> date:
     if agrupamento == "dia":
         return dia
     if agrupamento == "semana":
@@ -40,12 +40,12 @@ def _inicio_do_intervalo(dia: date, agrupamento: str) -> date:
     return dia.replace(day=1)
 
 
-def _intervalos(inicio: date, fim: date, agrupamento: str) -> list[date]:
-    """O início de cada intervalo que toca o período, em ordem, tenha pedidos ou não."""
+def _pontos(inicio: date, fim: date, agrupamento: str) -> list[date]:
+    """O início de cada ponto que toca o período, em ordem, tenha pedidos ou não."""
     inicios = []
     dia = inicio
     while dia <= fim:
-        primeiro = _inicio_do_intervalo(dia, agrupamento)
+        primeiro = _inicio_do_ponto(dia, agrupamento)
         if not inicios or inicios[-1] != primeiro:
             inicios.append(primeiro)
         dia += timedelta(days=1)
@@ -57,13 +57,13 @@ def _na_origem(conexao, periodo: str) -> list[dict]:
     pedidos: Counter[date] = Counter()
     receita: dict[date, Decimal] = {}
     for dia, situacao, valor in conexao.execute(_PEDIDOS_NA_ORIGEM, (inicio, fim)):
-        intervalo = _inicio_do_intervalo(dia, agrupamento)
-        pedidos[intervalo] += 1
+        ponto = _inicio_do_ponto(dia, agrupamento)
+        pedidos[ponto] += 1
         if situacao == "Aprovado":
-            receita[intervalo] = receita.get(intervalo, Decimal(0)) + valor
+            receita[ponto] = receita.get(ponto, Decimal(0)) + valor
     return [
         {"inicio": i, "pedidos": pedidos[i], "receita": receita.get(i, Decimal(0))}
-        for i in _intervalos(inicio, fim, agrupamento)
+        for i in _pontos(inicio, fim, agrupamento)
     ]
 
 

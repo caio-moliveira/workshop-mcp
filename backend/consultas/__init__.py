@@ -13,7 +13,7 @@ from consultas.executor import (
     ExecutorDeConsultas,
     credenciais_do_ambiente,
 )
-from consultas.periodo import PERIODO_PADRAO, Intervalo, ParametroInvalido, Periodo
+from consultas.periodo import PERIODO_PADRAO, DatasDoPeriodo, ParametroInvalido, Periodo
 from consultas.registro import Consulta, consulta
 
 __all__ = [
@@ -23,8 +23,8 @@ __all__ = [
     "Consulta",
     "ConsultaFalhou",
     "Credencial",
+    "DatasDoPeriodo",
     "ExecutorDeConsultas",
-    "Intervalo",
     "ParametroInvalido",
     "Periodo",
     "consulta",

@@ -12,11 +12,13 @@ from decimal import Decimal
 import psycopg
 
 from acesso import Perfil
-from consultas.periodo import Intervalo, Periodo, terminado_em
+from consultas.periodo import DatasDoPeriodo, Periodo, inicio_dos_dados, terminado_em
 from consultas.registro import consulta
 
 # O dia de um pedido, no fuso do negócio, venha a sessão com o fuso que vier.
 DIA_DO_PEDIDO = "(p.momento_compra at time zone 'America/Sao_Paulo')::date"
+# O pedido `p` é do período cujas datas vêm nos dois parâmetros seguintes, início e fim.
+NO_PERIODO = f"{DIA_DO_PEDIDO} between %s and %s"
 
 # A tabela do painel é limitada: sem paginação nem rota de detalhe.
 LIMITE_DE_PEDIDOS_RECENTES = 20
@@ -44,11 +46,12 @@ def _data_de_referencia(conexao: psycopg.Connection) -> date:
     return conexao.execute("select data_referencia from vendas.referencia").fetchone()[0]
 
 
-def _inicio_dos_dados(conexao: psycopg.Connection) -> date | None:
-    return conexao.execute(f"select min({DIA_DO_PEDIDO}) from vendas.pedido p").fetchone()[0]
+def _datas_do(periodo: Periodo, conexao: psycopg.Connection) -> DatasDoPeriodo:
+    """As datas do período que termina na data de referência dos dados."""
+    return terminado_em(periodo, _data_de_referencia(conexao))
 
 
-def _resumo(conexao: psycopg.Connection, intervalo: Intervalo) -> _Resumo:
+def _resumo(conexao: psycopg.Connection, datas: DatasDoPeriodo) -> _Resumo:
     linha = conexao.execute(
         f"""
         select
@@ -60,9 +63,9 @@ def _resumo(conexao: psycopg.Connection, intervalo: Intervalo) -> _Resumo:
         from vendas.pedido p
         join vendas.pagamento g on g.pedido_id = p.id
         left join vendas.entrega e on e.pedido_id = p.id
-        where {DIA_DO_PEDIDO} between %s and %s
+        where {NO_PERIODO}
         """,
-        (intervalo.inicio, intervalo.fim),
+        (datas.inicio, datas.fim),
     ).fetchone()
     return _Resumo(*linha)
 
@@ -72,15 +75,15 @@ def indicadores(conexao: psycopg.Connection, periodo: Periodo) -> dict:
     """Pedidos realizados, receita, taxa de atraso e taxa de aprovação do período e do anterior.
 
     O anterior tem o mesmo tamanho e termina na véspera do início. É `None` quando começaria
-    antes do início dos dados, onde não haveria com o que comparar.
+    antes do início dos dados (os 24 meses que terminam na data de referência), onde não haveria
+    com o que comparar.
     """
-    atual = terminado_em(periodo, _data_de_referencia(conexao))
-    intervalo_anterior = atual.anterior(periodo)
-    inicio_dos_dados = _inicio_dos_dados(conexao)
+    atual = _datas_do(periodo, conexao)
+    datas_anteriores = atual.anterior(periodo)
     agora = _resumo(conexao, atual)
     antes = (
-        _resumo(conexao, intervalo_anterior)
-        if inicio_dos_dados and intervalo_anterior.inicio >= inicio_dos_dados
+        _resumo(conexao, datas_anteriores)
+        if datas_anteriores.inicio >= inicio_dos_dados(atual.fim)
         else None
     )
 
@@ -88,7 +91,7 @@ def indicadores(conexao: psycopg.Connection, periodo: Periodo) -> dict:
         return {"atual": indicador(agora), "anterior": None if antes is None else indicador(antes)}
 
     return {
-        "periodo": {"inicio": atual.inicio.isoformat(), "fim": atual.fim.isoformat()},
+        "periodo": atual.como_json(),
         "pedidos_realizados": par(lambda r: r.pedidos),
         "receita": par(lambda r: float(r.receita)),
         "taxa_de_atraso": {**par(lambda r: r.taxa_de_atraso), "atrasos": agora.atrasos},
@@ -110,41 +113,39 @@ _AGRUPAMENTO = {
 def evolucao(conexao: psycopg.Connection, periodo: Periodo) -> dict:
     """Pedidos realizados e receita de cada dia, semana ou mês do período, em ordem.
 
-    Cada ponto começa no início do seu intervalo de calendário (a segunda da semana, o dia 1 do
-    mês), mesmo que o período comece no meio dele; só os pedidos do período entram. Intervalos sem
-    pedidos aparecem com zero.
+    Cada ponto começa no primeiro dia do seu dia, semana ou mês de calendário (a segunda da
+    semana, o dia 1 do mês), mesmo que o período comece no meio dele; só os pedidos do período
+    entram. Pontos sem pedidos aparecem com zero.
     """
     agrupamento, unidade = _AGRUPAMENTO[periodo]
-    atual = terminado_em(periodo, _data_de_referencia(conexao))
+    atual = _datas_do(periodo, conexao)
     linhas = conexao.execute(
         f"""
         with pedidos as (
             select
-                date_trunc(%(unidade)s, {DIA_DO_PEDIDO}::timestamp)::date as intervalo,
+                date_trunc(%s, {DIA_DO_PEDIDO}::timestamp)::date as ponto,
                 g.situacao,
                 g.valor
             from vendas.pedido p
             join vendas.pagamento g on g.pedido_id = p.id
-            where {DIA_DO_PEDIDO} between %(inicio)s and %(fim)s
+            where {NO_PERIODO}
         ),
-        intervalos as (
-            select i::date as inicio
+        pontos as (
+            select s::date as inicio
             from generate_series(
-                date_trunc(%(unidade)s, %(inicio)s::timestamp),
-                %(fim)s::timestamp,
-                ('1 ' || %(unidade)s)::interval
-            ) as i
+                date_trunc(%s, %s::timestamp), %s::timestamp, ('1 ' || %s)::interval
+            ) as s
         )
         select
-            i.inicio,
-            count(d.intervalo),
+            t.inicio,
+            count(d.ponto),
             coalesce(sum(d.valor) filter (where d.situacao = 'Aprovado'), 0)
-        from intervalos i
-        left join pedidos d on d.intervalo = i.inicio
-        group by i.inicio
-        order by i.inicio
+        from pontos t
+        left join pedidos d on d.ponto = t.inicio
+        group by t.inicio
+        order by t.inicio
         """,
-        {"unidade": unidade, "inicio": atual.inicio, "fim": atual.fim},
+        (unidade, atual.inicio, atual.fim, unidade, atual.inicio, atual.fim, unidade),
     ).fetchall()
     return {
         "agrupamento": agrupamento,
@@ -166,21 +167,21 @@ def situacao_das_entregas(conexao: psycopg.Connection, periodo: Periodo) -> dict
 
     Pedido com pagamento recusado não tem entrega e não entra em nenhuma situação.
     """
-    intervalo = terminado_em(periodo, _data_de_referencia(conexao))
+    datas = _datas_do(periodo, conexao)
     contagens = dict(
         conexao.execute(
             f"""
             select e.situacao, count(*)
             from vendas.pedido p
             join vendas.entrega e on e.pedido_id = p.id
-            where {DIA_DO_PEDIDO} between %s and %s
+            where {NO_PERIODO}
             group by e.situacao
             """,
-            (intervalo.inicio, intervalo.fim),
+            (datas.inicio, datas.fim),
         ).fetchall()
     )
     return {
-        "periodo": {"inicio": intervalo.inicio.isoformat(), "fim": intervalo.fim.isoformat()},
+        "periodo": datas.como_json(),
         "situacoes": [
             {"situacao": situacao, "pedidos": contagens.get(situacao, 0)}
             for situacao in SITUACOES_DE_ENTREGA
@@ -195,7 +196,7 @@ def pedidos_recentes(conexao: psycopg.Connection, periodo: Periodo) -> dict:
     Do cliente, só a cidade e a UF: nenhum identificador sai da consulta. A situação da entrega é
     `None` quando o pagamento foi recusado e não há entrega.
     """
-    intervalo = terminado_em(periodo, _data_de_referencia(conexao))
+    datas = _datas_do(periodo, conexao)
     linhas = conexao.execute(
         f"""
         select
@@ -204,14 +205,14 @@ def pedidos_recentes(conexao: psycopg.Connection, periodo: Periodo) -> dict:
         from vendas.pedido p
         join vendas.pagamento g on g.pedido_id = p.id
         left join vendas.entrega e on e.pedido_id = p.id
-        where {DIA_DO_PEDIDO} between %s and %s
+        where {NO_PERIODO}
         order by p.momento_compra desc, p.id desc
         limit %s
         """,
-        (intervalo.inicio, intervalo.fim, LIMITE_DE_PEDIDOS_RECENTES),
+        (datas.inicio, datas.fim, LIMITE_DE_PEDIDOS_RECENTES),
     ).fetchall()
     return {
-        "periodo": {"inicio": intervalo.inicio.isoformat(), "fim": intervalo.fim.isoformat()},
+        "periodo": datas.como_json(),
         "pedidos": [
             {
                 "numero": numero,

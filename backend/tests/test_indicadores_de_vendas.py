@@ -15,7 +15,8 @@ from acesso import Perfil
 ROTA = "/vendas/indicadores"
 
 # Os períodos que terminam em 30/11/2026 e os anteriores de mesmo tamanho, contados à mão.
-# Nos 24 meses, o anterior começaria em 12/2022, antes do início dos dados (12/2024).
+# Nos 24 meses, o anterior começaria em 12/2022, antes do início dos dados: os dados cobrem os 24
+# meses que terminam na data de referência, de 01/12/2024 a 30/11/2026.
 PERIODOS = {
     "30d": ((date(2026, 11, 1), date(2026, 11, 30)), (date(2026, 10, 2), date(2026, 10, 31))),
     "90d": ((date(2026, 9, 2), date(2026, 11, 30)), (date(2026, 6, 4), date(2026, 9, 1))),
@@ -37,9 +38,9 @@ where (p.momento_compra at time zone 'America/Sao_Paulo')::date between %s and %
 """
 
 
-def _na_origem(conexao, intervalo) -> dict:
+def _na_origem(conexao, datas) -> dict:
     pedidos, receita, atrasos, entregues, aprovados = conexao.execute(
-        _NA_ORIGEM, intervalo
+        _NA_ORIGEM, datas
     ).fetchone()
     return {
         "pedidos": pedidos,
@@ -95,6 +96,17 @@ def test_indicadores_batem_com_os_dados_de_origem(respostas, conexao_dono, perio
     assert corpo["taxa_de_aprovacao"]["anterior"] == pytest.approx(
         esperado_antes["taxa_de_aprovacao"]
     )
+
+
+@pytest.mark.parametrize("periodo", PERIODOS)
+def test_so_o_periodo_que_cobre_todos_os_dados_fica_sem_anterior(respostas, periodo):
+    """O início dos dados é o dos 24 meses terminados na data de referência, não o do primeiro
+    pedido: um anterior que cabe nesses 24 meses é comparado mesmo que não comece num pedido."""
+    _, anterior = PERIODOS[periodo]
+    corpo = respostas[periodo].json()
+
+    for indicador in ("pedidos_realizados", "receita", "taxa_de_atraso", "taxa_de_aprovacao"):
+        assert (corpo[indicador]["anterior"] is None) == (anterior is None), indicador
 
 
 def test_os_dias_seguem_o_horario_de_brasilia(conexao_dono, respostas):
