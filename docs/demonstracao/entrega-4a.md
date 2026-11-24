@@ -41,7 +41,7 @@ curl http://localhost:8001/.well-known/oauth-protected-resource/mcp
 {"resource":"http://localhost:8001/mcp","authorization_servers":["http://localhost:8080/realms/pulso"],"scopes_supported":["openid"],"bearer_methods_supported":["header"]}
 ```
 
-Os metadados dizem ao cliente MCP que o servidor de autorização é o realm `pulso` do Keycloak. É por aqui que o Inspector descobre onde fazer login.
+Os metadados dizem ao cliente do protocolo MCP que o servidor de autorização é o realm `pulso` do Keycloak. É por aqui que o Inspector descobre onde fazer login.
 
 ## 3. Abrir o Inspector e entrar como Vendas (verificação manual pendente)
 
@@ -57,14 +57,13 @@ Os metadados dizem ao cliente MCP que o servidor de autorização é o realm `pu
 2. **Add Server**: transporte **Streamable HTTP**, URL `http://localhost:8001/mcp` (exatamente essa: o `resource` dos metadados precisa casar com ela).
 3. Nas **Server Settings** do servidor, em **OAuth Settings**:
    - **Client ID**: `pulso-inspector`, sem **Client Secret**;
-   - confira que o **Redirect URI** mostrado é `http://localhost:6274/oauth/callback`;
-   - **desmarque Request refresh token**. Marcado (o padrão), o Inspector pede o escopo `offline_access`, e o Keycloak recusa a troca do código com `Offline tokens not allowed for the user or client`: os usuários de demonstração não têm o papel de acesso offline. Isso foi observado no modo de linha de comando; desmarcado, o pedido sai só com `openid` e o login completa.
+   - confira que o **Redirect URI** mostrado é `http://localhost:6274/oauth/callback`.
 4. **Connect**. Esperado: o Inspector recebe o 401, lê os metadados do passo 2 e os do realm e leva à **tela de login do pulso** (o tema do realm, a mesma da aplicação).
 5. Entre como `ana.vendas` (senha em `SENHA_DO_USUARIO_VENDAS`). Esperado: o navegador volta ao Inspector, conectado.
 6. Em **Tools**, liste as ferramentas. Esperado: as cinco de Vendas, nesta ordem: `vendas_indicadores`, `vendas_evolucao`, `vendas_situacao_das_entregas`, `vendas_pedidos_recentes` e `vendas_atrasos`, cada uma com título, descrição e o campo `periodo` (enumeração `30d`, `90d`, `12m`, `24m`, padrão `12m`); `vendas_atrasos` também com `agrupamento` (`rota` ou `lojista`, obrigatório).
 7. Faça as chamadas do passo 4 pela interface e compare com os resultados de lá.
 
-**O que já foi verificado sem navegador.** O Inspector 2.16.0 no modo `--cli`, com o servidor configurado com `oauth.clientId: "pulso-inspector"` e `oauth.requestRefreshToken: false` e retorno em `http://localhost:6274/oauth/callback`, fez a descoberta, montou o pedido de autorização (`client_id=pulso-inspector`, `code_challenge_method=S256`, `scope=openid`, `resource=http://localhost:8001/mcp`), recebeu do Keycloak a tela de login, voltou ao retorno com o código e trocou o código por um token. Com `ana.vendas`, `tools/list` devolveu as cinco ferramentas e `vendas_atrasos` com `agrupamento=rota` devolveu o resultado do passo 4; com `bruno.produtos`, a lista veio vazia. A tela de login foi preenchida por um script, no lugar da pessoa. Com `requestRefreshToken` ligado (o padrão), a troca do código falhou com `Offline tokens not allowed for the user or client`. O que falta conferir é só a interface: os nomes dos campos, o redirecionamento do navegador e a volta à página do Inspector.
+**O que já foi verificado sem navegador.** O Inspector 2.16.0 no modo `--cli`, com o servidor configurado com `oauth.clientId: "pulso-inspector"`, a opção de pedir o token de renovação no padrão (ligada) e retorno em `http://localhost:6274/oauth/callback`, fez a descoberta, montou o pedido de autorização (`client_id=pulso-inspector`, `code_challenge_method=S256`, `scope=openid`, `resource=http://localhost:8001/mcp`), recebeu do Keycloak a tela de login, voltou ao retorno com o código e trocou o código por um token. Com `ana.vendas`, `tools/list` devolveu as cinco ferramentas e `vendas_atrasos` com `agrupamento=rota` devolveu o resultado do passo 4; com `bruno.produtos`, a lista veio vazia. A tela de login foi preenchida por um script, no lugar da pessoa. Com a opção ligada, o SDK do Inspector acrescentaria `offline_access` ao pedido se os metadados do realm anunciassem esse escopo, e o Keycloak recusaria a troca do código (os usuários de demonstração não têm acesso offline); por isso o Keycloak do compose publica os metadados sem `scopes_supported`, e o pedido sai só com `openid`. O que falta conferir é só a interface: os nomes dos campos, o redirecionamento do navegador e a volta à página do Inspector.
 
 ## 4. As ferramentas como Vendas
 
@@ -101,7 +100,7 @@ Para chamar uma ferramenta, troque o final da linha por `--method tools/call --t
 | Chamada | Resultado esperado |
 | --- | --- |
 | `--tool-name vendas_indicadores` | `periodo` de `2025-12-01` a `2026-11-30`; `pedidos_realizados` 16795 (anterior 13204); `receita` 17082039.33 (anterior 13543930.03); `taxa_de_atraso` 0.0903 com `atrasos` 1411 (anterior 0.1021); `taxa_de_aprovacao` 0.9595 (anterior 0.9599). Os mesmos números do painel da entrega 3. |
-| `--tool-name vendas_evolucao --tool-arg periodo=90d` | `agrupamento` `semana`, 14 pontos, do `2026-08-31` (211 pedidos, parcial) ao `2026-11-30` (83 pedidos, parcial). |
+| `--tool-name vendas_evolucao --tool-arg periodo=90d` | `periodo` de `2026-09-02` a `2026-11-30`; `agrupamento` `semana`, 14 pontos, do `2026-08-31` (211 pedidos, parcial) ao `2026-11-30` (83 pedidos, parcial). |
 | `--tool-name vendas_situacao_das_entregas` | Em trânsito 436, Prazo vencido 57, Entregue no prazo 14211, Entregue com atraso 1411. |
 | `--tool-name vendas_pedidos_recentes --tool-arg periodo=30d` | `periodo` de `2026-11-01` a `2026-11-30` e 20 pedidos, do 29999 ao 29980, com número, momento da compra, cidade, UF, lojista, rota, valor, pagamento e entrega; nenhum identificador nem dado pessoal de cliente. |
 | `--tool-name vendas_atrasos --tool-arg agrupamento=rota` | Ver abaixo. |
@@ -246,21 +245,21 @@ Com o ambiente no ar, dentro de `backend/`:
 uv run pytest
 ```
 
-Resultado esperado: `588 passed`, em cerca de 11 minutos e meio. A suíte recarrega o banco e reinicia o Keycloak, então ela vem depois da demonstração.
+Resultado esperado: `601 passed`, em cerca de 11 minutos e meio (`601 passed in 691.35s` em 24/11/2026). A suíte recarrega o banco e reinicia o Keycloak, então ela vem depois da demonstração.
 
-Na execução de 24/11/2026 o resultado foi `1 failed, 587 passed in 691.71s`: falhou `test_o_provedor_libera_ao_navegador_so_a_origem_do_inspector[http://localhost:6274-True]`, que passou ao rodar `test_login_pelo_inspector.py` de novo (`11 passed`). O log do Keycloak registrou `REFRESH_TOKEN_ERROR` com `reason="Refresh token issued before the user session started"`. A causa provável, não confirmada, é a renovação feita logo depois do login cair no mesmo segundo do início da sessão. É uma instabilidade desse teste da renovação no Keycloak, não do servidor MCP.
+Uma execução anterior falhou uma vez em `test_o_provedor_libera_ao_navegador_so_a_origem_do_inspector`, com `Refresh token issued before the user session started` na renovação. A causa é o relógio da máquina virtual do Docker Desktop, onde o Keycloak roda: ele fica uns 12 s atrás do relógio do Windows e, a cada 15 a 20 s, salta para a hora certa por um instante e volta. A sessão aberta durante o salto começa depois do `iat` do token emitido logo em seguida, e o Keycloak recusa renovar um token emitido antes do início da sessão. Não tem relação com o reinício do provedor nem com a ordem dos testes: aconteceu também fora da suíte, em 4 de 60 logins seguidos de renovação. O teste passou a usar a troca do código, o mesmo endpoint de token, que não faz essa comparação.
 
 Os testes novos da entrega 4a:
 
 | Arquivo | Testes | O que verifica |
 | --- | --- | --- |
-| `test_ferramentas_de_vendas.py` | 94 | Protocolo MCP contra o serviço `mcp` do compose, com tokens reais: os quatro usuários contra as cinco ferramentas (lista e chamada só para Vendas, lista vazia para os outros); a chamada direta de outro perfil com o mesmo erro de uma ferramenta inexistente; as quatro ferramentas do painel com o mesmo conteúdo das rotas da API; nenhuma resposta com identificador de cliente ou nome interno do banco; sem estado entre requisições |
-| `test_atrasos_de_vendas.py` | 56 | `vendas_atrasos` nos dois agrupamentos e nos quatro períodos, contra consultas independentes com o papel dono: totais, ordenação, limite de 10, participação e exclusão do prazo vencido |
+| `test_ferramentas_de_vendas.py` | 99 | Protocolo MCP contra o serviço `mcp` do compose, com tokens reais: os quatro usuários contra as cinco ferramentas (lista e chamada só para Vendas, lista vazia para os outros); a chamada direta de outro perfil com o mesmo erro de uma ferramenta inexistente; as quatro ferramentas do painel com o mesmo conteúdo das rotas da API; toda resposta com as datas do período; nenhuma resposta com identificador de cliente ou nome interno do banco; sem estado entre requisições |
+| `test_atrasos_de_vendas.py` | 57 | `vendas_atrasos` nos dois agrupamentos e nos quatro períodos, contra consultas independentes com o papel dono: totais, ordenação, limite de 10, participação e exclusão do prazo vencido; nomes de lojista únicos na carga padrão |
 | `test_tokens_forjados_no_mcp.py` | 92 | O servidor criado no processo, com tokens forjados: outro emissor, outra chave, sem assinatura, assinatura simétrica, outro destinatário (inclusive só `pulso-api`), vencido, ainda não válido, sem perfil conhecido; a ordem token, perfil, parâmetros; parâmetro a mais ou fora da enumeração sem eco; um `perfil` enviado por quem chama não muda o do token; banco e provedor fora do ar como indisponibilidade |
 | `test_registro_de_ferramentas.py` | 13 | Toda ferramenta publicada vem do registro e serve uma consulta com perfil; esquemas só com os parâmetros previstos, enumerações fechadas e sem propriedades adicionais; descrição em toda ferramenta e parâmetro |
 | `test_token_de_outra_aplicacao.py` | 10 | O token real de `pulso-outra-aplicacao` recusado pelo MCP do compose e pela API (CA-03) |
 | `test_descoberta_oauth.py` | 5 | O 401 aponta os metadados de recurso protegido; os metadados apontam o realm; sem CORS |
-| `test_login_pelo_inspector.py` | 11 | O cliente `pulso-inspector` no realm (público, PKCE, retorno do Inspector), o token dele aceito pelo MCP e recusado pela API, e o registro dinâmico de clientes desligado |
+| `test_login_pelo_inspector.py` | 14 | O cliente `pulso-inspector` no realm (público, PKCE, retorno do Inspector), o token dele aceito pelo MCP e recusado pela API, os metadados do realm sem `offline_access` e o registro dinâmico de clientes desligado |
 | `test_comando_de_token.py` | 11 | O comando de token de demonstração, rodado como o apresentador o roda |
 
 Requisitos cobertos:

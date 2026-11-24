@@ -33,6 +33,7 @@ from acesso import (
     TokenRecusado,
     UsuarioAutenticado,
     autenticar,
+    mensagens,
 )
 from consultas import AcessoNegado, ConsultaFalhou, ExecutorDeConsultas, ParametroInvalido
 from servidor_mcp.ferramentas import FERRAMENTAS, Ferramenta
@@ -42,16 +43,6 @@ registro = logging.getLogger("servidor_mcp")
 CAMINHO = "/mcp"
 # Responde sem token: é o que o healthcheck do compose pede.
 CAMINHO_DA_SAUDE = "/saude"
-
-# O mesmo erro para a ferramenta que não existe e para a de outro perfil: quem chama não fica
-# sabendo que ela existe, e o nome pedido não volta na mensagem (RS-08).
-FERRAMENTA_DESCONHECIDA = "Ferramenta desconhecida."
-# Não descreve a validação, não ecoa o valor nem o esquema (RS-08).
-PARAMETRO_INVALIDO = "Parâmetro inválido."
-# O banco ou o provedor fora do ar não é negação nem token inválido.
-INDISPONIVEL = "Serviço indisponível."
-# Qualquer falha não prevista: o motivo fica só no log.
-ERRO_INTERNO = "Erro interno."
 
 
 def _erro(mensagem: str) -> ToolError:
@@ -140,7 +131,7 @@ class _ProvedorIndisponivel:
             await self._app(scope, receive, send)
         except ProvedorIndisponivel as erro:
             registro.error("provedor de identidade indisponível: %s", erro)
-            resposta = JSONResponse({"erro": INDISPONIVEL}, status_code=503)
+            resposta = JSONResponse({"erro": mensagens.SERVICO_INDISPONIVEL}, status_code=503)
             await resposta(scope, receive, send)
 
 
@@ -195,16 +186,16 @@ class FerramentaDeConsulta(Tool):
             )
         except AcessoNegado as erro:
             registro.warning("acesso negado: %s", erro)
-            raise _erro(FERRAMENTA_DESCONHECIDA) from erro
+            raise _erro(mensagens.FERRAMENTA_DESCONHECIDA) from erro
         except ParametroInvalido as erro:
             registro.info("parâmetro inválido em %s: %s", self.name, erro)
-            raise _erro(PARAMETRO_INVALIDO) from erro
+            raise _erro(mensagens.PARAMETRO_INVALIDO) from erro
         except ConsultaFalhou as erro:
             registro.error("consulta falhou: %s", erro)
-            raise _erro(INDISPONIVEL) from erro
+            raise _erro(mensagens.SERVICO_INDISPONIVEL) from erro
         except Exception as erro:
             registro.error("erro inesperado em %s: %s", self.name, erro, exc_info=erro)
-            raise _erro(ERRO_INTERNO) from erro
+            raise _erro(mensagens.ERRO_INTERNO) from erro
         return ToolResult(structured_content=resultado)
 
 
@@ -237,7 +228,7 @@ class FerramentasDoPerfil(Middleware):
                 usuario.perfil if usuario else None,
                 context.message.name,
             )
-            raise _erro(FERRAMENTA_DESCONHECIDA)
+            raise _erro(mensagens.FERRAMENTA_DESCONHECIDA)
         return await call_next(context)
 
 

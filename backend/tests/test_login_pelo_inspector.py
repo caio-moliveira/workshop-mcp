@@ -26,7 +26,9 @@ from provedor import (
     INSPECTOR,
     USUARIOS_DE_DEMONSTRACAO,
     administracao,
+    aplicacao,
     emissor,
+    endereco_do_provedor,
     tokens_pelo_fluxo_de_codigo,
 )
 from recusa import assert_recusado as assert_recusado_pela_api
@@ -81,6 +83,26 @@ def test_os_metadados_respondem_sem_token_e_apontam_o_realm(mcp_do_ambiente):
     # tokens, ao login e ao endpoint de token.
     realm = httpx.get(f"{emissor()}/.well-known/openid-configuration", timeout=10).json()
     assert realm["issuer"] == emissor()
+
+
+@pytest.mark.parametrize(
+    "caminho",
+    [
+        # RFC 8414 com o caminho do emissor depois do .well-known: o que o SDK do Inspector lê.
+        "/.well-known/oauth-authorization-server/realms/pulso",
+        "/realms/pulso/.well-known/oauth-authorization-server",
+        "/realms/pulso/.well-known/openid-configuration",
+    ],
+)
+def test_os_metadados_do_realm_nao_anunciam_acesso_offline(caminho):
+    """O SDK do Inspector pede `offline_access` quando os metadados do realm o anunciam e a opção
+    de pedir o token de renovação está ligada (o padrão). Os usuários não têm acesso offline, e o
+    login pararia na troca do código; sem o anúncio, o pedido sai só com `openid`."""
+    metadados = httpx.get(f"{endereco_do_provedor()}{caminho}", timeout=10)
+
+    assert metadados.status_code == 200
+    assert metadados.json()["issuer"] == emissor()
+    assert "offline_access" not in metadados.json().get("scopes_supported", [])
 
 
 # --- Token real do cliente do Inspector ---
@@ -149,22 +171,29 @@ def test_o_login_do_inspector_nao_volta_para_outro_endereco():
     ("origem", "liberada"), [(ORIGEM_DO_INSPECTOR, True), (OUTRA_ORIGEM, False)]
 )
 def test_o_provedor_libera_ao_navegador_so_a_origem_do_inspector(origem, liberada):
-    """O endpoint de token responde ao navegador da origem do Inspector, e de nenhuma outra."""
-    renovacao = httpx.post(
+    """O endpoint de token responde ao navegador da origem do Inspector, e de nenhuma outra.
+
+    O pedido é a troca do código, o primeiro que o navegador do Inspector faria ao endpoint de
+    token. Não é a renovação: o provedor recusa a renovação de um token cujo `iat` é anterior ao
+    início da sessão, e isso acontece quando o relógio dele salta entre o login e a emissão.
+    """
+    usuario = next(u for u in USUARIOS_DE_DEMONSTRACAO if u.perfil == Perfil.VENDAS)
+    pedido = fluxo_de_codigo.troca_do_codigo(
+        emissor(), aplicacao(CLIENTE_DO_INSPECTOR), usuario.nome_de_usuario, usuario.senha()
+    )
+
+    troca = httpx.post(
         f"{emissor()}/protocol/openid-connect/token",
-        data={
-            "grant_type": "refresh_token",
-            "client_id": CLIENTE_DO_INSPECTOR,
-            "refresh_token": login_pelo_inspector()["refresh_token"],
-        },
+        data=pedido,
         headers={"Origin": origem},
         timeout=10,
     )
 
-    liberou = renovacao.headers.get("access-control-allow-origin") == origem
+    liberou = troca.headers.get("access-control-allow-origin") == origem
     assert liberou is liberada
     if liberada:
-        assert renovacao.status_code == 200
+        assert troca.status_code == 200
+        assert "access_token" in troca.json()
 
 
 def test_o_registro_dinamico_de_clientes_continua_desligado():

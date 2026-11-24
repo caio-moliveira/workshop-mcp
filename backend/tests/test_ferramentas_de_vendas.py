@@ -123,6 +123,16 @@ def _dados_pessoais_dos_clientes(conexao_dono, conteudo: dict) -> list:
 
 
 @pytest.mark.parametrize("ferramenta", FERRAMENTAS_DE_VENDAS)
+def test_toda_resposta_traz_as_datas_do_periodo_usado(token_de, ferramenta):
+    argumentos = {**ARGUMENTOS_OBRIGATORIOS.get(ferramenta, {}), "periodo": "30d"}
+
+    resultado = chamar(MCP_DO_AMBIENTE, token_de(Perfil.VENDAS), ferramenta, argumentos)
+
+    assert not resultado.is_error
+    assert resultado.structured_content["periodo"] == {"inicio": "2026-11-01", "fim": "2026-11-30"}
+
+
+@pytest.mark.parametrize("ferramenta", FERRAMENTAS_DE_VENDAS)
 def test_sem_periodo_a_ferramenta_usa_os_ultimos_12_meses(token_de, ferramenta):
     token = token_de(Perfil.VENDAS)
 

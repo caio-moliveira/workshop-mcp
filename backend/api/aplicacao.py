@@ -17,6 +17,7 @@ from acesso import (
     TokenRecusado,
     UsuarioAutenticado,
     autenticar,
+    mensagens,
 )
 from consultas import (
     PERIODO_PADRAO,
@@ -31,17 +32,13 @@ from consultas import (
 
 registro = logging.getLogger("api")
 
-# A mesma resposta para toda recusa: quem chama não sabe qual verificação falhou (RS-08).
-RECUSA = {"erro": "Não autenticado."}
-# A mesma negação em toda rota de dados: não diz se os dados existem (RF-11).
-NEGACAO = {"erro": "Acesso negado."}
-# Não descreve a validação, não ecoa o valor nem nomes internos (RS-08).
-PARAMETRO_INVALIDO = {"erro": "Parâmetro inválido."}
-# O provedor ou o banco fora do ar não é culpa do token: o cliente não deve mandar o usuário ao
-# login.
-INDISPONIVEL = {"erro": "Serviço indisponível."}
-# Qualquer falha não prevista: o motivo fica só no log, nunca na resposta (RS-08).
-ERRO_INTERNO = {"erro": "Erro interno."}
+# As respostas de erro, uma por situação, com os textos comuns ao servidor MCP: a mesma recusa
+# para todo token recusado e a mesma negação em toda rota de dados (RS-08, RF-11).
+RECUSA = {"erro": mensagens.NAO_AUTENTICADO}
+NEGACAO = {"erro": mensagens.ACESSO_NEGADO}
+PARAMETRO_INVALIDO = {"erro": mensagens.PARAMETRO_INVALIDO}
+INDISPONIVEL = {"erro": mensagens.SERVICO_INDISPONIVEL}
+ERRO_INTERNO = {"erro": mensagens.ERRO_INTERNO}
 
 # As rotas que só exigem um usuário autenticado, sem perfil. Toda outra rota serve uma consulta,
 # e o perfil é o que a consulta declara (RS-05).
