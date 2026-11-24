@@ -20,6 +20,7 @@ from acesso.provedor import (
 )
 from token_de_demonstracao import (
     APLICACAO_WEB,
+    OUTRA_APLICACAO,
     USUARIOS_DE_DEMONSTRACAO,
     Aplicacao,
     LoginRecusado,
@@ -32,6 +33,7 @@ APLICACAO = APLICACAO_WEB
 __all__ = [
     "DESTINATARIO_DA_API",
     "DESTINATARIO_DO_MCP",
+    "OUTRA_APLICACAO",
     "REALM",
     "USUARIOS_DE_DEMONSTRACAO",
     "LoginRecusado",

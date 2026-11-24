@@ -11,6 +11,11 @@ from acesso import Perfil
 from token_de_demonstracao.fluxo_de_codigo import Aplicacao
 
 APLICACAO_WEB = "pulso-web"
+# Um cliente do mesmo realm que não é a aplicação: o token dele não vale na API nem no servidor
+# MCP (CA-03). Ninguém escuta no retorno: o fluxo lê o código do redirecionamento, sem segui-lo.
+# O endereço repete o `redirectUris` do cliente no realm.
+OUTRA_APLICACAO = "pulso-outra-aplicacao"
+RETORNO_DA_OUTRA_APLICACAO = "http://localhost:8765/retorno"
 
 
 class VariavelAusente(Exception):
@@ -55,5 +60,6 @@ def aplicacoes(endereco_do_frontend: str) -> dict[str, Aplicacao]:
     """Os clientes do realm que fazem login, por identificador, com o retorno de cada um."""
     conhecidas = [
         Aplicacao(APLICACAO_WEB, f"{endereco_do_frontend}/"),
+        Aplicacao(OUTRA_APLICACAO, RETORNO_DA_OUTRA_APLICACAO),
     ]
     return {aplicacao.identificador: aplicacao for aplicacao in conhecidas}

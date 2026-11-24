@@ -1,12 +1,14 @@
 """Tokens reais do provedor de identidade para os usuários de demonstração.
 
-O percurso do fluxo de código com PKCE (`fluxo_de_codigo`) e o cadastro de usuários e aplicações
-(`cadastro`). É uma ferramenta de desenvolvimento e de demonstração: roda na máquina local, com
+O percurso do fluxo de código com PKCE (`fluxo_de_codigo`), o cadastro de usuários e aplicações
+(`cadastro`) e o comando `python -m token_de_demonstracao <usuário> <aplicação>`, que imprime o
+token de acesso. É uma ferramenta de desenvolvimento e de demonstração: roda na máquina local, com
 as dependências do grupo `dev`, e não entra nas imagens dos serviços.
 """
 
 from token_de_demonstracao.cadastro import (
     APLICACAO_WEB,
+    OUTRA_APLICACAO,
     USUARIOS_DE_DEMONSTRACAO,
     UsuarioDeDemonstracao,
     VariavelAusente,
@@ -21,6 +23,7 @@ from token_de_demonstracao.fluxo_de_codigo import (
 
 __all__ = [
     "APLICACAO_WEB",
+    "OUTRA_APLICACAO",
     "USUARIOS_DE_DEMONSTRACAO",
     "Aplicacao",
     "LoginRecusado",
