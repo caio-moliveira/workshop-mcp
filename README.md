@@ -25,7 +25,7 @@ Consulta de dados por perfil com servidor MCP. Os requisitos estão em `docs/PRD
 
 - Docker com Docker Compose
 - [uv](https://docs.astral.sh/uv/), para rodar os testes
-- Node.js 24, para desenvolver o frontend fora do contêiner
+- Node.js 24, para desenvolver o frontend fora do contêiner e para o MCP Inspector (a versão 2.16 pede `^24.22.1`, `^22.23.4` ou `>=26.12.1`)
 
 ## Subir o ambiente
 
@@ -73,6 +73,23 @@ O perfil vem do grupo do usuário no realm e viaja no token como a claim `perfil
 ## API
 
 - `GET /eu`: o nome e o perfil do usuário do token. Qualquer problema com o token (ausente, vencido, de outro serviço, assinatura, emissor, perfil) recebe `401` com a mesma resposta; o motivo fica só no log da API.
+
+## Servidor MCP
+
+O serviço `mcp` do compose expõe as consultas de Vendas como ferramentas MCP, somente leitura, em `http://127.0.0.1:8001/mcp` (transporte streamable HTTP, sem sessão). Ele usa o mesmo módulo de acesso e o mesmo mecanismo de consultas da API (`backend/acesso` e `backend/consultas`), sem chamar a API.
+
+- **Ferramentas:** `vendas_indicadores`, `vendas_evolucao`, `vendas_situacao_das_entregas`, `vendas_pedidos_recentes` e `vendas_atrasos`, todas do perfil Vendas, declaradas em `backend/servidor_mcp/ferramentas.py`. Os outros perfis recebem a lista vazia, e uma chamada a uma ferramenta de outro perfil recebe o mesmo erro de uma ferramenta inexistente.
+- **Token:** só aceita tokens do realm cujo destinatário inclui `pulso-mcp`. O token da aplicação (`pulso-web`) traz `pulso-api` e `pulso-mcp` (ADR 0006); o do cliente `pulso-inspector`, só `pulso-mcp`. Sem token ou com token recusado: `401`, com o `WWW-Authenticate` apontando os metadados de recurso protegido em `/.well-known/oauth-protected-resource/mcp`.
+- **Endereço público:** `ENDERECO_PUBLICO_DO_MCP` no `backend/.env` (sem o `/mcp`), o recurso anunciado nos metadados. Precisa ser o endereço que o cliente MCP digita.
+- **Saúde:** `GET /saude`, sem token.
+
+Para conectar o [MCP Inspector](https://github.com/modelcontextprotocol/inspector), use o cliente `pulso-inspector` do realm; o passo a passo está em `docs/demonstracao/entrega-4a.md`. Para colar um token sem passar pela tela de login, emita um de um usuário de demonstração, dentro de `backend/`:
+
+```
+uv run python -m token_de_demonstracao ana.vendas pulso-inspector
+```
+
+O comando imprime só o token de acesso, que vale 5 minutos. As aplicações são `pulso-web`, `pulso-inspector` e `pulso-outra-aplicacao` (um cliente que existe para provar que um token de outra aplicação é recusado).
 
 ## Frontend
 
@@ -137,7 +154,9 @@ uv run ruff check
 uv run ruff format --check
 ```
 
-Os testes rodam contra o Postgres e o Keycloak reais, sem mocks. Os da API criam a aplicação dentro do processo e obtêm tokens pelo mesmo fluxo de login do navegador (código + PKCE).
+Os testes rodam contra o Postgres e o Keycloak reais, sem mocks. Os da API criam a aplicação dentro do processo e obtêm tokens pelo mesmo fluxo de login do navegador (código + PKCE). Os do servidor MCP falam o protocolo MCP por HTTP, contra o serviço `mcp` do compose ou contra o servidor criado dentro do processo; por isso o ambiente inteiro, com o serviço `mcp`, precisa estar no ar.
+
+A suíte leva cerca de 11 minutos, recarrega o banco e reinicia o Keycloak. O ambiente de testes é um compose por máquina: não rode duas suítes ao mesmo tempo.
 
 ## Demonstração
 
@@ -145,6 +164,8 @@ Os roteiros, com comandos e resultados esperados, estão em `docs/demonstracao/`
 
 - Entrega 1, fundação de dados: `docs/demonstracao/entrega-1.md`.
 - Entrega 2, login e perfil: `docs/demonstracao/entrega-2.md`.
+- Entrega 3, Vendas na tela: `docs/demonstracao/entrega-3.md`.
+- Entrega 4a, servidor MCP de Vendas: `docs/demonstracao/entrega-4a.md`.
 
 ## Parar o ambiente
 

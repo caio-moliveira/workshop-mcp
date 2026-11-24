@@ -170,10 +170,10 @@ O projeto está pronto quando os oito critérios abaixo passam, os sete primeiro
 
 ## Questões em aberto
 
-Cinco decisões ainda dependem de definição e podem mudar requisitos acima.
+Quatro decisões ainda dependem de definição e podem mudar requisitos acima. Uma já foi tomada e fica marcada.
 
 - [ ] Qual provedor de modelo de linguagem o chat usa por padrão?
 - [ ] Qual provedor de nuvem e qual domínio hospedam o ambiente público?
-- [ ] Como o agente do chat obtém um token aceito pelo servidor MCP: um token com dois destinatários ou uma troca de token?
+- [x] Como o agente do chat obtém um token aceito pelo servidor MCP: um token com dois destinatários ou uma troca de token? Decidido na entrega 4a: dois destinatários, sem troca de token (`docs/adr/0006-token-da-aplicacao-com-dois-destinatarios.md`).
 - [ ] A meta de 3 segundos do RNF-05 é adequada? É um valor inicial, sem medição.
 - [ ] Qual é o limite de chamadas por usuário do RS-11?
