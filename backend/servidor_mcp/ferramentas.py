@@ -111,4 +111,63 @@ FERRAMENTAS: dict[str, Ferramenta] = {
         ),
         parametros=(PERIODO,),
     ),
+    "vendas_evolucao": Ferramenta(
+        consulta=vendas.evolucao,
+        titulo="Evolução de Vendas",
+        descricao=(
+            "Série temporal de Vendas em um período: pedidos realizados e receita de cada dia, "
+            "semana ou mês, em ordem cronológica. Use para ver tendência, sazonalidade, picos e "
+            "quedas, ou para saber quando as vendas subiram ou caíram; para o total do período e "
+            "a comparação com o período anterior, use vendas_indicadores. O agrupamento depende "
+            "do período e vem no campo 'agrupamento': 'dia' para '30d', 'semana' para '90d' e "
+            "'mes' para '12m' e '24m'. Cada item de 'pontos' traz 'inicio' (data ISO do primeiro "
+            "dia daquele dia, semana ou mês de calendário; a semana começa na segunda-feira e o "
+            "mês no dia 1), 'pedidos' (pedidos realizados) e 'receita' (soma dos pagamentos "
+            "aprovados, em reais). Só os pedidos do período entram: quando o período começa no "
+            "meio de uma semana ou de um mês, o primeiro ponto é parcial e não deve ser lido "
+            "como queda. Pontos sem pedidos aparecem com zero."
+        ),
+        parametros=(PERIODO,),
+    ),
+    "vendas_situacao_das_entregas": Ferramenta(
+        consulta=vendas.situacao_das_entregas,
+        titulo="Situação das entregas",
+        descricao=(
+            "Quantos pedidos de um período estão em cada situação de entrega. Use para saber "
+            "como estão as entregas: quantas já chegaram, quantas chegaram com atraso e quantas "
+            "ainda estão a caminho; para a taxa de atraso e sua comparação com o período "
+            "anterior, use vendas_indicadores. 'situacoes' traz sempre as quatro situações, "
+            "nesta ordem, mesmo as que têm zero pedidos: 'Em trânsito' (ainda não entregue, "
+            "dentro do prazo), 'Prazo vencido' (ainda não entregue e a data prometida já passou "
+            "na data de referência dos dados), 'Entregue no prazo' e 'Entregue com atraso' "
+            "(entregue depois da data prometida). Prazo vencido não é atraso: atraso só existe "
+            "em pedido já entregue, e pedidos com prazo vencido não entram na taxa de atraso. "
+            "Pedidos com pagamento recusado não têm entrega e não aparecem em nenhuma situação, "
+            "então a soma das quatro é menor que o total de pedidos realizados. 'periodo' traz "
+            "as datas de início e fim usadas, em formato ISO."
+        ),
+        parametros=(PERIODO,),
+    ),
+    "vendas_pedidos_recentes": Ferramenta(
+        consulta=vendas.pedidos_recentes,
+        titulo="Pedidos recentes",
+        descricao=(
+            "Os pedidos mais recentes de um período, do mais novo para o mais antigo. Use para "
+            "ver exemplos concretos de pedidos: o que foi comprado por último, de qual lojista, "
+            "em qual rota, por quanto e em que situação. A lista é limitada aos 20 pedidos mais "
+            "recentes e não é o total do período: não some nem conte a partir dela; para "
+            "totais, taxas, tendência ou contagem por situação de entrega, use as outras "
+            "ferramentas de Vendas. Cada item de 'pedidos' traz 'numero' (número do pedido), "
+            "'momento_compra' (instante da compra, ISO com fuso; o dia do pedido é o do horário "
+            "de Brasília), 'cidade' e 'uf' (do cliente; nenhum outro dado do cliente é "
+            "devolvido), 'lojista' (nome do lojista), 'rota' (UF do lojista → UF do cliente), "
+            "'valor' (valor do pagamento em reais, com itens e frete), 'pagamento' ('Aprovado' "
+            "ou 'Recusado') e 'entrega' ('Em trânsito', 'Prazo vencido', 'Entregue no prazo' ou "
+            "'Entregue com atraso'; nulo quando o pagamento foi recusado, porque não há "
+            "entrega). Prazo vencido é pedido ainda não entregue com a data prometida já "
+            "passada; não é atraso. 'periodo' traz as datas de início e fim usadas, em formato "
+            "ISO."
+        ),
+        parametros=(PERIODO,),
+    ),
 }
