@@ -3,9 +3,11 @@ import { describe, expect, it } from "vitest";
 import {
   formatarData,
   formatarDataHora,
+  formatarDiferencaDeNota,
   formatarMoeda,
   formatarMoedaCompacta,
   formatarNumero,
+  formatarNota,
   formatarNumeroCompacto,
   formatarPercentual,
   formatarPontosPercentuais,
@@ -19,6 +21,11 @@ describe("formatação em pt-BR", () => {
   it("moeda em reais, com centavos", () => {
     expect(formatarMoeda(1234567.8)).toBe(`R$${ESPACO}1.234.567,80`);
     expect(formatarMoeda(0)).toBe(`R$${ESPACO}0,00`);
+  });
+
+  it("nota média de 1 a 5, com duas casas", () => {
+    expect(formatarNota(4.1234)).toBe("4,12");
+    expect(formatarNota(3)).toBe("3,00");
   });
 
   it("contagens com separador de milhar", () => {
@@ -41,6 +48,12 @@ describe("formatação em pt-BR", () => {
     expect(formatarPontosPercentuais(0.012)).toBe("+1,2 p.p.");
     expect(formatarPontosPercentuais(-0.0349)).toBe("-3,5 p.p.");
     expect(formatarPontosPercentuais(0)).toBe("0,0 p.p.");
+  });
+
+  it("diferença entre notas médias, em pontos da nota, com duas casas e sinal", () => {
+    expect(formatarDiferencaDeNota(0.07)).toBe("+0,07");
+    expect(formatarDiferencaDeNota(-0.354)).toBe("-0,35");
+    expect(formatarDiferencaDeNota(0)).toBe("0,00");
   });
 
   it("instante ISO como data e hora de Brasília, venha com o fuso que vier", () => {

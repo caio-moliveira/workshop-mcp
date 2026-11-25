@@ -38,6 +38,7 @@ from consultas import (
     ExecutorDeConsultas,
     ParametroInvalido,
     Periodo,
+    produtos,
     vendas,
 )
 from historico import (
@@ -105,6 +106,11 @@ ROTAS_DE_DADOS: dict[str, Consulta] = {
     "/vendas/evolucao": vendas.evolucao,
     "/vendas/situacao-das-entregas": vendas.situacao_das_entregas,
     "/vendas/pedidos-recentes": vendas.pedidos_recentes,
+    "/produtos/indicadores": produtos.indicadores,
+    "/produtos/notas": produtos.notas,
+    "/produtos/categorias": produtos.categorias,
+    "/produtos/mal-avaliados": produtos.mal_avaliados,
+    "/produtos/avaliacoes": produtos.avaliacoes,
 }
 
 

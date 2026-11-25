@@ -8,12 +8,8 @@ chama o serviço `mcp` do compose. O token é o do provedor do compose, e o banc
 
 import asyncio
 import logging
-import threading
-import time
-from collections.abc import Iterator
 
 import pytest
-import uvicorn
 from cliente_mcp import CAMINHO
 from fastmcp import Client
 from fastmcp.client.transports import StreamableHttpTransport
@@ -28,26 +24,6 @@ PERGUNTA = "Pergunta que não pode ir para o log"
 FERRAMENTA = "vendas_indicadores"
 # O nome da consulta que a ferramenta serve, como aparece na linha do executor.
 CONSULTA = "indicadores"
-
-
-@pytest.fixture(scope="module")
-def mcp_no_processo(criar_mcp) -> Iterator[str]:
-    """O endereço do servidor MCP criado pela fábrica, servido numa thread deste processo."""
-    # Sem `log_config`, o uvicorn não reconfigura o log do processo e o `caplog` continua valendo.
-    configuracao = uvicorn.Config(
-        criar_mcp(), host="127.0.0.1", port=0, log_config=None, log_level="warning"
-    )
-    servidor = uvicorn.Server(configuracao)
-    fio = threading.Thread(target=servidor.run, daemon=True)
-    fio.start()
-    limite = time.monotonic() + 30
-    while not servidor.started:
-        assert time.monotonic() < limite, "o servidor MCP não subiu"
-        time.sleep(0.05)
-    porta = servidor.servers[0].sockets[0].getsockname()[1]
-    yield f"http://127.0.0.1:{porta}"
-    servidor.should_exit = True
-    fio.join(timeout=10)
 
 
 def _linhas(caplog, origem: str) -> list[str]:
