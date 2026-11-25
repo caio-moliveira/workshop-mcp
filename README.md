@@ -222,6 +222,7 @@ Os roteiros, com comandos e resultados esperados, estão em `docs/demonstracao/`
 - Entrega 4b, auditoria e limite de frequência: `docs/demonstracao/entrega-4b.md`.
 - Entrega 5a, chat de Vendas no painel lateral: `docs/demonstracao/entrega-5a.md`.
 - Entrega 5b, chat expandido, rastreio e histórico: `docs/demonstracao/entrega-5b.md`.
+- Entrega 8, perfil Produtos: `docs/demonstracao/entrega-8.md` (escrito, ainda não executado).
 
 ## Parar o ambiente
 
