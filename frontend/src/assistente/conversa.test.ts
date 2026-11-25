@@ -1,14 +1,18 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  carregar,
+  comecarNova,
   CONVERSA_VAZIA,
   corpoDaPergunta,
+  eConversaLida,
   enviar,
   parar,
   podeEnviar,
   receber,
   respondendo,
   type Conversa,
+  type ConversaLida,
   type PerguntaOuResposta,
 } from "./conversa";
 import type { ChamadaDoRastreio, EventoDaResposta } from "./fluxo";
@@ -272,5 +276,164 @@ describe("conversa", () => {
     const conversa = parar(aplicar(perguntada, DA_CONVERSA, CONCLUIDA));
     expect(resposta(conversa)).toMatchObject({ situacao: "interrompida" });
     expect(rastreio(resposta(conversa))).toEqual([VENDAS_ATRASOS]);
+  });
+});
+
+describe("conversa lida do histórico", () => {
+  const CONSULTA: ChamadaDoRastreio = {
+    ferramenta: "vendas_atrasos",
+    desfecho: "concluida",
+    milissegundos: 182,
+  };
+  const NEGADA: ChamadaDoRastreio = {
+    ferramenta: "exportar_tudo",
+    desfecho: "nao_concluida",
+    milissegundos: 3,
+  };
+
+  // Como a rota `GET /conversas/{id}` devolve: só os campos que o item tem.
+  const LIDA: ConversaLida = {
+    id: "conversa-1",
+    titulo: "O que está causando os atrasos?",
+    itens: [
+      { autor: "usuario", texto: "O que está causando os atrasos?" },
+      {
+        autor: "assistente",
+        texto: "Três rotas.",
+        situacao: "concluida",
+        id_da_pergunta: "pergunta-1",
+        rastreio: [CONSULTA, NEGADA],
+      },
+      { autor: "usuario", texto: "E por lojista?" },
+      {
+        autor: "assistente",
+        texto: "A Loja X ",
+        situacao: "erro",
+        erro: "O assistente está indisponível no momento.",
+        id_da_pergunta: "pergunta-2",
+        rastreio: [],
+      },
+      { autor: "usuario", texto: "E no mês?" },
+      {
+        autor: "assistente",
+        texto: "",
+        situacao: "interrompida",
+        id_da_pergunta: "pergunta-3",
+        rastreio: [],
+      },
+      { autor: "usuario", texto: "Todas as lojas?" },
+      {
+        autor: "assistente",
+        texto: "Parte delas.",
+        situacao: "concluida",
+        aviso: "A resposta parou aqui.",
+        id_da_pergunta: "pergunta-4",
+        rastreio: [],
+      },
+    ],
+  };
+
+  it("mostra a conversa como estava: perguntas, respostas, situações, avisos, erros e rastreio", () => {
+    const conversa = carregar(LIDA);
+
+    expect(conversa.id).toBe("conversa-1");
+    expect(conversa.perguntasERespostas).toEqual([
+      { autor: "usuario", texto: "O que está causando os atrasos?" },
+      {
+        autor: "assistente",
+        texto: "Três rotas.",
+        situacao: "concluida",
+        consultando: false,
+        idDaPergunta: "pergunta-1",
+        rastreio: [CONSULTA, NEGADA],
+      },
+      { autor: "usuario", texto: "E por lojista?" },
+      {
+        autor: "assistente",
+        texto: "A Loja X ",
+        situacao: "erro",
+        consultando: false,
+        erro: "O assistente está indisponível no momento.",
+        idDaPergunta: "pergunta-2",
+        rastreio: [],
+      },
+      { autor: "usuario", texto: "E no mês?" },
+      {
+        autor: "assistente",
+        texto: "",
+        situacao: "interrompida",
+        consultando: false,
+        idDaPergunta: "pergunta-3",
+        rastreio: [],
+      },
+      { autor: "usuario", texto: "Todas as lojas?" },
+      {
+        autor: "assistente",
+        texto: "Parte delas.",
+        situacao: "concluida",
+        consultando: false,
+        aviso: "A resposta parou aqui.",
+        idDaPergunta: "pergunta-4",
+        rastreio: [],
+      },
+    ]);
+    expect(respondendo(conversa)).toBe(false);
+  });
+
+  it("a pergunta seguinte continua a conversa carregada", () => {
+    const conversa = enviar(carregar(LIDA), "E na semana?");
+
+    expect(corpoDaPergunta(conversa, "E na semana?")).toEqual({
+      pergunta: "E na semana?",
+      id_da_conversa: "conversa-1",
+    });
+    expect(conversa.perguntasERespostas).toHaveLength(LIDA.itens.length + 2);
+  });
+
+  it("aceita a resposta da rota no contrato", () => {
+    expect(eConversaLida(JSON.parse(JSON.stringify(LIDA)))).toBe(true);
+    expect(eConversaLida({ id: "c", titulo: "Vazia", itens: [] })).toBe(true);
+  });
+
+  function comItem(item: unknown) {
+    return { id: "c", titulo: "t", itens: [item] };
+  }
+
+  it.each([
+    ["sem itens", { id: "c", titulo: "t" }],
+    ["autor desconhecido", comItem({ autor: "sistema", texto: "x" })],
+    ["resposta sem situação", comItem({ autor: "assistente", texto: "x", rastreio: [] })],
+    [
+      "situação de quem ainda responde",
+      comItem({ autor: "assistente", texto: "x", situacao: "chegando", rastreio: [] }),
+    ],
+    [
+      "chamada fora do contrato",
+      comItem({
+        autor: "assistente",
+        texto: "x",
+        situacao: "concluida",
+        rastreio: [{ ferramenta: "x", desfecho: "negada", milissegundos: 1 }],
+      }),
+    ],
+    ["nada", null],
+  ])("recusa a resposta fora do contrato: %s", (_, valor) => {
+    expect(eConversaLida(valor)).toBe(false);
+  });
+});
+
+describe("conversa nova", () => {
+  it("começa vazia e sem identificador: a próxima pergunta abre outra conversa na API", () => {
+    const anterior = receber(enviar(CONVERSA_VAZIA, "Oi?"), {
+      tipo: "conversa",
+      idDaConversa: "conversa-1",
+      idDaPergunta: "pergunta-1",
+    });
+
+    const nova = comecarNova();
+
+    expect(anterior.id).toBe("conversa-1");
+    expect(nova).toEqual(CONVERSA_VAZIA);
+    expect(corpoDaPergunta(nova, "Outra coisa?")).toEqual({ pergunta: "Outra coisa?" });
   });
 });

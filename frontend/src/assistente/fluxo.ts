@@ -16,6 +16,17 @@ export interface ChamadaDoRastreio {
   milissegundos: number;
 }
 
+/** Uma chamada no contrato: no evento `chamada` e no rastreio de uma conversa lida do histórico. */
+export function eChamadaDoRastreio(valor: unknown): valor is ChamadaDoRastreio {
+  if (typeof valor !== "object" || valor === null) return false;
+  const { ferramenta, desfecho, milissegundos } = valor as Record<string, unknown>;
+  return (
+    typeof ferramenta === "string" &&
+    (desfecho === "concluida" || desfecho === "nao_concluida") &&
+    typeof milissegundos === "number"
+  );
+}
+
 /** Um evento da resposta, já com os dados lidos do JSON. */
 export type EventoDaResposta =
   /** O primeiro: a conversa em que a API gravou a pergunta, e o identificador da pergunta. */
@@ -93,13 +104,7 @@ function lerBloco(bloco: string): EventoDaResposta | null {
     case "estado":
       return { tipo: "estado" };
     case "chamada":
-      if (
-        typeof dados.ferramenta !== "string" ||
-        (dados.desfecho !== "concluida" && dados.desfecho !== "nao_concluida") ||
-        typeof dados.milissegundos !== "number"
-      ) {
-        throw new ForaDoContrato();
-      }
+      if (!eChamadaDoRastreio(dados)) throw new ForaDoContrato();
       return {
         tipo: "chamada",
         ferramenta: dados.ferramenta,
