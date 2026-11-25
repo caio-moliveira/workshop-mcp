@@ -1,11 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  sentidoDaVariacao,
-  tomDaVariacao,
-  variacaoEmPontos,
-  variacaoRelativa,
-} from "./variacao";
+import { variacaoDoIndicador, variacaoEmPontos, variacaoRelativa } from "./variacao";
 
 describe("variação em relação ao período anterior", () => {
   it("relativa, para contagens e receita", () => {
@@ -28,27 +23,88 @@ describe("variação em relação ao período anterior", () => {
     expect(variacaoEmPontos(0.1, null)).toBeNull();
     expect(variacaoEmPontos(null, 0.1)).toBeNull();
   });
+});
 
-  it("o tom depende de qual direção é boa", () => {
-    expect(tomDaVariacao(0.1, "sobe")).toBe("bom");
-    expect(tomDaVariacao(-0.1, "sobe")).toBe("ruim");
-    expect(tomDaVariacao(0.01, "desce")).toBe("ruim");
-    expect(tomDaVariacao(-0.01, "desce")).toBe("bom");
-    expect(tomDaVariacao(0, "sobe")).toBe("neutro");
+describe("a variação de um indicador, como aparece no cartão", () => {
+  it("uma contagem que sobe, quando subir é bom", () => {
+    expect(variacaoDoIndicador(1100, 1000, "relativa", "sobe")).toEqual({
+      texto: "+10,0%",
+      sentido: "sobe",
+      tom: "bom",
+    });
   });
 
-  it("uma variação que aparece como zero, com uma casa, é neutra", () => {
+  it("uma contagem que sobe, quando subir é ruim: reclamações", () => {
+    expect(variacaoDoIndicador(148, 120, "relativa", "desce")).toEqual({
+      texto: "+23,3%",
+      sentido: "sobe",
+      tom: "ruim",
+    });
+  });
+
+  it("uma contagem que desce, quando subir é ruim: produtos mal avaliados", () => {
+    expect(variacaoDoIndicador(4, 26, "relativa", "desce")).toEqual({
+      texto: "-84,6%",
+      sentido: "desce",
+      tom: "bom",
+    });
+  });
+
+  it("uma taxa em pontos percentuais, quando descer é bom", () => {
+    expect(variacaoDoIndicador(0.112, 0.1, "pontos_percentuais", "desce")).toEqual({
+      texto: "+1,2 p.p.",
+      sentido: "sobe",
+      tom: "ruim",
+    });
+  });
+
+  it("a nota média em pontos, com duas casas", () => {
+    expect(variacaoDoIndicador(4.12, 4.05, "pontos", "sobe")).toEqual({
+      texto: "+0,07",
+      sentido: "sobe",
+      tom: "bom",
+    });
+    expect(variacaoDoIndicador(3.9, 4.25, "pontos", "sobe")).toEqual({
+      texto: "-0,35",
+      sentido: "desce",
+      tom: "ruim",
+    });
+  });
+
+  it("não existe sem período anterior com que comparar", () => {
+    expect(variacaoDoIndicador(1000, null, "relativa", "sobe")).toBeNull();
+    expect(variacaoDoIndicador(1000, 0, "relativa", "sobe")).toBeNull();
+    expect(variacaoDoIndicador(null, 0.1, "pontos_percentuais", "sobe")).toBeNull();
+    expect(variacaoDoIndicador(4.1, null, "pontos", "sobe")).toBeNull();
+  });
+
+  it("uma variação que aparece como zero é neutra e sem seta", () => {
     // -0,0349 p.p.: a taxa de aprovação em 12 meses na carga padrão aparece como "0,0 p.p.".
-    expect(tomDaVariacao(-0.000349, "sobe")).toBe("neutro");
-    expect(tomDaVariacao(0.0004, "desce")).toBe("neutro");
-    expect(tomDaVariacao(0.0005, "sobe")).toBe("bom");
-    expect(tomDaVariacao(-0.0006, "desce")).toBe("bom");
+    expect(variacaoDoIndicador(0.899651, 0.9, "pontos_percentuais", "sobe")).toEqual({
+      texto: "0,0 p.p.",
+      sentido: "estavel",
+      tom: "neutro",
+    });
+    expect(variacaoDoIndicador(1000.4, 1000, "relativa", "desce")).toMatchObject({
+      sentido: "estavel",
+      tom: "neutro",
+    });
+    expect(variacaoDoIndicador(4.104, 4.1, "pontos", "desce")).toEqual({
+      texto: "0,00",
+      sentido: "estavel",
+      tom: "neutro",
+    });
   });
 
-  it("o sentido da seta segue o valor que aparece", () => {
-    expect(sentidoDaVariacao(0.272)).toBe("sobe");
-    expect(sentidoDaVariacao(-0.0118)).toBe("desce");
-    expect(sentidoDaVariacao(-0.000349)).toBe("estavel");
-    expect(sentidoDaVariacao(0)).toBe("estavel");
+  it("a partir de meia casa a variação aparece, com seta e tom", () => {
+    expect(variacaoDoIndicador(0.1006, 0.1, "pontos_percentuais", "desce")).toMatchObject({
+      sentido: "sobe",
+      tom: "ruim",
+    });
+    expect(variacaoDoIndicador(4.094, 4.1, "pontos", "sobe")).toMatchObject({
+      texto: "-0,01",
+      sentido: "desce",
+      tom: "ruim",
+    });
   });
 });

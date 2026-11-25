@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   formatarData,
   formatarDataHora,
+  formatarDiferencaDeNota,
   formatarMoeda,
   formatarMoedaCompacta,
   formatarNumero,
@@ -41,6 +42,12 @@ describe("formatação em pt-BR", () => {
     expect(formatarPontosPercentuais(0.012)).toBe("+1,2 p.p.");
     expect(formatarPontosPercentuais(-0.0349)).toBe("-3,5 p.p.");
     expect(formatarPontosPercentuais(0)).toBe("0,0 p.p.");
+  });
+
+  it("diferença entre notas médias, em pontos da nota, com duas casas e sinal", () => {
+    expect(formatarDiferencaDeNota(0.07)).toBe("+0,07");
+    expect(formatarDiferencaDeNota(-0.354)).toBe("-0,35");
+    expect(formatarDiferencaDeNota(0)).toBe("0,00");
   });
 
   it("instante ISO como data e hora de Brasília, venha com o fuso que vier", () => {
