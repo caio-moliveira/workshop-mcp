@@ -15,7 +15,7 @@ from pydantic_ai import (
     TextPartDelta,
     UsageLimits,
 )
-from pydantic_ai.exceptions import UsageLimitExceeded
+from pydantic_ai.exceptions import RunTimedOut, UsageLimitExceeded
 from pydantic_ai.mcp import MCPToolset
 from pydantic_ai.models import Model
 
@@ -110,6 +110,7 @@ class Assistente:
                     tool_calls_limit=self.limites.chamadas,
                     request_limit=self.limites.requisicoes_ao_modelo,
                 ),
+                timeout=self.limites.segundos,
             ) as execucao:
                 async for evento in execucao:
                     if saida := _traduzir(evento):
@@ -118,6 +119,10 @@ class Assistente:
             # O que já saiu fica; a resposta termina com o aviso, sem erro.
             registro.warning("pergunta parou no teto: usuário %s: %s", usuario.id, falha)
             yield Evento("fim", {"aviso": mensagens.CONSULTAS_DEMAIS})
+            return
+        except RunTimedOut:
+            registro.warning("pergunta passou do tempo máximo: usuário %s", usuario.id)
+            yield erro(mensagens.TEMPO_ESGOTADO)
             return
         except Exception as falha:
             registro.error("pergunta falhou: usuário %s", usuario.id, exc_info=falha)
