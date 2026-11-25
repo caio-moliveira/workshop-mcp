@@ -1,0 +1,60 @@
+/**
+ * A lista das conversas do usuário, sem React nem rede: carregando, carregada (talvez vazia) ou
+ * com erro, e a conversa apagada saindo dela.
+ *
+ * A ordem é a da API (`GET /conversas`): da última atividade mais recente para a mais antiga, só
+ * as mais recentes. Nada daqui fica guardado no navegador entre cargas da página.
+ */
+
+/** Uma conversa como aparece na lista, sem as perguntas e respostas. */
+export interface ResumoDaConversa {
+  id: string;
+  /** O começo da primeira pergunta. */
+  titulo: string;
+  /** Data e hora em ISO 8601, como a API manda. */
+  ultimaAtividade: string;
+}
+
+export type ListaDeConversas =
+  | { situacao: "carregando" }
+  | { situacao: "carregada"; conversas: readonly ResumoDaConversa[] }
+  | { situacao: "erro" };
+
+export const LISTA_CARREGANDO: ListaDeConversas = { situacao: "carregando" };
+
+/** A API não respondeu, ou respondeu fora do contrato. */
+export function listaComErro(): ListaDeConversas {
+  return { situacao: "erro" };
+}
+
+/** A resposta de `GET /conversas` como lista. Fora do contrato, vira erro, nunca lista. */
+export function listaRecebida(valor: unknown): ListaDeConversas {
+  if (typeof valor !== "object" || valor === null) return listaComErro();
+  const { conversas } = valor as Record<string, unknown>;
+  if (!Array.isArray(conversas)) return listaComErro();
+  const resumos: ResumoDaConversa[] = [];
+  for (const conversa of conversas) {
+    if (typeof conversa !== "object" || conversa === null) return listaComErro();
+    const { id, titulo, ultima_atividade } = conversa as Record<string, unknown>;
+    if (
+      typeof id !== "string" ||
+      typeof titulo !== "string" ||
+      typeof ultima_atividade !== "string"
+    ) {
+      return listaComErro();
+    }
+    resumos.push({ id, titulo, ultimaAtividade: ultima_atividade });
+  }
+  return { situacao: "carregada", conversas: resumos };
+}
+
+/** Carregada e sem nenhuma conversa: o usuário ainda não perguntou nada, ou apagou todas. */
+export function vazia(lista: ListaDeConversas): boolean {
+  return lista.situacao === "carregada" && lista.conversas.length === 0;
+}
+
+/** A lista sem a conversa apagada. Só muda a lista carregada. */
+export function semAConversa(lista: ListaDeConversas, id: string): ListaDeConversas {
+  if (lista.situacao !== "carregada") return lista;
+  return { ...lista, conversas: lista.conversas.filter((conversa) => conversa.id !== id) };
+}
