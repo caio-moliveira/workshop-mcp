@@ -33,6 +33,7 @@ from starlette.applications import Starlette
 
 from acesso import ChavesDoProvedor, ConfiguracaoDeAcesso, Perfil
 from api import criar_aplicacao
+from assistente import Limites
 from auditoria import PAPEL as PAPEL_DA_AUDITORIA
 from auditoria import Auditoria, AuditoriaNoBanco
 from consultas import Credencial, ExecutorDeConsultas, credenciais_do_ambiente
@@ -96,7 +97,8 @@ def criar_api(executor_de_consultas) -> Callable[..., TestClient]:
     Cada parâmetro da configuração de acesso pode ser trocado: o relógio, as chaves, o emissor.
     O executor de consultas também, com `consultas=`, e o modelo de linguagem do assistente, com
     `modelo=` (sem ele, a API fica sem modelo, como sem a chave do provedor), e o servidor MCP
-    que o assistente chama, com `endereco_do_mcp=` (sem ele, o serviço `mcp` do compose). A
+    que o assistente chama, com `endereco_do_mcp=` (sem ele, o serviço `mcp` do compose), e os
+    tetos da pergunta, com `limites=` (sem ele, os padrões). A
     origem do frontend liberada pelo CORS é a do ambiente.
     """
 
@@ -104,6 +106,7 @@ def criar_api(executor_de_consultas) -> Callable[..., TestClient]:
         consultas: ExecutorDeConsultas | None = None,
         modelo: Model | None = None,
         endereco_do_mcp: str = MCP_DO_AMBIENTE + CAMINHO_DO_MCP,
+        limites: Limites | None = None,
         **sobreposicoes,
     ) -> TestClient:
         configuracao = ConfiguracaoDeAcesso(
@@ -117,6 +120,7 @@ def criar_api(executor_de_consultas) -> Callable[..., TestClient]:
             consultas=consultas or executor_de_consultas,
             modelo=modelo,
             endereco_do_mcp=endereco_do_mcp,
+            limites=limites or Limites(),
         )
         return TestClient(aplicacao)
 

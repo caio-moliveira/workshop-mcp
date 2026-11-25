@@ -4,6 +4,14 @@ Chama o servidor MCP com o token do usuário que perguntou, nunca com credencial
 """
 
 from assistente.agente import Assistente, Evento
+from assistente.limites import Limites, limites_do_ambiente
 from assistente.modelo import MODELO_PADRAO, modelo_do_ambiente
 
-__all__ = ["MODELO_PADRAO", "Assistente", "Evento", "modelo_do_ambiente"]
+__all__ = [
+    "MODELO_PADRAO",
+    "Assistente",
+    "Evento",
+    "Limites",
+    "limites_do_ambiente",
+    "modelo_do_ambiente",
+]
