@@ -6,7 +6,7 @@
  * função irmã de `enviar`.
  */
 import type { EventoDaResposta } from "./fluxo";
-import { passouDoLimite } from "./limites";
+import { cortarNoLimite, ITENS_DA_CONVERSA, passouDoLimite } from "./limites";
 import type { ItemDaConversa } from "./rede";
 
 export interface PerguntaDoUsuario {
@@ -97,6 +97,9 @@ export function parar(conversa: Conversa): Conversa {
  * A conversa anterior que vai com a pergunta seguinte: cada pergunta com a sua resposta, só quando
  * a resposta foi concluída. Uma resposta interrompida, com erro ou ainda chegando fica de fora, e a
  * pergunta dela também, para o modelo não receber uma pergunta sem resposta.
+ *
+ * Vai só o que a API aceita: os pares mais recentes que cabem no teto de itens, e cada texto
+ * dentro do teto de caracteres, cortado com a marca quando passa.
  */
 export function itensParaEnviar(conversa: Conversa): ItemDaConversa[] {
   const itens: ItemDaConversa[] = [];
@@ -105,9 +108,11 @@ export function itensParaEnviar(conversa: Conversa): ItemDaConversa[] {
     const pergunta = conversa.falas[indice - 1];
     if (pergunta?.autor !== "usuario") return;
     itens.push(
-      { autor: "usuario", texto: pergunta.texto },
-      { autor: "assistente", texto: fala.texto },
+      { autor: "usuario", texto: cortarNoLimite(pergunta.texto) },
+      { autor: "assistente", texto: cortarNoLimite(fala.texto) },
     );
   });
-  return itens;
+  // Um número par de itens: nenhum par pergunta e resposta fica pela metade.
+  const cabem = ITENS_DA_CONVERSA - (ITENS_DA_CONVERSA % 2);
+  return itens.slice(Math.max(0, itens.length - cabem));
 }

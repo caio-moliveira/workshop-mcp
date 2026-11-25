@@ -11,6 +11,7 @@ import {
   type Conversa,
 } from "./conversa";
 import type { EventoDaResposta } from "./fluxo";
+import { ITENS_DA_CONVERSA, LIMITE_DE_CARACTERES_DA_PERGUNTA } from "./limites";
 
 describe("conversa", () => {
   it("ao enviar, guarda a pergunta e abre uma resposta ainda chegando", () => {
@@ -195,5 +196,34 @@ describe("conversa", () => {
       ["usuario", "e por estado?"],
       ["assistente", ""],
     ]);
+  });
+
+  function respondida(conversa: Conversa, pergunta: string, texto: string): Conversa {
+    return aplicar(enviar(conversa, pergunta), { tipo: "texto", texto }, { tipo: "fim" });
+  }
+
+  it("numa conversa longa, leva só os pares mais recentes que cabem no teto de itens", () => {
+    let conversa = CONVERSA_VAZIA;
+    for (let n = 1; n <= 15; n++) conversa = respondida(conversa, `pergunta ${n}`, `resposta ${n}`);
+
+    const itens = itensParaEnviar(conversa);
+    expect(itens).toHaveLength(ITENS_DA_CONVERSA);
+    expect(itens[0]).toEqual({ autor: "usuario", texto: "pergunta 6" });
+    expect(itens.at(-1)).toEqual({ autor: "assistente", texto: "resposta 15" });
+  });
+
+  it("corta a resposta longa no teto de caracteres e marca o corte", () => {
+    const longa = "📦".repeat(LIMITE_DE_CARACTERES_DA_PERGUNTA + 500);
+    const [, item] = itensParaEnviar(respondida(CONVERSA_VAZIA, "Quais?", longa));
+
+    expect([...item.texto]).toHaveLength(LIMITE_DE_CARACTERES_DA_PERGUNTA);
+    expect(item.texto.startsWith("📦".repeat(100))).toBe(true);
+    expect(item.texto.endsWith("…")).toBe(true);
+  });
+
+  it("a resposta no teto de caracteres vai inteira", () => {
+    const noTeto = "a".repeat(LIMITE_DE_CARACTERES_DA_PERGUNTA);
+    const [, item] = itensParaEnviar(respondida(CONVERSA_VAZIA, "Quais?", noTeto));
+    expect(item.texto).toBe(noTeto);
   });
 });
