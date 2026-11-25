@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import time
 import uuid
 from collections.abc import AsyncIterator, Generator, Iterable
 from dataclasses import dataclass, field
@@ -13,6 +14,7 @@ from pydantic import BaseModel, ConfigDict
 from pydantic_ai import (
     Agent,
     FunctionToolCallEvent,
+    FunctionToolResultEvent,
     PartDeltaEvent,
     PartStartEvent,
     RunContext,
@@ -52,7 +54,8 @@ class ItemDaConversa(BaseModel):
     texto: str
 
 
-TipoDeEvento = Literal["conversa", "texto", "estado", "fim", "erro"]
+TipoDeEvento = Literal["conversa", "texto", "estado", "chamada", "fim", "erro"]
+Desfecho = Literal["concluida", "nao_concluida"]
 
 
 @dataclass(frozen=True)
@@ -77,6 +80,18 @@ def texto(trecho: str) -> Evento:
 def consultando() -> Evento:
     """O assistente está consultando os dados. Não diz qual ferramenta."""
     return Evento("estado", {"estado": "consultando"})
+
+
+def chamada(ferramenta: str, desfecho: Desfecho, milissegundos: int) -> Evento:
+    """Uma chamada terminada, para o rastreio: a ferramenta pedida, o desfecho e a duração.
+
+    Só isso. Os parâmetros e o texto do erro ficam fora: o rastreio é para o usuário ver de onde
+    veio a resposta, não para expor o que foi pedido nem por que falhou (FE §8).
+    """
+    return Evento(
+        "chamada",
+        {"ferramenta": ferramenta, "desfecho": desfecho, "milissegundos": milissegundos},
+    )
 
 
 def fim(aviso: str | None = None) -> Evento:
@@ -193,8 +208,9 @@ class Assistente:
                 ),
                 timeout=self.limites.segundos,
             ) as execucao:
+                traducao = _Traducao()
                 async for evento in execucao:
-                    if saida := _traduzir(evento):
+                    if saida := traducao.traduzir(evento):
                         yield saida
         except asyncio.CancelledError:
             # O navegador desconectou (parou a resposta ou saiu): a execução para aqui, sem novas
@@ -236,13 +252,33 @@ def _conversa_como_mensagens(conversa: Iterable[ItemDaConversa]) -> list[ModelMe
     ]
 
 
-def _traduzir(evento: object) -> Evento | None:
-    """O evento do PydanticAI como evento do fluxo, ou nada se não interessa a quem lê."""
-    if isinstance(evento, PartStartEvent) and isinstance(evento.part, TextPart):
-        # O primeiro trecho de cada parte de texto vem aqui, e não num delta.
-        return texto(evento.part.content) if evento.part.content else None
-    if isinstance(evento, PartDeltaEvent) and isinstance(evento.delta, TextPartDelta):
-        return texto(evento.delta.content_delta) if evento.delta.content_delta else None
-    if isinstance(evento, FunctionToolCallEvent):
-        return consultando()
-    return None
+class _Traducao:
+    """Os eventos do PydanticAI de uma execução como eventos do fluxo.
+
+    Guarda quando cada chamada começou, para medir a duração dela aqui, na API: é o tempo que o
+    usuário esperou, com a ida e a volta ao servidor MCP.
+    """
+
+    def __init__(self) -> None:
+        self._inicios: dict[str, float] = {}
+
+    def traduzir(self, evento: object) -> Evento | None:
+        """O evento do fluxo, ou nada se não interessa a quem lê."""
+        if isinstance(evento, PartStartEvent) and isinstance(evento.part, TextPart):
+            # O primeiro trecho de cada parte de texto vem aqui, e não num delta.
+            return texto(evento.part.content) if evento.part.content else None
+        if isinstance(evento, PartDeltaEvent) and isinstance(evento.delta, TextPartDelta):
+            return texto(evento.delta.content_delta) if evento.delta.content_delta else None
+        if isinstance(evento, FunctionToolCallEvent):
+            self._inicios[evento.part.tool_call_id] = time.monotonic()
+            return consultando()
+        if isinstance(evento, FunctionToolResultEvent):
+            inicio = self._inicios.pop(evento.part.tool_call_id, time.monotonic())
+            # Negada, inexistente, com parâmetro inválido, barrada pelo limite ou com falha: o
+            # rastreio não distingue o motivo, que fica só no log e na auditoria.
+            desfecho: Desfecho = (
+                "concluida" if evento.part.outcome == "success" else "nao_concluida"
+            )
+            milissegundos = round((time.monotonic() - inicio) * 1000)
+            return chamada(evento.part.tool_name, desfecho, milissegundos)
+        return None

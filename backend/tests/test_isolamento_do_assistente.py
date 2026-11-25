@@ -93,8 +93,11 @@ def _assert_termina_sem_nome_interno(lidos: list, *nomes: str) -> None:
     tipo, dados = lidos[-1]
     assert tipo == "fim" or dados == {"erro": mensagens.ASSISTENTE_INDISPONIVEL}
     assert [tipo for tipo, _ in lidos].count(tipo) == 1
+    # O evento `chamada` traz o nome que o modelo pediu, de propósito: é o rastreio que o usuário
+    # vê (FE §8). Nenhum outro evento cita ferramenta.
+    sem_rastreio = [(tipo, dados) for tipo, dados in lidos if tipo != "chamada"]
     for nome in nomes:
-        assert nome not in str(lidos)
+        assert nome not in str(sem_rastreio)
 
 
 @CONVERSAS

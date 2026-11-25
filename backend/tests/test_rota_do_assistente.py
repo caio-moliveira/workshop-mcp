@@ -52,7 +52,9 @@ def test_a_chamada_de_ferramenta_sai_como_estado_sem_o_nome_da_ferramenta(com_ro
     assert "estado" in tipos
     assert tipos.index("estado") < tipos.index("texto")
     assert tipos[-1] == "fim"
-    assert "vendas_indicadores" not in str(lidos)
+    # O nome sai só no evento `chamada`, o do rastreio.
+    estados = [dados for tipo, dados in lidos if tipo == "estado"]
+    assert "vendas_indicadores" not in str(estados)
 
 
 def test_a_ferramenta_responde_com_o_token_de_quem_perguntou(token_de, criar_api):
