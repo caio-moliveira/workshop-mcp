@@ -53,6 +53,16 @@ export function vazia(lista: ListaDeConversas): boolean {
   return lista.situacao === "carregada" && lista.conversas.length === 0;
 }
 
+/**
+ * A lista depois de pedida de novo em segundo plano, com a lista já na tela (no modo expandido,
+ * ao terminar uma resposta). Uma falha aí não apaga o que o usuário já via: a lista antiga ainda
+ * serve para reabrir uma conversa, e a próxima atualização corrige a ordem.
+ */
+export function listaAtualizada(naTela: ListaDeConversas, nova: ListaDeConversas): ListaDeConversas {
+  if (nova.situacao === "erro" && naTela.situacao === "carregada") return naTela;
+  return nova;
+}
+
 /** A lista sem a conversa apagada. Só muda a lista carregada. */
 export function semAConversa(lista: ListaDeConversas, id: string): ListaDeConversas {
   if (lista.situacao !== "carregada") return lista;

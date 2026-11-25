@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   LISTA_CARREGANDO,
+  listaAtualizada,
   listaComErro,
   listaRecebida,
   semAConversa,
@@ -94,5 +95,31 @@ describe("lista de conversas", () => {
     ["com erro", listaComErro()],
   ])("apagar com a lista %s não muda nada", (_, lista) => {
     expect(semAConversa(lista, "conversa-1")).toBe(lista);
+  });
+
+  describe("atualizada em segundo plano, com a lista já na tela", () => {
+    it("troca pela lista nova, na ordem nova da API", () => {
+      const nova = listaRecebida({
+        conversas: [
+          { id: "conversa-3", titulo: "Nova", ultima_atividade: "2026-11-25T15:00:00+00:00" },
+          ...DA_API.conversas,
+        ],
+      });
+
+      expect(listaAtualizada(listaRecebida(DA_API), nova)).toBe(nova);
+    });
+
+    it("uma falha mantém a lista que já estava na tela, em vez de trocá-la pelo erro", () => {
+      const naTela = listaRecebida(DA_API);
+
+      expect(listaAtualizada(naTela, listaComErro())).toBe(naTela);
+    });
+
+    it.each<[string, ListaDeConversas]>([
+      ["carregando", LISTA_CARREGANDO],
+      ["com erro", listaComErro()],
+    ])("sem lista na tela (%s), a falha aparece como erro", (_, naTela) => {
+      expect(listaAtualizada(naTela, listaComErro())).toEqual({ situacao: "erro" });
+    });
   });
 });

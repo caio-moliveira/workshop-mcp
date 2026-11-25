@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   LISTA_CARREGANDO,
+  listaAtualizada,
   listaComErro,
   listaRecebida,
   semAConversa,
@@ -11,13 +12,16 @@ import type { FonteDoAssistente } from "./useConversa";
 
 /**
  * A lista das conversas do usuário, pedida à API a cada vez que quem chama monta: abrir a visão
- * "Conversas" sempre mostra a lista atual, com o que outra aba gravou ou apagou.
+ * "Conversas" sempre mostra a lista atual, com o que outra aba gravou ou apagou. No modo
+ * expandido a lista fica sempre montada, e quem chama a atualiza ao fim de cada resposta.
  */
 export function useListaDeConversas(fonte: FonteDoAssistente): {
   lista: ListaDeConversas;
   /** A conversa que não pôde ser apagada, para avisar ao lado dela. */
   falhaAoApagar: string | null;
   recarregar: () => void;
+  /** Pede a lista de novo sem tirá-la da tela: sem esqueleto, e uma falha mantém a antiga. */
+  atualizar: () => void;
   apagar: (id: string) => Promise<boolean>;
 } {
   const [lista, setLista] = useState<ListaDeConversas>(LISTA_CARREGANDO);
@@ -35,7 +39,7 @@ export function useListaDeConversas(fonte: FonteDoAssistente): {
     } catch {
       nova = listaComErro();
     }
-    if (carga === ultimaCarga.current) setLista(nova);
+    if (carga === ultimaCarga.current) setLista((naTela) => listaAtualizada(naTela, nova));
   }, [fonte]);
 
   useEffect(() => {
@@ -44,6 +48,10 @@ export function useListaDeConversas(fonte: FonteDoAssistente): {
 
   const recarregar = useCallback(() => {
     setLista(LISTA_CARREGANDO);
+    void carregar();
+  }, [carregar]);
+
+  const atualizar = useCallback(() => {
     void carregar();
   }, [carregar]);
 
@@ -63,5 +71,5 @@ export function useListaDeConversas(fonte: FonteDoAssistente): {
     [fonte],
   );
 
-  return { lista, falhaAoApagar, recarregar, apagar };
+  return { lista, falhaAoApagar, recarregar, atualizar, apagar };
 }
