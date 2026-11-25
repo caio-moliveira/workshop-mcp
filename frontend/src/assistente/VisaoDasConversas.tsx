@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { EmptyState } from "../componentes/EmptyState";
 import { ErrorState } from "../componentes/ErrorState";
@@ -13,6 +13,8 @@ interface Propriedades {
   fonte: FonteDoAssistente;
   /** A conversa na tela, marcada na lista. */
   idAtual?: string;
+  /** Uma resposta está chegando. Quando ela termina, a lista se atualiza em segundo plano. */
+  respondendo: boolean;
   aoAbrir: (id: string) => void;
   /** A conversa apagada era a da tela: quem chama começa uma nova. */
   aoApagarAAtual: () => void;
@@ -22,9 +24,23 @@ interface Propriedades {
  * A visão "Conversas" do painel: as conversas do usuário, da mais recente para a mais antiga, para
  * reabrir ou apagar (RF-18), com os estados de carregamento, vazio e erro (FE §10).
  */
-export function VisaoDasConversas({ fonte, idAtual, aoAbrir, aoApagarAAtual }: Propriedades) {
-  const { lista, falhaAoApagar, recarregar, apagar } = useListaDeConversas(fonte);
+export function VisaoDasConversas({
+  fonte,
+  idAtual,
+  respondendo,
+  aoAbrir,
+  aoApagarAAtual,
+}: Propriedades) {
+  const { lista, falhaAoApagar, recarregar, atualizar, apagar } = useListaDeConversas(fonte);
   const [apagando, setApagando] = useState<string | null>(null);
+  const respondiaAntes = useRef(respondendo);
+
+  // Ao fim de cada resposta, a conversa nova entra na lista e a continuada sobe para o topo: é o
+  // que a API já gravou. No modo expandido a lista fica à vista o tempo todo, e precisa disso.
+  useEffect(() => {
+    if (respondiaAntes.current && !respondendo) atualizar();
+    respondiaAntes.current = respondendo;
+  }, [respondendo, atualizar]);
 
   async function apagarConversa(id: string, titulo: string) {
     // Apagar é definitivo: confirma antes, como pede uma ação destrutiva (FE §10).

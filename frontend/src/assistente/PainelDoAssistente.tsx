@@ -15,9 +15,11 @@ import {
   IconeAviso,
   IconeConversas,
   IconeEnviar,
+  IconeExpandir,
   IconeFechar,
   IconeNovaConversa,
   IconeParar,
+  IconeRecolher,
 } from "../componentes/icones";
 import { DESCRICAO_DOS_PERFIS } from "../perfis";
 import { podeEnviar, respondendo, type Conversa, type RespostaDoAssistente } from "./conversa";
@@ -34,6 +36,10 @@ interface Propriedades {
   fonte: FonteDoAssistente;
   conversa: Conversa;
   abertura: Abertura;
+  /** O modo expandido: a área de leitura com a lista de conversas ao lado (FE §8). */
+  expandido: boolean;
+  /** Ausente abaixo de 768 px: ali o painel já ocupa a tela, e não há o que expandir. */
+  aoAlternarExpansao?: () => void;
   aoPerguntar: (pergunta: string) => void;
   aoParar: () => void;
   aoAbrir: (id: string) => void;
@@ -44,14 +50,19 @@ interface Propriedades {
 const LINHAS_DO_CAMPO = 5;
 
 /**
- * O chat lateral do assistente, à direita e por cima do conteúdo (FE §8). A visão "Conversas"
- * troca a conversa pela lista do histórico, para reabrir ou apagar uma delas.
+ * O assistente, em duas formas do mesmo painel (FE §8), com a mesma conversa: o chat lateral, à
+ * direita e por cima do conteúdo, em que a visão "Conversas" troca a conversa pela lista do
+ * histórico; e o modo expandido, uma área de leitura com a lista sempre numa coluna à esquerda.
+ * As duas formas são o mesmo componente na mesma posição da árvore: alternar entre elas não perde
+ * a pergunta em digitação, nem a resposta que está chegando.
  */
 export function PainelDoAssistente({
   usuario,
   fonte,
   conversa,
   abertura,
+  expandido,
+  aoAlternarExpansao,
   aoPerguntar,
   aoParar,
   aoAbrir,
@@ -65,6 +76,8 @@ export function PainelDoAssistente({
   const fim = useRef<HTMLDivElement>(null);
   const envioLiberado = podeEnviar(conversa, pergunta);
   const longaDemais = passouDoLimite(pergunta);
+  // No modo expandido a lista já está ao lado: a conversa fica sempre na coluna central.
+  const mostraALista = !expandido && visao === "conversas";
 
   // Ao abrir, o foco vai ao campo; ao fechar (botão ou Esc), volta a quem abriu o painel.
   useEffect(() => {
@@ -86,15 +99,15 @@ export function PainelDoAssistente({
     elemento.style.height = `${Math.min(elemento.scrollHeight, maximo)}px`;
   }, [pergunta]);
 
-  // A conversa acompanha o texto que chega, e volta ao fim ao sair da lista.
+  // A conversa acompanha o texto que chega, e volta ao fim ao sair da lista ou trocar de modo.
   useEffect(() => {
     fim.current?.scrollIntoView({ block: "end" });
-  }, [conversa, visao]);
+  }, [conversa, mostraALista, expandido]);
 
   // De volta à conversa (nova ou reaberta), o foco vai ao campo da pergunta.
   useEffect(() => {
-    if (visao === "conversa" && abertura.situacao === "pronta") campo.current?.focus();
-  }, [visao, abertura.situacao]);
+    if (!mostraALista && abertura.situacao === "pronta") campo.current?.focus();
+  }, [mostraALista, abertura.situacao]);
 
   function comecarNova() {
     aoComecarNova();
@@ -124,8 +137,22 @@ export function PainelDoAssistente({
     enviarPergunta(pergunta);
   }
 
+  const listaDeConversas = (
+    <VisaoDasConversas
+      fonte={fonte}
+      idAtual={conversa.id}
+      respondendo={respondendo(conversa)}
+      aoAbrir={abrir}
+      aoApagarAAtual={aoComecarNova}
+    />
+  );
+
   return (
-    <aside id="assistente" className={estilos.painel} aria-labelledby="titulo-do-assistente">
+    <aside
+      id="assistente"
+      className={expandido ? `${estilos.painel} ${estilos.expandido}` : estilos.painel}
+      aria-labelledby="titulo-do-assistente"
+    >
       <header className={estilos.cabecalho}>
         <span className={estilos.icone}>
           <IconeAssistente />
@@ -145,16 +172,30 @@ export function PainelDoAssistente({
         >
           <IconeNovaConversa />
         </button>
-        <button
-          type="button"
-          className={estilos.fechar}
-          onClick={() => setVisao((atual) => (atual === "conversas" ? "conversa" : "conversas"))}
-          aria-label="Conversas"
-          aria-pressed={visao === "conversas"}
-          title="Conversas"
-        >
-          <IconeConversas />
-        </button>
+        {!expandido && (
+          <button
+            type="button"
+            className={estilos.fechar}
+            onClick={() => setVisao((atual) => (atual === "conversas" ? "conversa" : "conversas"))}
+            aria-label="Conversas"
+            aria-pressed={visao === "conversas"}
+            title="Conversas"
+          >
+            <IconeConversas />
+          </button>
+        )}
+        {aoAlternarExpansao && (
+          <button
+            type="button"
+            className={estilos.fechar}
+            onClick={aoAlternarExpansao}
+            aria-label={expandido ? "Recolher o assistente" : "Expandir o assistente"}
+            aria-keyshortcuts={expandido ? "Escape" : undefined}
+            title={expandido ? "Recolher (Esc)" : "Expandir"}
+          >
+            {expandido ? <IconeRecolher /> : <IconeExpandir />}
+          </button>
+        )}
         <button
           type="button"
           className={estilos.fechar}
@@ -165,112 +206,156 @@ export function PainelDoAssistente({
         </button>
       </header>
 
-      {visao === "conversas" ? (
-        <div className={estilos.conversa}>
-          <h3 className="visualmente-oculto">Conversas</h3>
-          <VisaoDasConversas
-            fonte={fonte}
-            idAtual={conversa.id}
-            aoAbrir={abrir}
-            aoApagarAAtual={aoComecarNova}
-          />
-        </div>
-      ) : abertura.situacao === "abrindo" ? (
-        <div className={estilos.conversa} role="status" aria-live="polite">
-          <p className={estilos.status}>
-            <span className={estilos.atividade} aria-hidden="true" />
-            Abrindo a conversa…
-          </p>
-        </div>
-      ) : abertura.situacao === "erro" ? (
-        <div className={estilos.conversa}>
-          <ErrorState
-            variante="bloco"
-            titulo="Não foi possível abrir a conversa"
-            descricao="Ela pode ter sido apagada em outra aba, ou o serviço está fora do ar."
-            acao="Tentar de novo"
-            aoAcionar={() => aoAbrir(abertura.id)}
-          />
-        </div>
-      ) : (
-        <ConversaNaTela
-          conversa={conversa}
-          perguntaSugerida={perfil.perguntaSugerida}
-          aoSugerir={enviarPergunta}
-          fim={fim}
-        />
-      )}
+      <div className={estilos.corpo}>
+        {expandido && (
+          <nav className={estilos.colunaDasConversas} aria-labelledby="titulo-das-conversas">
+            <h3 id="titulo-das-conversas" className={estilos.tituloDaColuna}>
+              Conversas
+            </h3>
+            {listaDeConversas}
+          </nav>
+        )}
+        <div className={estilos.leitura}>
+          {mostraALista ? (
+            <div className={estilos.conversa}>
+              <h3 className="visualmente-oculto">Conversas</h3>
+              {listaDeConversas}
+            </div>
+          ) : abertura.situacao === "abrindo" ? (
+            <div className={estilos.conversa} role="status" aria-live="polite">
+              <p className={estilos.status}>
+                <span className={estilos.atividade} aria-hidden="true" />
+                Abrindo a conversa…
+              </p>
+            </div>
+          ) : abertura.situacao === "erro" ? (
+            <div className={estilos.conversa}>
+              <ErrorState
+                variante="bloco"
+                titulo="Não foi possível abrir a conversa"
+                descricao="Ela pode ter sido apagada em outra aba, ou o serviço está fora do ar."
+                acao="Tentar de novo"
+                aoAcionar={() => aoAbrir(abertura.id)}
+              />
+            </div>
+          ) : (
+            <ConversaNaTela
+              conversa={conversa}
+              expandido={expandido}
+              nomeDoPerfil={perfil.nome}
+              perguntaSugerida={perfil.perguntaSugerida}
+              aoSugerir={enviarPergunta}
+              fim={fim}
+            />
+          )}
 
-      {/* A pergunta só vai para a conversa que está na tela: nem na lista, nem durante a abertura. */}
-      {visao === "conversa" && abertura.situacao === "pronta" && (
-      <form className={estilos.composer} onSubmit={aoSubmeter}>
-        <label htmlFor="pergunta-ao-assistente" className="visualmente-oculto">
-          Sua pergunta
-        </label>
-        <textarea
-          id="pergunta-ao-assistente"
-          ref={campo}
-          className={estilos.campo}
-          rows={1}
-          value={pergunta}
-          placeholder="Escreva sua pergunta"
-          onChange={(evento) => setPergunta(evento.target.value)}
-          onKeyDown={aoTeclar}
-          aria-invalid={longaDemais}
-          aria-describedby={longaDemais ? "pergunta-longa-demais" : undefined}
-        />
-        {/* Enquanto a resposta chega, o botão de enviar dá lugar ao de parar. */}
-        {respondendo(conversa) ? (
-          <button
-            type="button"
-            className={estilos.enviar}
-            onClick={aoParar}
-            aria-label="Parar a resposta"
-          >
-            <IconeParar />
-          </button>
-        ) : (
-          <button
-            type="submit"
-            className={estilos.enviar}
-            disabled={!envioLiberado}
-            aria-label="Enviar pergunta"
-          >
-            <IconeEnviar />
-          </button>
-        )}
-        {longaDemais && (
-          <p className={estilos.limite}>
-            {/* Texto fixo no alerta, para o leitor de tela anunciar uma vez, não a cada tecla. */}
-            <span id="pergunta-longa-demais" role="alert">
-              A pergunta passou do limite de{" "}
-              {LIMITE_DE_CARACTERES_DA_PERGUNTA.toLocaleString("pt-BR")} caracteres. Encurte
-              para enviar.
-            </span>
-            <span className={estilos.contagem} aria-hidden="true">
-              {caracteresDaPergunta(pergunta).toLocaleString("pt-BR")}/
-              {LIMITE_DE_CARACTERES_DA_PERGUNTA.toLocaleString("pt-BR")}
-            </span>
-          </p>
-        )}
-      </form>
-      )}
+          {/* A pergunta só vai para a conversa na tela: nem na lista, nem durante a abertura. */}
+          {!mostraALista && abertura.situacao === "pronta" && (
+            <form className={estilos.composer} onSubmit={aoSubmeter}>
+              <label htmlFor="pergunta-ao-assistente" className="visualmente-oculto">
+                Sua pergunta
+              </label>
+              <textarea
+                id="pergunta-ao-assistente"
+                ref={campo}
+                className={estilos.campo}
+                rows={1}
+                value={pergunta}
+                placeholder="Escreva sua pergunta"
+                onChange={(evento) => setPergunta(evento.target.value)}
+                onKeyDown={aoTeclar}
+                aria-invalid={longaDemais}
+                aria-describedby={longaDemais ? "pergunta-longa-demais" : undefined}
+              />
+              {/* Enquanto a resposta chega, o botão de enviar dá lugar ao de parar. */}
+              {respondendo(conversa) ? (
+                <button
+                  type="button"
+                  className={estilos.enviar}
+                  onClick={aoParar}
+                  aria-label="Parar a resposta"
+                >
+                  <IconeParar />
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  className={estilos.enviar}
+                  disabled={!envioLiberado}
+                  aria-label="Enviar pergunta"
+                >
+                  <IconeEnviar />
+                </button>
+              )}
+              {longaDemais && (
+                <p className={estilos.limite}>
+                  {/* Texto fixo no alerta: o leitor de tela anuncia uma vez, não a cada tecla. */}
+                  <span id="pergunta-longa-demais" role="alert">
+                    A pergunta passou do limite de{" "}
+                    {LIMITE_DE_CARACTERES_DA_PERGUNTA.toLocaleString("pt-BR")} caracteres. Encurte
+                    para enviar.
+                  </span>
+                  <span className={estilos.contagem} aria-hidden="true">
+                    {caracteresDaPergunta(pergunta).toLocaleString("pt-BR")}/
+                    {LIMITE_DE_CARACTERES_DA_PERGUNTA.toLocaleString("pt-BR")}
+                  </span>
+                </p>
+              )}
+            </form>
+          )}
+        </div>
+      </div>
     </aside>
   );
 }
 
 interface PropriedadesDaConversa {
   conversa: Conversa;
+  expandido: boolean;
+  nomeDoPerfil: string;
   perguntaSugerida?: string;
   aoSugerir: (pergunta: string) => void;
   fim: RefObject<HTMLDivElement | null>;
 }
 
-/** As perguntas e respostas da conversa atual; vazia, o convite e a pergunta sugerida. */
-function ConversaNaTela({ conversa, perguntaSugerida, aoSugerir, fim }: PropriedadesDaConversa) {
+/**
+ * As perguntas e respostas da conversa atual; vazia, o convite e a pergunta sugerida. No modo
+ * expandido o convite é editorial, com as sugestões em linhas, não em cartões (FE §8).
+ */
+function ConversaNaTela({
+  conversa,
+  expandido,
+  nomeDoPerfil,
+  perguntaSugerida,
+  aoSugerir,
+  fim,
+}: PropriedadesDaConversa) {
+  const vazia = conversa.perguntasERespostas.length === 0;
   return (
     <div className={estilos.conversa} role="log" aria-label="Conversa com o assistente">
-      {conversa.perguntasERespostas.length === 0 && (
+      {vazia && expandido && (
+        <div className={estilos.abertura}>
+          <h3 className={estilos.manchete}>O que você quer saber sobre {nomeDoPerfil}?</h3>
+          <p className={estilos.convite}>
+            Pergunte em linguagem natural. O assistente responde só com os dados que o seu perfil
+            alcança e mostra como chegou a cada resposta.
+          </p>
+          {perguntaSugerida && (
+            <ul className={estilos.sugestoes} aria-label="Sugestões">
+              <li>
+                <button
+                  type="button"
+                  className={estilos.linhaDeSugestao}
+                  onClick={() => aoSugerir(perguntaSugerida)}
+                >
+                  {perguntaSugerida}
+                </button>
+              </li>
+            </ul>
+          )}
+        </div>
+      )}
+      {vazia && !expandido && (
         <div className={estilos.inicio}>
           <p>Pergunte em linguagem natural sobre os dados do seu perfil.</p>
           {perguntaSugerida && (
@@ -306,6 +391,13 @@ function Resposta({ resposta }: { resposta: RespostaDoAssistente }) {
         <p className={estilos.status}>
           <span className={estilos.atividade} aria-hidden="true" />
           Consultando os dados…
+        </p>
+      )}
+      {/* Antes do primeiro trecho, sem consulta: o indicador diz que a resposta está a caminho. */}
+      {resposta.situacao === "chegando" && !resposta.consultando && !resposta.texto && (
+        <p className={estilos.status}>
+          <span className={estilos.atividade} aria-hidden="true" />
+          Preparando a resposta…
         </p>
       )}
       {resposta.situacao === "interrompida" && (

@@ -69,6 +69,24 @@ export function IconeConversas() {
   );
 }
 
+/** Expandir o painel do assistente para a área de leitura. */
+export function IconeExpandir() {
+  return (
+    <Icone>
+      <path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7" />
+    </Icone>
+  );
+}
+
+/** Recolher a área de leitura de volta ao painel lateral. */
+export function IconeRecolher() {
+  return (
+    <Icone>
+      <path d="M20 10h-6V4M4 14h6v6M14 10l7-7M10 14l-7 7" />
+    </Icone>
+  );
+}
+
 export function IconeLixeira() {
   return (
     <Icone>
