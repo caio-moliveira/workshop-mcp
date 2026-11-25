@@ -1,12 +1,14 @@
 import type { User, UserManager } from "oidc-client-ts";
 
 import {
+  apagarNaApi,
   ApiIndisponivel,
   buscarDaApi,
   buscarEu,
   TokenRecusado,
   type UsuarioAutenticado,
 } from "../api";
+import { eConversaLida, type ConversaLida } from "../assistente/conversa";
 import type { EventoDaResposta } from "../assistente/fluxo";
 import { perguntarAoAssistente, type CorpoDaPergunta } from "../assistente/rede";
 import { VigiaDeInatividade } from "./inatividade";
@@ -101,6 +103,26 @@ export class Sessao {
   async *perguntar(corpo: CorpoDaPergunta, sinal?: AbortSignal): AsyncGenerator<EventoDaResposta> {
     yield* await this.comToken((token) =>
       perguntarAoAssistente(this.enderecoDaApi, token, corpo, sinal),
+    );
+  }
+
+  /** As conversas do usuário, como a API as devolve; quem confere o contrato é `listaRecebida`. */
+  listarConversas(): Promise<object> {
+    return this.consultar(
+      "/conversas",
+      (valor): valor is object => typeof valor === "object" && valor !== null,
+    );
+  }
+
+  /** Uma conversa do histórico, no contrato. A de outro usuário não vem: é ApiIndisponivel. */
+  lerConversa(id: string): Promise<ConversaLida> {
+    return this.consultar(`/conversas/${encodeURIComponent(id)}`, eConversaLida);
+  }
+
+  /** Apaga uma conversa do histórico, de modo definitivo. */
+  apagarConversa(id: string): Promise<void> {
+    return this.comToken((token) =>
+      apagarNaApi(this.enderecoDaApi, token, `/conversas/${encodeURIComponent(id)}`),
     );
   }
 

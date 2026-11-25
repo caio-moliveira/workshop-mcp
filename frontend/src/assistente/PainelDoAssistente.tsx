@@ -5,42 +5,61 @@ import {
   useState,
   type FormEvent,
   type KeyboardEvent,
+  type RefObject,
 } from "react";
 
 import type { UsuarioAutenticado } from "../api";
+import { ErrorState } from "../componentes/ErrorState";
 import {
   IconeAssistente,
   IconeAviso,
+  IconeConversas,
   IconeEnviar,
   IconeFechar,
+  IconeNovaConversa,
   IconeParar,
 } from "../componentes/icones";
 import { DESCRICAO_DOS_PERFIS } from "../perfis";
 import { podeEnviar, respondendo, type Conversa, type RespostaDoAssistente } from "./conversa";
 import { caracteresDaPergunta, LIMITE_DE_CARACTERES_DA_PERGUNTA, passouDoLimite } from "./limites";
+import { VisaoDasConversas } from "./VisaoDasConversas";
 import estilos from "./PainelDoAssistente.module.css";
 import { RastreioDaResposta } from "./RastreioDaResposta";
 import { TextoEmMarkdown } from "./TextoEmMarkdown";
+import type { Abertura, FonteDoAssistente } from "./useConversa";
 
 interface Propriedades {
   usuario: UsuarioAutenticado;
+  /** De onde vem a lista de conversas do histórico. */
+  fonte: FonteDoAssistente;
   conversa: Conversa;
+  abertura: Abertura;
   aoPerguntar: (pergunta: string) => void;
   aoParar: () => void;
+  aoAbrir: (id: string) => void;
+  aoComecarNova: () => void;
   aoFechar: () => void;
 }
 
 const LINHAS_DO_CAMPO = 5;
 
-/** O chat lateral do assistente, à direita e por cima do conteúdo (FE §8). */
+/**
+ * O chat lateral do assistente, à direita e por cima do conteúdo (FE §8). A visão "Conversas"
+ * troca a conversa pela lista do histórico, para reabrir ou apagar uma delas.
+ */
 export function PainelDoAssistente({
   usuario,
+  fonte,
   conversa,
+  abertura,
   aoPerguntar,
   aoParar,
+  aoAbrir,
+  aoComecarNova,
   aoFechar,
 }: Propriedades) {
   const perfil = DESCRICAO_DOS_PERFIS[usuario.perfil];
+  const [visao, setVisao] = useState<"conversa" | "conversas">("conversa");
   const [pergunta, setPergunta] = useState("");
   const campo = useRef<HTMLTextAreaElement>(null);
   const fim = useRef<HTMLDivElement>(null);
@@ -67,10 +86,26 @@ export function PainelDoAssistente({
     elemento.style.height = `${Math.min(elemento.scrollHeight, maximo)}px`;
   }, [pergunta]);
 
-  // A conversa acompanha o texto que chega.
+  // A conversa acompanha o texto que chega, e volta ao fim ao sair da lista.
   useEffect(() => {
     fim.current?.scrollIntoView({ block: "end" });
-  }, [conversa]);
+  }, [conversa, visao]);
+
+  // De volta à conversa (nova ou reaberta), o foco vai ao campo da pergunta.
+  useEffect(() => {
+    if (visao === "conversa" && abertura.situacao === "pronta") campo.current?.focus();
+  }, [visao, abertura.situacao]);
+
+  function comecarNova() {
+    aoComecarNova();
+    setPergunta("");
+    setVisao("conversa");
+  }
+
+  function abrir(id: string) {
+    aoAbrir(id);
+    setVisao("conversa");
+  }
 
   function enviarPergunta(texto: string) {
     if (!podeEnviar(conversa, texto)) return;
@@ -104,6 +139,25 @@ export function PainelDoAssistente({
         <button
           type="button"
           className={estilos.fechar}
+          onClick={comecarNova}
+          aria-label="Nova conversa"
+          title="Nova conversa"
+        >
+          <IconeNovaConversa />
+        </button>
+        <button
+          type="button"
+          className={estilos.fechar}
+          onClick={() => setVisao((atual) => (atual === "conversas" ? "conversa" : "conversas"))}
+          aria-label="Conversas"
+          aria-pressed={visao === "conversas"}
+          title="Conversas"
+        >
+          <IconeConversas />
+        </button>
+        <button
+          type="button"
+          className={estilos.fechar}
           onClick={aoFechar}
           aria-label="Fechar o assistente"
         >
@@ -111,33 +165,44 @@ export function PainelDoAssistente({
         </button>
       </header>
 
-      <div className={estilos.conversa} role="log" aria-label="Conversa com o assistente">
-        {conversa.perguntasERespostas.length === 0 && (
-          <div className={estilos.inicio}>
-            <p>Pergunte em linguagem natural sobre os dados do seu perfil.</p>
-            {perfil.perguntaSugerida && (
-              <button
-                type="button"
-                className={estilos.sugestao}
-                onClick={() => enviarPergunta(perfil.perguntaSugerida ?? "")}
-              >
-                {perfil.perguntaSugerida}
-              </button>
-            )}
-          </div>
-        )}
-        {conversa.perguntasERespostas.map((item, indice) =>
-          item.autor === "usuario" ? (
-            <p key={indice} className={estilos.pergunta}>
-              {item.texto}
-            </p>
-          ) : (
-            <Resposta key={indice} resposta={item} />
-          ),
-        )}
-        <div ref={fim} />
-      </div>
+      {visao === "conversas" ? (
+        <div className={estilos.conversa}>
+          <h3 className="visualmente-oculto">Conversas</h3>
+          <VisaoDasConversas
+            fonte={fonte}
+            idAtual={conversa.id}
+            aoAbrir={abrir}
+            aoApagarAAtual={aoComecarNova}
+          />
+        </div>
+      ) : abertura.situacao === "abrindo" ? (
+        <div className={estilos.conversa} role="status" aria-live="polite">
+          <p className={estilos.status}>
+            <span className={estilos.atividade} aria-hidden="true" />
+            Abrindo a conversa…
+          </p>
+        </div>
+      ) : abertura.situacao === "erro" ? (
+        <div className={estilos.conversa}>
+          <ErrorState
+            variante="bloco"
+            titulo="Não foi possível abrir a conversa"
+            descricao="Ela pode ter sido apagada em outra aba, ou o serviço está fora do ar."
+            acao="Tentar de novo"
+            aoAcionar={() => aoAbrir(abertura.id)}
+          />
+        </div>
+      ) : (
+        <ConversaNaTela
+          conversa={conversa}
+          perguntaSugerida={perfil.perguntaSugerida}
+          aoSugerir={enviarPergunta}
+          fim={fim}
+        />
+      )}
 
+      {/* A pergunta só vai para a conversa que está na tela: nem na lista, nem durante a abertura. */}
+      {visao === "conversa" && abertura.situacao === "pronta" && (
       <form className={estilos.composer} onSubmit={aoSubmeter}>
         <label htmlFor="pergunta-ao-assistente" className="visualmente-oculto">
           Sua pergunta
@@ -189,7 +254,47 @@ export function PainelDoAssistente({
           </p>
         )}
       </form>
+      )}
     </aside>
+  );
+}
+
+interface PropriedadesDaConversa {
+  conversa: Conversa;
+  perguntaSugerida?: string;
+  aoSugerir: (pergunta: string) => void;
+  fim: RefObject<HTMLDivElement | null>;
+}
+
+/** As perguntas e respostas da conversa atual; vazia, o convite e a pergunta sugerida. */
+function ConversaNaTela({ conversa, perguntaSugerida, aoSugerir, fim }: PropriedadesDaConversa) {
+  return (
+    <div className={estilos.conversa} role="log" aria-label="Conversa com o assistente">
+      {conversa.perguntasERespostas.length === 0 && (
+        <div className={estilos.inicio}>
+          <p>Pergunte em linguagem natural sobre os dados do seu perfil.</p>
+          {perguntaSugerida && (
+            <button
+              type="button"
+              className={estilos.sugestao}
+              onClick={() => aoSugerir(perguntaSugerida)}
+            >
+              {perguntaSugerida}
+            </button>
+          )}
+        </div>
+      )}
+      {conversa.perguntasERespostas.map((item, indice) =>
+        item.autor === "usuario" ? (
+          <p key={indice} className={estilos.pergunta}>
+            {item.texto}
+          </p>
+        ) : (
+          <Resposta key={indice} resposta={item} />
+        ),
+      )}
+      <div ref={fim} />
+    </div>
   );
 }
 
