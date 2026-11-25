@@ -6,6 +6,7 @@ import { AnuncioDeCarregamento, EstadosDoBloco } from "../componentes/EstadosDoB
 import { LoadingSkeleton } from "../componentes/LoadingSkeleton";
 import { StatusChip, type TomDaSituacao } from "../componentes/StatusChip";
 import { formatarDataHora, formatarMoeda } from "../formatacao";
+import type { Periodo } from "../painel/periodo";
 import { useBloco, type FonteDeDados } from "../useBloco";
 import estilos from "./BlocoDePedidosRecentes.module.css";
 import {
@@ -15,7 +16,6 @@ import {
   type SituacaoDeEntrega,
   type SituacaoDePagamento,
 } from "./pedidosRecentes";
-import type { Periodo } from "./periodo";
 
 interface Propriedades {
   fonte: FonteDeDados;

@@ -1,4 +1,4 @@
-import { PERIODOS, ROTULO_DO_PERIODO, type Periodo } from "../vendas/periodo";
+import { PERIODOS, ROTULO_DO_PERIODO, type Periodo } from "../painel/periodo";
 import estilos from "./PeriodFilter.module.css";
 
 interface Propriedades {

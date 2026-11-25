@@ -1,5 +1,6 @@
 import { PageHeading } from "../componentes/PageHeading";
 import { PeriodFilter } from "../componentes/PeriodFilter";
+import { usePeriodoDaUrl } from "../painel/usePeriodoDaUrl";
 import { DESCRICAO_DOS_PERFIS } from "../perfis";
 import type { FonteDeDados } from "../useBloco";
 import { BlocoDeEvolucao } from "./BlocoDeEvolucao";
@@ -7,7 +8,6 @@ import { BlocoDeIndicadores } from "./BlocoDeIndicadores";
 import { BlocoDePedidosRecentes } from "./BlocoDePedidosRecentes";
 import { BlocoDeSituacaoDasEntregas } from "./BlocoDeSituacaoDasEntregas";
 import estilos from "./PainelDeVendas.module.css";
-import { usePeriodoDaUrl } from "./usePeriodoDaUrl";
 
 interface Propriedades {
   fonte: FonteDeDados;

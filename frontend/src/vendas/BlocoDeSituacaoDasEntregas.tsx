@@ -7,8 +7,8 @@ import { AnuncioDeCarregamento, EstadosDoBloco } from "../componentes/EstadosDoB
 import { CURSOR, EIXO, SEM_ANIMACAO, type SerieDoGrafico } from "../componentes/graficos";
 import { LoadingSkeleton } from "../componentes/LoadingSkeleton";
 import { formatarNumero, formatarNumeroCompacto } from "../formatacao";
+import type { Periodo } from "../painel/periodo";
 import { useBloco, type FonteDeDados } from "../useBloco";
-import type { Periodo } from "./periodo";
 import {
   eSituacaoDasEntregas,
   semEntregas,
