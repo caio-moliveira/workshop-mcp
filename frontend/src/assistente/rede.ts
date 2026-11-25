@@ -1,6 +1,26 @@
 import { ApiIndisponivel, TokenRecusado } from "../api";
 import { lerEventos, type EventoDaResposta } from "./fluxo";
 
+/** A pergunta nem chegou a virar fluxo: rede fora, token recusado ou recusa da rota. */
+export const SEM_RESPOSTA = "Não foi possível obter a resposta agora. Tente de novo.";
+
+/** O mesmo texto de `ASSISTENTE_INDISPONIVEL` em `backend/acesso/mensagens.py`. */
+export const ASSISTENTE_INDISPONIVEL =
+  "O assistente está indisponível no momento. Tente de novo mais tarde.";
+
+/** A rota respondeu 503: sem modelo configurado ou sem a chave do provedor. */
+export class AssistenteIndisponivel extends Error {
+  constructor() {
+    super("o assistente está indisponível");
+    this.name = "AssistenteIndisponivel";
+  }
+}
+
+/** O texto que fica no lugar da resposta quando a pergunta falha antes do fluxo. */
+export function mensagemDaFalha(erro: unknown): string {
+  return erro instanceof AssistenteIndisponivel ? ASSISTENTE_INDISPONIVEL : SEM_RESPOSTA;
+}
+
 /** Uma fala anterior, como a rota `POST /assistente` a recebe. */
 export interface ItemDaConversa {
   autor: "usuario" | "assistente";
@@ -15,8 +35,8 @@ export interface CorpoDaPergunta {
 
 /**
  * Faz a pergunta com o token no cabeçalho Authorization e devolve os eventos da resposta. O
- * `EventSource` não serve: não faz POST nem manda cabeçalho. Um 401 vira `TokenRecusado`; qualquer
- * outra recusa antes do fluxo vira `ApiIndisponivel`.
+ * `EventSource` não serve: não faz POST nem manda cabeçalho. Um 401 vira `TokenRecusado`, um 503
+ * vira `AssistenteIndisponivel`; qualquer outra recusa antes do fluxo vira `ApiIndisponivel`.
  */
 export async function* perguntarAoAssistente(
   enderecoDaApi: string,
@@ -34,6 +54,7 @@ export async function* perguntarAoAssistente(
     throw new ApiIndisponivel(`sem resposta da API: ${String(erro)}`);
   }
   if (resposta.status === 401) throw new TokenRecusado();
+  if (resposta.status === 503) throw new AssistenteIndisponivel();
   if (!resposta.ok || !resposta.body) {
     throw new ApiIndisponivel(`a API respondeu ${resposta.status}`);
   }

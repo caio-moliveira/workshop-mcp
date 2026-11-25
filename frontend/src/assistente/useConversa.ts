@@ -2,15 +2,12 @@ import { useCallback, useState } from "react";
 
 import { CONVERSA_VAZIA, enviar, podeEnviar, receber, type Conversa } from "./conversa";
 import type { EventoDaResposta } from "./fluxo";
-import type { CorpoDaPergunta } from "./rede";
+import { mensagemDaFalha, type CorpoDaPergunta } from "./rede";
 
 /** Quem leva a pergunta à API: a Sessao, que põe o token e cuida do 401. */
 export interface FonteDoAssistente {
   perguntar(corpo: CorpoDaPergunta): AsyncIterable<EventoDaResposta>;
 }
-
-/** A pergunta nem chegou a virar fluxo: rede fora, token recusado ou rota indisponível. */
-export const SEM_RESPOSTA = "Não foi possível obter a resposta agora. Tente de novo.";
 
 /**
  * A conversa com o assistente e o envio de perguntas. Fica no estado de quem chama: enquanto ele
@@ -32,8 +29,9 @@ export function useConversa(fonte: FonteDoAssistente): {
           for await (const evento of fonte.perguntar({ pergunta, conversa: [] })) {
             setConversa((atual) => receber(atual, evento));
           }
-        } catch {
-          setConversa((atual) => receber(atual, { tipo: "erro", mensagem: SEM_RESPOSTA }));
+        } catch (erro) {
+          const mensagem = mensagemDaFalha(erro);
+          setConversa((atual) => receber(atual, { tipo: "erro", mensagem }));
         }
       })();
     },
