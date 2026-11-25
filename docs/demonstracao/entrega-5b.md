@@ -6,7 +6,7 @@ Pré-requisitos: Docker com Docker Compose, [uv](https://docs.astral.sh/uv/), um
 
 **O que foi conferido e como.** Em 25/11/2026, os passos 2 a 8 foram executados pela API, com o modelo real (`anthropic:claude-haiku-5-5`, o padrão): o token de cada usuário veio do comando de token de demonstração, a pergunta foi enviada em `POST /assistente`, como o painel faz, o fluxo de eventos foi lido até o fim e as conversas foram lidas, listadas e apagadas pelas rotas que o painel usa (`GET /conversas`, `GET /conversas/{id}` e `DELETE /conversas/{id}`). Os números foram conferidos com as rotas do painel de Vendas; os identificadores, com `docker compose logs`. A parte visual (o modo expandido, a lista de conversas, o bloco de rastreio aberto e fechado, a tabela no painel lateral, os dois usuários no navegador) **não foi executada**: ela pede um navegador e está marcada abaixo como **conferência manual**, para o apresentador. As respostas do modelo mudam a cada execução; o que este roteiro anota é o resultado observado e o que deve se repetir.
 
-**O ambiente da execução não foi subido do zero.** O compose foi recriado com `docker compose up -d --build --wait`, que roda a carga e recria o banco carregado, mas o `docker compose down -v` antes dele não foi rodado. O banco `historico` já tinha as conversas deixadas pela suíte de testes (212 conversas, 50 ou mais da `ana.vendas`), e por isso a lista da Ana aparece no teto de 50 abaixo. Para a apresentação, comece pelo `down -v` do passo 1: as listas começam vazias.
+**O ambiente da execução foi subido do zero**, como no passo 1: `docker compose down -v` e `docker compose up -d --build --wait`, com o código da branch depois das correções da revisão (a resposta achada pelo identificador da pergunta, o 404 para o identificador de conversa fora do formato). Antes da primeira pergunta, o banco `historico` tinha 0 conversas e 0 itens, e a auditoria, 0 linhas; as listas e contagens abaixo são só desta execução.
 
 ## 1. Configurar e subir
 
@@ -65,16 +65,16 @@ O fluxo ganhou dois eventos. O primeiro é sempre `conversa`, com o identificado
 
 ```
 event: conversa
-data: {"id_da_conversa": "69bfc836-...", "id_da_pergunta": "17a52f6b-..."}
+data: {"id_da_conversa": "72b298e5-...", "id_da_pergunta": "aeb93741-..."}
 
 event: estado
 data: {"estado": "consultando"}
 
 event: chamada
-data: {"ferramenta": "vendas_atrasos", "desfecho": "concluida", "milissegundos": 60}
+data: {"ferramenta": "vendas_atrasos", "desfecho": "concluida", "milissegundos": 64}
 
 event: texto
-data: {"texto": "Os atrasos estão mais concentrados"}
+data: {"texto": "..."}
 ...
 event: fim
 data: {}
@@ -94,28 +94,28 @@ No PowerShell, `curl.exe` no lugar de `curl`.
 
 **Conferência manual (navegador).** Abra `http://localhost:5173`, entre como `ana.vendas` e clique em **Assistente**. O cabeçalho do painel lateral tem **Nova conversa**, **Conversas**, **Expandir o assistente** e **Fechar o assistente**. Clique na pergunta sugerida, **O que está causando os atrasos?**. Enquanto a resposta chega, um indicador discreto mostra "Preparando a resposta…" ou "Consultando os dados…". Abaixo da resposta terminada fica o bloco **Como esta resposta foi obtida**, fechado. Abra o bloco: uma linha por chamada, com a ferramenta (`vendas_atrasos`), "concluída" e a duração em ms, e no fim `Pergunta <identificador>`. Anote esse identificador para o passo 7.
 
-**Executado pela API (25/11/2026).** Resultado: 200; o evento `conversa` primeiro; dois `estado` e duas `chamada` (`vendas_atrasos`, `concluida`, 60 ms cada) 2,0 s depois dele; 136 eventos `texto` e `fim` 9,4 s depois do `conversa`. A auditoria mostra as duas chamadas, por rota e por lojista, no período de 12 meses. A resposta, resumida:
+**Executado pela API (25/11/2026).** Resultado: 200; o evento `conversa` primeiro (conversa `72b298e5-...`, pergunta `aeb93741-...`); dois `estado` e duas `chamada` (`vendas_atrasos`, `concluida`, 64 ms cada) 2,1 s depois dele; 119 eventos `texto` e `fim` 7,7 s depois do `conversa`. A auditoria mostra as duas chamadas, por rota e por lojista (o modelo não passou o período, e valeu o padrão, 12 meses). A resposta, resumida:
 
-> Os atrasos estão mais concentrados em **lojistas** do que em **rotas**. Os dados mostram onde eles se concentram, mas não explicam o motivo.
+> **Resumo:** os atrasos não vêm de uma única causa. Os dados mostram onde eles se concentram, mas não o motivo de cada um. No período, foram **1.411 atrasos em 15.622 pedidos entregues** (taxa de **9,0%**).
 >
-> No período de 12 meses (01/12/2025 a 30/11/2026), a taxa de atraso geral foi de **9,0%**, com 1.411 atrasos em 15.622 pedidos entregues.
+> **Lojistas:** a concentração é maior aqui. **Vasconcelos** responde por cerca de 23% dos atrasos, com taxa de 18,4%. [...] **Siqueira** tem taxa de 30,1% e cerca de 12% dos atrasos. **Fogaça** (34,4%), **Pinto Pires** (29,3%) e **Casa Grande da Cunha** (29,0%) têm taxas altas, mas participação menor no total.
 >
-> **Lojistas** [...] **Vasconcelos** responde por **23%** dos atrasos (323), com taxa de 18,4% [...] **Siqueira** (taxa de 30,1%) [...] **Fogaça** tem a maior taxa entre os listados (34,4%), mas com poucos pedidos (125 entregues) [...] Os 10 lojistas listados somam cerca de 61% dos atrasos.
+> **Rotas:** o atraso está mais espalhado. São 255 rotas com atraso. **SP → SP** tem o maior número de atrasos (cerca de 9% do total), mas taxa de 5,3%, abaixo da média. **PE → SP** tem taxa de 19,2% [...] **SP → AM** (22,1%), **SP → PA** (19,0%), **SP → CE** (15,8%) e **SP → PE** (15,3%).
 >
-> **Rotas** [...] **SP → SP** tem o maior volume de atrasos (121), mas taxa baixa (5,3%). As rotas com taxa mais alta são **SP → AM** (22,1%), **PE → SP** (19,2%) [...]
+> **Leitura:** [...] Para confirmar, seria preciso olhar transportadora, prazo prometido e estoque, dados que não tenho acesso por esta ferramenta.
 
-A conversa lida depois (`GET /conversas/69bfc836-...`) trouxe o título "O que está causando os atrasos?", a pergunta e a resposta com `"situacao": "concluida"`, o `id_da_pergunta` e o mesmo rastreio do fluxo: duas chamadas a `vendas_atrasos`, `concluida`, 60 ms.
+A conversa lida depois (`GET /conversas/72b298e5-...`) trouxe o título "O que está causando os atrasos?", a pergunta e a resposta com `"situacao": "concluida"`, o `id_da_pergunta` `aeb93741-...` (o mesmo do evento `conversa`) e o mesmo rastreio do fluxo: duas chamadas a `vendas_atrasos`, `concluida`, 64 ms.
 
-**Os números conferem com o painel.** Na tela de Vendas, com o período **12 meses**, e nas rotas da API:
+**Os números conferem com o painel.** Nas rotas da API que o painel de Vendas usa, com o período **12 meses**:
 
 | Na resposta | No painel e nas rotas | Confere |
 | --- | --- | --- |
-| Período 01/12/2025 a 30/11/2026 | `periodo` de `/vendas/situacao-das-entregas`: 2025-12-01 a 2026-11-30 | Sim |
+| Período de 12 meses (dito na resposta do passo 3: 1/12/2025 a 30/11/2026) | `periodo` de `/vendas/situacao-das-entregas`: 2025-12-01 a 2026-11-30 | Sim |
 | Taxa de atraso 9,0% | Indicador "Taxa de atraso": `taxa_de_atraso.atual` 0,0903 em `/vendas/indicadores` | Sim |
 | 1.411 atrasos | `taxa_de_atraso.atrasos` 1411; "Entregue com atraso" 1411 | Sim |
 | 15.622 entregues | "Entregue no prazo" 14.211 + "Entregue com atraso" 1.411 = 15.622 | Sim |
 
-Os números por lojista e por rota não estão no painel: vêm só de `vendas_atrasos`. Os citados aqui (Vasconcelos 323 atrasos e 18,4%, Siqueira 30,1%, SP → SP 121 e 5,3%, PE → SP 19,2%, 167 lojistas e 255 rotas com atraso) são os mesmos conferidos com a ferramenta chamada direto no roteiro da 5a, com os mesmos dados; nesta execução, a ferramenta não foi chamada de novo à parte.
+Os números por lojista e por rota não estão no painel: vêm só de `vendas_atrasos`. Os que coincidem com os conferidos com a ferramenta chamada direto no roteiro da 5a, com os mesmos dados (Vasconcelos 18,4% e cerca de 23%, que é 323 ÷ 1.411; Siqueira 30,1%; SP → SP 5,3%; PE → SP 19,2%; 255 rotas com atraso), batem; os das rotas também batem com a tabela do passo 3. Os outros (Siqueira "cerca de 12% dos atrasos", Fogaça 34,4%, Pinto Pires 29,3%, Casa Grande da Cunha 29,0%) não foram conferidos com a ferramenta: nesta execução, a ferramenta não foi chamada à parte.
 
 ## 3. Uma resposta longa, com tabela, no modo expandido
 
@@ -129,10 +129,10 @@ Os números por lojista e por rota não estão no painel: vêm só de `vendas_at
 
 Abaixo de 768 px não há botão de expandir: o painel ocupa a tela inteira, e **Conversas** troca a conversa pela lista.
 
-**Executado pela API (25/11/2026)**, como continuação da conversa do passo 2 (com o `id_da_conversa` dela): 200; o `conversa` com a mesma conversa e um identificador de pergunta novo (`a308ca26-...`); duas chamadas a `vendas_atrasos`, por rota e por lojista (46 ms e 37 ms); 101 trechos e `fim` 9,7 s depois do `conversa`. A resposta veio em tabela Markdown:
+**Executado pela API (25/11/2026)**, como continuação da conversa do passo 2 (com o `id_da_conversa` dela): 200; o `conversa` com a mesma conversa e um identificador de pergunta novo (`7212f028-...`); uma chamada a `vendas_atrasos`, por rota (46 ms); 95 trechos e `fim` 5,2 s depois do `conversa`. A resposta abriu com "No período de **1/12/2025 a 30/11/2026** (12 meses), estas são as 10 rotas com mais atrasos. Ordenei pelo número de atrasos. Há 255 rotas com atraso ao todo." e veio em tabela Markdown:
 
-| Rota | Entregues | Atrasos | Taxa de atraso | Participação nos atrasos |
-|---|---|---|---|---|
+| Rota | Entregues | Atrasos | Taxa de atraso | Participação no total |
+|---|---:|---:|---:|---:|
 | SP → SP | 2.270 | 121 | 5,3% | 8,6% |
 | SP → RJ | 935 | 61 | 6,5% | 4,3% |
 | PE → SP | 266 | 51 | 19,2% | 3,6% |
@@ -144,43 +144,45 @@ Abaixo de 768 px não há botão de expandir: o painel ocupa a tela inteira, e *
 | SP → PA | 142 | 27 | 19,0% | 1,9% |
 | SP → BA | 273 | 25 | 9,2% | 1,8% |
 
-seguida de uma **Leitura** em três itens e de "Também revisei os dados dos lojistas que citei antes. Os números estão corretos". As taxas batem com atrasos ÷ entregues em cada linha, e as participações somam 32,2% ("cerca de 32%", como disse a resposta).
+seguida de uma **Leitura** em três itens. As taxas batem com atrasos ÷ entregues em cada linha, e as participações com atrasos ÷ 1.411; as linhas são as mesmas, com os mesmos valores, da execução anterior deste roteiro. Um deslize de conta no último item: "As 10 rotas listadas somam cerca de 35% dos atrasos do período". Somam 454 atrasos, 32,2% de 1.411 (a soma das participações da própria tabela). O modelo se corrigiu sozinho na continuação do passo 4.
 
 ## 4. Recarregar a página e reabrir a conversa
 
 **Conferência manual (navegador).** Recarregue a página e abra o assistente: ele abre numa conversa nova e vazia, com a pergunta sugerida. Clique em **Conversas** (ou expanda): a conversa dos passos 2 e 3 está no topo da lista, com o título "O que está causando os atrasos?". Abra-a: as perguntas, as respostas, a tabela e os blocos de rastreio estão como estavam. Faça uma pergunta de continuação; o assistente entende o contexto.
 
-**Executado pela API (25/11/2026).** Depois da recarga do passo 8, a leitura da conversa trouxe os quatro itens (duas perguntas e duas respostas `concluida`, com os identificadores `17a52f6b-...` e `a308ca26-...`), e a continuação `e qual dessas rotas teve a maior taxa?` com o `id_da_conversa` dela: 200, nenhuma chamada, 40 trechos e `fim` 4,0 s depois do `conversa`:
+**Executado pela API (25/11/2026).** Depois da recarga do passo 8, a leitura da conversa trouxe os quatro itens (duas perguntas e duas respostas `concluida`, com os identificadores `aeb93741-...` e `7212f028-...` e o rastreio de cada uma: duas chamadas de 64 ms na primeira, uma de 46 ms na segunda). A continuação `e qual dessas rotas teve a maior taxa?` com o `id_da_conversa` dela: 200, nenhuma chamada, 21 trechos e `fim` 3,9 s depois do `conversa`:
 
-> A rota com maior taxa de atraso entre as 10 da tabela é **SP → AM**, com **22,1%**: 29 atrasos em 131 pedidos entregues.
+> A rota com maior taxa entre as 10 listadas é **SP → AM**, com **22,1%** de atrasos: 29 atrasos em 131 pedidos entregues.
 >
-> Preciso corrigir minha mensagem anterior. Eu disse que tinha revisado os dados dos lojistas, mas não consultei essas informações de novo nessa resposta. [...]
+> Corrijo um erro na resposta anterior: as 10 rotas somam cerca de **32%** dos atrasos do período, não 35%.
 
-O contexto veio do banco (a tabela da resposta anterior), não do navegador. A "correção", porém, está errada: a auditoria mostra que a resposta anterior chamou `vendas_atrasos` por lojista às 14:52:02. O modelo recebe da conversa gravada só os textos de pergunta e resposta, sem as chamadas, e, sem ver a chamada, concluiu que não a tinha feito. Fica anotado como lacuna no roadmap.
+O contexto veio do banco (a tabela da resposta anterior), não do navegador, e a correção está certa (32,2%). Lida de novo, a conversa ficou com seis itens; a terceira resposta, `concluida`, com o identificador da sua pergunta e `"rastreio": []`. Na execução anterior deste roteiro, a continuação "corrigiu" uma afirmação verdadeira, dizendo que não tinha consultado uma ferramenta que a auditoria mostra que consultou: o modelo recebe da conversa gravada só os textos de pergunta e resposta, sem as chamadas. Desta vez não aconteceu, mas a causa continua; fica anotada como lacuna no roadmap.
 
 ## 5. Nova conversa e apagar
 
 **Conferência manual (navegador).** Clique em **Nova conversa**: a conversa some da tela e aparece a pergunta sugerida; a anterior continua na lista. Pergunte algo, abra **Conversas** e apague a conversa nova pelo botão da linha ("Apagar a conversa ..."); confirme no diálogo ("Não dá para desfazer."). Ela some da lista; se era a conversa aberta, o painel volta a uma conversa nova.
 
-**Executado pela API (25/11/2026).** Uma pergunta sem `id_da_conversa`, `Quantos pedidos foram realizados nos últimos 90 dias?`, abriu a conversa `75d01ee3-...`: uma chamada a `vendas_indicadores` (38 ms) e `fim` 1,7 s depois do `conversa`:
+**Executado pela API (25/11/2026).** Uma pergunta sem `id_da_conversa`, `Quantos pedidos foram realizados nos últimos 90 dias?`, abriu a conversa `cdf6b10a-...`: uma chamada a `vendas_indicadores` (37 ms) e `fim` 1,6 s depois do `conversa`:
 
-> Nos últimos 90 dias (de 02/09/2026 a 30/11/2026), foram realizados **4.962 pedidos**. Para comparação, no período anterior de mesmo tamanho foram 3.726 pedidos, o que representa um aumento de cerca de 33%.
+> Nos últimos 90 dias (de 02/09/2026 a 30/11/2026), foram realizados **4.962 pedidos**.
+>
+> No período anterior de mesmo tamanho, foram 3.726 pedidos, então houve um aumento de cerca de 33%.
 
 Confere com o painel no período **90 dias**: `pedidos_realizados` 4962 e 3726, período de 2026-09-02 a 2026-11-30, e 4.962 ÷ 3.726 = 1,33.
 
-`DELETE /conversas/75d01ee3-...` respondeu 204; a leitura dela passou a dar `404 {"erro":"Conversa não encontrada."}` e ela saiu da lista. A auditoria tinha 310 linhas antes do `DELETE` e continuou com 310 depois: apagar uma conversa não apaga as chamadas dela da auditoria (ADR 0009); a chamada desta pergunta continua lá (passo 9).
+Antes de apagar, a lista da Ana tinha as duas conversas dela, a mais recente no topo ("Quantos pedidos foram realizados nos últimos 90 dias?" e "O que está causando os atrasos?"). `DELETE /conversas/cdf6b10a-...` respondeu 204; a leitura dela passou a dar `404 {"erro":"Conversa não encontrada."}`, um segundo `DELETE` também deu 404, e a lista ficou só com a conversa dos passos 2 e 3. A auditoria tinha 4 linhas antes do `DELETE` (as três chamadas dos passos 2 e 3 e a desta pergunta) e continuou com 4 depois: apagar uma conversa não apaga as chamadas dela da auditoria (ADR 0009); a chamada desta pergunta continua lá (passo 9).
 
 ## 6. Um usuário não vê o histórico do outro
 
 **Conferência manual (navegador).** Saia e entre como `vitor.vendas`. Abra o assistente e **Conversas**: as conversas da Ana não aparecem. Faça uma pergunta, saia, entre como `ana.vendas` de novo: a conversa do Vitor não aparece na lista dela, e as dela continuam lá. Repita com `diego.diretoria` (outro perfil): a lista dele não mostra as de Vendas, e a dele não aparece para a Ana. Num navegador só, use uma janela anônima para o segundo usuário, ou saia entre um e outro.
 
-**Executado pela API (25/11/2026).** Vitor perguntou `Qual foi a receita e o ticket médio nos últimos 30 dias?` (conversa `ce9fd3cc-...`; uma chamada a `vendas_indicadores`, `fim` 3,6 s depois do `conversa`):
+**Executado pela API (25/11/2026).** Vitor perguntou `Qual foi a receita e o ticket médio nos últimos 30 dias?` (conversa `35fcc925-...`; uma chamada a `vendas_indicadores`, 31 ms, `fim` 3,7 s depois do `conversa`):
 
-> Nos últimos 30 dias (01/11 a 30/11/2026): **Receita:** R$ 2.405.996,39. **Ticket médio:** cerca de R$ 1.054,01, calculado como receita dividida por 2.283 pedidos realizados. Para comparação, no período anterior a receita foi de R$ 1.347.654,75 em 1.336 pedidos, com ticket médio de cerca de R$ 1.008,73. [...]
+> **Últimos 30 dias (01/11/2026 a 30/11/2026):** **Receita:** R$ 2.405.996,39. **Ticket médio:** cerca de R$ 1.053,86 (receita dividida por 2.283 pedidos realizados). Para comparação, no período anterior de 30 dias a receita foi de R$ 1.347.654,75 e o ticket médio foi de cerca de R$ 1.008,72 (1.336 pedidos). [...] A taxa de aprovação foi de 95,6%, contra 97,0% no período anterior.
 
-A receita e os pedidos conferem com o painel no período **30 dias** (`receita` 2405996,39 e 1347654,75; `pedidos_realizados` 2283 e 1336). O ticket médio não é indicador do painel; é uma conta do modelo, e veio levemente errada: 2.405.996,39 ÷ 2.283 = 1.053,87 (o modelo disse 1.054,01) e 1.347.654,75 ÷ 1.336 = 1.008,72 (disse 1.008,73).
+A receita, os pedidos e a aprovação conferem com o painel no período **30 dias** (`receita` 2405996,39 e 1347654,75; `pedidos_realizados` 2283 e 1336; `taxa_de_aprovacao` 0,9558 e 0,9701). O ticket médio não é indicador do painel; é uma conta do modelo: 1.347.654,75 ÷ 1.336 = 1.008,72, certo; 2.405.996,39 ÷ 2.283 = 1.053,8749..., que arredonda para 1.053,87, e o modelo disse 1.053,86 (um centavo; na execução anterior, errou por R$ 0,14).
 
-Diego (Diretoria) perguntou `O que está causando os atrasos?` (conversa `0373d7e8-...`): nenhuma chamada, "Não tenho acesso a dados de atrasos nesta conversa [...]", e a conversa lida depois tem `"rastreio": []` (na tela, "Nenhuma ferramenta foi consultada."). O histórico funciona para um perfil sem ferramentas.
+Diego (Diretoria) perguntou `O que está causando os atrasos?` (conversa `1ee07c43-...`): nenhuma chamada, nenhum dado, e a resposta "Ainda não tenho dados sobre atrasos para responder com segurança. Nesta conversa, nenhuma consulta foi feita [...]", pedindo o tipo de atraso, o período e o recorte, e "Se o painel tiver uma ferramenta para esse tipo de dado, eu consulto [...]. Se não tiver, eu digo que não tenho acesso a essas informações." A conversa lida depois tem `"rastreio": []` (na tela, "Nenhuma ferramenta foi consultada."). O histórico funciona para um perfil sem ferramentas.
 
 Cada conversa foi pedida por quem não é o dono, com o token dele, nas quatro operações:
 
@@ -192,7 +194,7 @@ Cada conversa foi pedida por quem não é o dono, com o token dele, nas quatro o
 | `vitor.vendas` | `bruno.produtos` (outro perfil) | Não aparece | 404 | 404 | 404 |
 | `diego.diretoria` | `ana.vendas` (outro perfil) | Não aparece | 404 | 404 | 404 |
 
-Todas as recusas foram `{"erro":"Conversa não encontrada."}`, a mesma resposta de uma conversa que não existe (`GET /conversas/00000000-0000-4000-8000-000000000000` pela própria Ana). Depois das tentativas, o dono leu a própria conversa inteira: nenhuma foi apagada. O "continuar" foi recusado antes de o modelo ser chamado, sem evento nenhum.
+Todas as recusas foram `{"erro":"Conversa não encontrada."}`, a mesma resposta de uma conversa que não existe (`GET /conversas/00000000-0000-4000-8000-000000000000` pela própria Ana) e de um identificador fora do formato, na leitura (`GET /conversas/nao-e-uuid`) e no corpo da pergunta (`POST /assistente` com `"id_da_conversa": "nao-e-uuid"`). Depois das tentativas, cada dono leu a própria conversa (200; a da Ana com os quatro itens): nenhuma foi apagada. O "continuar" foi recusado antes de o modelo ser chamado, sem evento nenhum e sem linha na auditoria. No fim, cada lista tinha só as conversas do dono: Ana, Vitor e Diego, uma cada; Bruno, que não perguntou, uma lista vazia. O banco `historico` tinha 3 conversas e 8 itens.
 
 ## 7. A pergunta acompanhada nos logs
 
@@ -201,32 +203,32 @@ Com o identificador do bloco de rastreio (no navegador) ou do evento `conversa` 
 bash:
 
 ```
-docker compose logs api mcp | grep 17a52f6b-f647-4527-b8fa-be9d1da98b4d
+docker compose logs api mcp | grep aeb93741-8dc3-4877-b14c-0f804d640a9d
 ```
 
 PowerShell:
 
 ```
-docker compose logs api mcp | Select-String 17a52f6b-f647-4527-b8fa-be9d1da98b4d
+docker compose logs api mcp | Select-String aeb93741-8dc3-4877-b14c-0f804d640a9d
 ```
 
 **Executado em 25/11/2026**, com o identificador da pergunta do passo 2:
 
 ```
-mcp-1  | INFO:consultas:consulta atrasos executada: 41 ms, pergunta 17a52f6b-f647-4527-b8fa-be9d1da98b4d
-mcp-1  | INFO:servidor_mcp:chamada a 'vendas_atrasos': permitida, pergunta 17a52f6b-f647-4527-b8fa-be9d1da98b4d
-mcp-1  | INFO:consultas:consulta atrasos executada: 46 ms, pergunta 17a52f6b-f647-4527-b8fa-be9d1da98b4d
-mcp-1  | INFO:servidor_mcp:chamada a 'vendas_atrasos': permitida, pergunta 17a52f6b-f647-4527-b8fa-be9d1da98b4d
-api-1  | INFO:assistente:pergunta iniciada: pergunta 17a52f6b-f647-4527-b8fa-be9d1da98b4d, conversa 69bfc836-ad51-477c-9eca-0988c0f025a0, usuário 97bfb2e3-99f7-4091-aafd-10af557ea6d2
-api-1  | INFO:assistente:pergunta terminada: pergunta 17a52f6b-f647-4527-b8fa-be9d1da98b4d, conversa 69bfc836-ad51-477c-9eca-0988c0f025a0, usuário 97bfb2e3-99f7-4091-aafd-10af557ea6d2
+api-1  | INFO:assistente:pergunta iniciada: pergunta aeb93741-8dc3-4877-b14c-0f804d640a9d, conversa 72b298e5-9b8f-4389-893b-07d4bff0f231, usuário 97bfb2e3-99f7-4091-aafd-10af557ea6d2
+api-1  | INFO:assistente:pergunta terminada: pergunta aeb93741-8dc3-4877-b14c-0f804d640a9d, conversa 72b298e5-9b8f-4389-893b-07d4bff0f231, usuário 97bfb2e3-99f7-4091-aafd-10af557ea6d2
+mcp-1  | INFO:consultas:consulta atrasos executada: 45 ms, pergunta aeb93741-8dc3-4877-b14c-0f804d640a9d
+mcp-1  | INFO:servidor_mcp:chamada a 'vendas_atrasos': permitida, pergunta aeb93741-8dc3-4877-b14c-0f804d640a9d
+mcp-1  | INFO:consultas:consulta atrasos executada: 49 ms, pergunta aeb93741-8dc3-4877-b14c-0f804d640a9d
+mcp-1  | INFO:servidor_mcp:chamada a 'vendas_atrasos': permitida, pergunta aeb93741-8dc3-4877-b14c-0f804d640a9d
 ```
 
-As três linhas: a da pergunta, na API (início e fim, com a conversa e o usuário); a de cada chamada, no servidor MCP (ferramenta e desfecho); a de cada consulta executada (nome e duração). O `docker compose logs` agrupa por serviço, por isso as linhas da API vêm depois. A duração no rastreio (60 ms) é a da chamada vista pela API, com a rede e o servidor MCP; a da linha da consulta (41 e 46 ms), só a do banco. A pergunta do passo 3 (`a308ca26-...`) deixou o mesmo desenho: duas consultas de 37 e 29 ms, duas chamadas e as duas linhas da API.
+As três linhas: a da pergunta, na API (início e fim, com a conversa e o usuário); a de cada chamada, no servidor MCP (ferramenta e desfecho); a de cada consulta executada (nome e duração). O `docker compose logs` agrupa por serviço, por isso as linhas de um serviço vêm juntas, e não na ordem do relógio. A duração no rastreio (64 ms) é a da chamada vista pela API, com a rede e o servidor MCP; a da linha da consulta (45 e 49 ms), só a do banco. A pergunta do passo 3 (`7212f028-...`) deixou o mesmo desenho, com uma chamada só: as duas linhas da API, uma chamada e uma consulta de 36 ms.
 
-O texto das perguntas não aparece no log: `docker compose logs api mcp | grep -c causando` deu 0, e o mesmo para os textos das perguntas dos passos 4 e 6. As consultas das telas também têm linha, sem identificador:
+O texto das perguntas não aparece no log: `docker compose logs api mcp | grep -c causando` deu 0, e o mesmo para "Compare as rotas", "qual dessas", "ticket", "90 dias" e "por lojista" (o texto das continuações recusadas no passo 6). As consultas das telas também têm linha, sem identificador:
 
 ```
-api-1  | INFO:consultas:consulta indicadores executada: 25 ms, sem pergunta
+api-1  | INFO:consultas:consulta indicadores executada: 33 ms, sem pergunta
 ```
 
 A auditoria não ganhou o identificador da pergunta; continua só com o que o token prova.
@@ -240,7 +242,7 @@ docker compose run --rm carga
 
 E a contagem de novo.
 
-**Executado em 25/11/2026:** `212|244` antes, a carga terminou com `carga: concluída`, e `212|244` depois. A conversa da Ana foi lida e continuada depois da recarga (passo 4). A recarga derruba e recria só o banco carregado; o `historico`, como a `auditoria`, fica.
+**Executado em 25/11/2026**, depois dos passos 2, 3, 5 e 6: `3|8` antes (as conversas da Ana, do Vitor e do Diego; a do passo 5 já tinha sido apagada), a carga terminou com `carga: concluída`, e `3|8` depois. A conversa da Ana foi lida e continuada depois da recarga (passo 4). A recarga derruba e recria só o banco carregado; o `historico`, como a `auditoria`, fica.
 
 ## 9. As chamadas na auditoria
 
@@ -248,20 +250,19 @@ E a contagem de novo.
 docker compose exec postgres psql -U dono -d auditoria -c "select to_char(horario,'HH24:MI:SS') h, nome_do_usuario, ferramenta, parametros, resultado from auditoria.chamada where horario > now() - interval '30 minutes' order by id"
 ```
 
-**Executado em 25/11/2026**, depois dos passos 2 a 6:
+**Executado em 25/11/2026**, depois dos passos 2 a 8 (sem o filtro de horário: o ambiente subiu do zero, e estas são todas as linhas da auditoria):
 
 ```
-    h     | nome_do_usuario |     ferramenta     |                  parametros                  | resultado
-----------+-----------------+--------------------+----------------------------------------------+-----------
- 14:51:02 | Ana Ribeiro     | vendas_atrasos     | {"periodo": "12m", "agrupamento": "lojista"} | permitida
- 14:51:02 | Ana Ribeiro     | vendas_atrasos     | {"periodo": "12m", "agrupamento": "rota"}    | permitida
- 14:51:59 | Ana Ribeiro     | vendas_atrasos     | {"periodo": "12m", "agrupamento": "rota"}    | permitida
- 14:52:02 | Ana Ribeiro     | vendas_atrasos     | {"periodo": "12m", "agrupamento": "lojista"} | permitida
- 14:52:55 | Vitor Nunes     | vendas_indicadores | {"periodo": "30d"}                           | permitida
- 14:53:50 | Ana Ribeiro     | vendas_indicadores | {"periodo": "90d"}                           | permitida
+    h     | nome_do_usuario |     ferramenta     |         parametros         | resultado
+----------+-----------------+--------------------+----------------------------+-----------
+ 15:44:31 | Ana Ribeiro     | vendas_atrasos     | {"agrupamento": "lojista"} | permitida
+ 15:44:31 | Ana Ribeiro     | vendas_atrasos     | {"agrupamento": "rota"}    | permitida
+ 15:44:42 | Ana Ribeiro     | vendas_atrasos     | {"agrupamento": "rota"}    | permitida
+ 15:44:58 | Ana Ribeiro     | vendas_indicadores | {"periodo": "90d"}         | permitida
+ 15:45:18 | Vitor Nunes     | vendas_indicadores | {"periodo": "30d"}         | permitida
 ```
 
-As duas primeiras são do passo 2; as duas seguintes, do passo 3; a do Vitor, do passo 6, com o nome dele; a última, da conversa apagada no passo 5, que continua na auditoria. A pergunta do Diego e a continuação do passo 4 não chamaram ferramenta, e não deixaram linha.
+As duas primeiras são do passo 2; a seguinte, do passo 3; a de 90 dias, da conversa apagada no passo 5, que continua na auditoria; a do Vitor, do passo 6, com o nome dele. Nas chamadas a `vendas_atrasos`, o modelo não passou o `periodo`, e valeu o padrão de 12 meses (o período que as respostas dizem). A pergunta do Diego, as continuações recusadas do passo 6 e a continuação do passo 4 não chamaram ferramenta, e não deixaram linha.
 
 ## Testes da entrega
 
