@@ -1,5 +1,6 @@
 """O agente que responde a pergunta, e os eventos em que a resposta sai."""
 
+import asyncio
 import logging
 from collections.abc import AsyncIterator, Iterable
 from dataclasses import dataclass, field
@@ -117,6 +118,11 @@ class Assistente:
                 async for evento in execucao:
                     if saida := _traduzir(evento):
                         yield saida
+        except asyncio.CancelledError:
+            # O navegador desconectou (parou a resposta ou saiu): a execução para aqui, sem novas
+            # chamadas, e nada mais é emitido.
+            registro.info("pergunta cancelada: usuário %s", usuario.id)
+            raise
         except Exception as falha:
             registro.error("pergunta falhou: usuário %s", usuario.id, exc_info=falha)
             yield erro(mensagens.ASSISTENTE_INDISPONIVEL)
