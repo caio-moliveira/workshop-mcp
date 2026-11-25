@@ -71,7 +71,7 @@ describe("lerEventos", () => {
   });
 
   it("entrega o aviso que vem no fim", async () => {
-    const aviso = "A resposta parou aqui: a pergunta precisou de consultas demais.";
+    const aviso = "Aviso do fim, escrito pela API.";
     const eventos = await todos(
       lerEventos(
         pedacos(
@@ -87,7 +87,7 @@ describe("lerEventos", () => {
   });
 
   it("entrega o erro com a mensagem do servidor e para ali", async () => {
-    const mensagem = "O assistente está indisponível no momento. Tente de novo mais tarde.";
+    const mensagem = "Mensagem de erro, escrita pela API.";
     const eventos = await todos(
       lerEventos(
         pedacos(

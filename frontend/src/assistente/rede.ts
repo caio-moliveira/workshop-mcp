@@ -4,21 +4,41 @@ import { lerEventos, type EventoDaResposta } from "./fluxo";
 /** A pergunta nem chegou a virar fluxo: rede fora, token recusado ou recusa da rota. */
 export const SEM_RESPOSTA = "Não foi possível obter a resposta agora. Tente de novo.";
 
-/** O mesmo texto de `ASSISTENTE_INDISPONIVEL` em `backend/acesso/mensagens.py`. */
-export const ASSISTENTE_INDISPONIVEL =
-  "O assistente está indisponível no momento. Tente de novo mais tarde.";
+/**
+ * O aviso de reserva para o 503, só quando o corpo não traz o texto: quem escreve o aviso é a API,
+ * no campo `erro` da resposta.
+ */
+export const ASSISTENTE_INDISPONIVEL = "O assistente está indisponível no momento.";
 
 /** A rota respondeu 503: sem modelo configurado ou sem a chave do provedor. */
 export class AssistenteIndisponivel extends Error {
-  constructor() {
+  /** O aviso ao usuário, como a API o devolveu. */
+  readonly aviso: string;
+
+  constructor(aviso: string) {
     super("o assistente está indisponível");
     this.name = "AssistenteIndisponivel";
+    this.aviso = aviso;
   }
 }
 
 /** O texto que fica no lugar da resposta quando a pergunta falha antes do fluxo. */
 export function mensagemDaFalha(erro: unknown): string {
-  return erro instanceof AssistenteIndisponivel ? ASSISTENTE_INDISPONIVEL : SEM_RESPOSTA;
+  return erro instanceof AssistenteIndisponivel ? erro.aviso : SEM_RESPOSTA;
+}
+
+/** O texto do campo `erro` do corpo JSON da recusa, ou o de reserva se ele não vier. */
+async function avisoDaRecusa(resposta: Response, reserva: string): Promise<string> {
+  try {
+    const corpo: unknown = await resposta.json();
+    if (typeof corpo === "object" && corpo !== null) {
+      const { erro } = corpo as Record<string, unknown>;
+      if (typeof erro === "string" && erro.trim() !== "") return erro;
+    }
+  } catch {
+    // Corpo vazio ou fora do JSON: fica a reserva.
+  }
+  return reserva;
 }
 
 /** Uma pergunta ou resposta anterior, como a rota `POST /assistente` a recebe. */
@@ -57,7 +77,9 @@ export async function* perguntarAoAssistente(
     throw new ApiIndisponivel(`sem resposta da API: ${String(erro)}`);
   }
   if (resposta.status === 401) throw new TokenRecusado();
-  if (resposta.status === 503) throw new AssistenteIndisponivel();
+  if (resposta.status === 503) {
+    throw new AssistenteIndisponivel(await avisoDaRecusa(resposta, ASSISTENTE_INDISPONIVEL));
+  }
   if (!resposta.ok || !resposta.body) {
     throw new ApiIndisponivel(`a API respondeu ${resposta.status}`);
   }

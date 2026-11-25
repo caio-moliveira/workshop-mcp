@@ -75,7 +75,7 @@ describe("conversa", () => {
   });
 
   it("o fim com aviso conclui a resposta mantendo o texto e guarda o aviso", () => {
-    const aviso = "A resposta parou aqui: a pergunta precisou de consultas demais.";
+    const aviso = "Aviso do fim, escrito pela API.";
     const conversa = aplicar(perguntada, { tipo: "texto", texto: "Parcial" }, { tipo: "fim", aviso });
     expect(resposta(conversa)).toEqual({
       autor: "assistente",
@@ -102,7 +102,7 @@ describe("conversa", () => {
   });
 
   it("no erro, guarda a mensagem, mantém o texto recebido e libera o envio", () => {
-    const mensagem = "O assistente está indisponível no momento. Tente de novo mais tarde.";
+    const mensagem = "Mensagem de erro, escrita pela API.";
     const conversa = aplicar(
       perguntada,
       { tipo: "texto", texto: "Parcial" },
@@ -161,7 +161,7 @@ describe("conversa", () => {
   });
 
   it("a pergunta seguinte leva só as perguntas com resposta concluída, em ordem", () => {
-    const comErro = "O assistente está indisponível no momento. Tente de novo mais tarde.";
+    const comErro = "Mensagem de erro, escrita pela API.";
     let conversa = aplicar(perguntada, { tipo: "texto", texto: "Três lojistas." }, { tipo: "fim" });
     conversa = aplicar(
       enviar(conversa, "Desde quando?"),
