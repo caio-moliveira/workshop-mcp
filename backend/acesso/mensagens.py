@@ -21,3 +21,7 @@ SERVICO_INDISPONIVEL = "Serviço indisponível."
 MUITAS_CHAMADAS = "Muitas chamadas em pouco tempo. Tente de novo em instantes."
 # Qualquer falha não prevista.
 ERRO_INTERNO = "Erro interno."
+
+# A pergunta ao assistente não pôde ser respondida: sem modelo configurado, ou o modelo ou o
+# servidor MCP falharam no meio da resposta. Não cita provedor, modelo nem ferramenta.
+ASSISTENTE_INDISPONIVEL = "O assistente está indisponível no momento. Tente de novo mais tarde."
