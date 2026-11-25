@@ -95,12 +95,16 @@ def criar_api(executor_de_consultas) -> Callable[..., TestClient]:
 
     Cada parâmetro da configuração de acesso pode ser trocado: o relógio, as chaves, o emissor.
     O executor de consultas também, com `consultas=`, e o modelo de linguagem do assistente, com
-    `modelo=` (sem ele, a API fica sem modelo, como sem a chave do provedor). A origem do
-    frontend liberada pelo CORS e o servidor MCP que o assistente chama são os do ambiente.
+    `modelo=` (sem ele, a API fica sem modelo, como sem a chave do provedor), e o servidor MCP
+    que o assistente chama, com `endereco_do_mcp=` (sem ele, o serviço `mcp` do compose). A
+    origem do frontend liberada pelo CORS é a do ambiente.
     """
 
     def criar(
-        consultas: ExecutorDeConsultas | None = None, modelo: Model | None = None, **sobreposicoes
+        consultas: ExecutorDeConsultas | None = None,
+        modelo: Model | None = None,
+        endereco_do_mcp: str = MCP_DO_AMBIENTE + CAMINHO_DO_MCP,
+        **sobreposicoes,
     ) -> TestClient:
         configuracao = ConfiguracaoDeAcesso(
             emissor=emissor(),
@@ -112,7 +116,7 @@ def criar_api(executor_de_consultas) -> Callable[..., TestClient]:
             origem_do_frontend=variavel("ENDERECO_DO_FRONTEND"),
             consultas=consultas or executor_de_consultas,
             modelo=modelo,
-            endereco_do_mcp=MCP_DO_AMBIENTE + CAMINHO_DO_MCP,
+            endereco_do_mcp=endereco_do_mcp,
         )
         return TestClient(aplicacao)
 

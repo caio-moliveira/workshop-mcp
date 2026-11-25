@@ -13,6 +13,10 @@ from pydantic_ai.messages import ModelMessage, ModelResponse, ToolCallPart
 from pydantic_ai.models.function import AgentInfo, DeltaToolCall, FunctionModel
 
 ROTA = "/assistente"
+# A mensagem genérica, igual na resposta 503 e no evento de erro: não cita provedor, modelo nem
+# ferramenta (RS-08).
+ASSISTENTE_INDISPONIVEL = "O assistente está indisponível no momento. Tente de novo mais tarde."
+RESPOSTA_DO_ASSISTENTE_INDISPONIVEL = {"erro": ASSISTENTE_INDISPONIVEL}
 
 
 def modelo_roteirizado(
@@ -54,7 +58,9 @@ def perguntar(api, token: str | None, corpo: dict[str, Any] | None = None, **cab
     """POST na rota do assistente, com o token no cabeçalho Authorization."""
     if token:
         cabecalhos["Authorization"] = f"Bearer {token}"
-    return api.post(ROTA, json=corpo or {"pergunta": "O que está causando os atrasos?"}, headers=cabecalhos)
+    if corpo is None:
+        corpo = {"pergunta": "O que está causando os atrasos?"}
+    return api.post(ROTA, json=corpo, headers=cabecalhos)
 
 
 def eventos(resposta) -> list[tuple[str, Any]]:
