@@ -1,18 +1,27 @@
 import type { UsuarioAutenticado } from "../api";
 import { DESCRICAO_DOS_PERFIS } from "../perfis";
-import { IconeMenu, IconeSair } from "./icones";
+import { IconeAssistente, IconeMenu, IconeSair } from "./icones";
 import { ProfileIndicator } from "./ProfileIndicator";
 import estilos from "./Topbar.module.css";
 
 interface Propriedades {
   usuario: UsuarioAutenticado;
   navegacaoAberta: boolean;
+  assistenteAberto: boolean;
+  aoAlternarAssistente: () => void;
   aoAbrirNavegacao: () => void;
   aoSair: () => void;
 }
 
-/** Barra superior: contexto do perfil à esquerda, perfil e saída à direita (FE §5). */
-export function Topbar({ usuario, navegacaoAberta, aoAbrirNavegacao, aoSair }: Propriedades) {
+/** Barra superior: contexto do perfil à esquerda; assistente, perfil e saída à direita (FE §5). */
+export function Topbar({
+  usuario,
+  navegacaoAberta,
+  assistenteAberto,
+  aoAbrirNavegacao,
+  aoAlternarAssistente,
+  aoSair,
+}: Propriedades) {
   return (
     <header className={estilos.topbar}>
       <div className={estilos.contexto}>
@@ -34,6 +43,16 @@ export function Topbar({ usuario, navegacaoAberta, aoAbrirNavegacao, aoSair }: P
       </div>
 
       <div className={estilos.acoes}>
+        <button
+          type="button"
+          className={estilos.assistente}
+          onClick={aoAlternarAssistente}
+          aria-controls="assistente"
+          aria-expanded={assistenteAberto}
+        >
+          <IconeAssistente />
+          <span>Assistente</span>
+        </button>
         <ProfileIndicator perfil={usuario.perfil} />
         <button type="button" className={estilos.sair} onClick={aoSair}>
           <IconeSair />

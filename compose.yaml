@@ -85,7 +85,10 @@ services:
       retries: 60
 
   # API das telas. Valida o token: emissor público, chaves buscadas pela rede interna. Lê o banco
-  # só pelo mecanismo de consultas, com o papel do perfil de quem pede.
+  # só pelo mecanismo de consultas, com o papel do perfil de quem pede. O assistente chama o
+  # servidor MCP pela rede interna, com o token de quem pergunta; o modelo vem de
+  # MODELO_DO_ASSISTENTE e a chave, da variável do provedor (ANTHROPIC_API_KEY), as duas do
+  # .env. Sem a chave, a API sobe assim mesmo e só o assistente fica indisponível.
   api:
     build:
       context: backend
@@ -93,6 +96,7 @@ services:
     env_file: backend/.env
     environment:
       ENDERECO_INTERNO_DO_PROVEDOR: http://keycloak:8080
+      ENDERECO_INTERNO_DO_MCP: http://mcp:8001/mcp
       POSTGRES_HOST: postgres
     ports:
       - "127.0.0.1:${API_PORT:-8000}:8000"
@@ -102,6 +106,8 @@ services:
       # A API só sobe com o banco carregado: assim `up --wait` termina com tudo pronto.
       carga:
         condition: service_completed_successfully
+      mcp:
+        condition: service_healthy
     healthcheck:
       # A consulta prévia do navegador vindo do frontend: responde 200 sem token nem provedor, e
       # não deixa no log uma recusa a cada verificação. A API não publica /docs.

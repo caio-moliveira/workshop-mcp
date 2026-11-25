@@ -69,6 +69,9 @@
   --largura-sidebar: 240px;
   --altura-topbar: 68px;
 
+  /* §8 Assistente */
+  --largura-do-assistente: 420px;
+
   /* §10 Interações */
   --transicao-rapida: 140ms ease;
   --anel-de-foco: 0 0 0 2px var(--surface), 0 0 0 4px var(--brand-ink);

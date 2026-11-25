@@ -1,0 +1,273 @@
+/*
+ * Chat lateral do assistente (FE §8): à direita, por cima do conteúdo e abaixo da barra superior,
+ * para o botão "Assistente" seguir à mão; tela cheia no celular (FE §11).
+ */
+.painel {
+  position: fixed;
+  top: var(--altura-topbar);
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  width: var(--largura-do-assistente);
+  max-width: 100vw;
+  border-left: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--sombra-flutuante);
+  animation: entrada 200ms ease both;
+}
+
+@keyframes entrada {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+}
+
+.cabecalho {
+  display: flex;
+  align-items: center;
+  gap: var(--espaco-3);
+  padding: var(--espaco-3) var(--espaco-4) var(--espaco-3) var(--espaco-6);
+  border-bottom: 1px solid var(--border);
+}
+
+.icone {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--raio-botao);
+  background: var(--surface-muted);
+  color: var(--brand-ink);
+}
+
+.titulos {
+  flex: 1;
+  min-width: 0;
+}
+
+.titulo {
+  margin: 0;
+  font-size: var(--texto-titulo-card);
+  font-weight: var(--peso-semibold);
+  color: var(--text-primary);
+}
+
+.contexto {
+  margin: 0;
+  font-size: var(--texto-label);
+  color: var(--text-secondary);
+}
+
+.fechar {
+  display: grid;
+  place-items: center;
+  width: var(--altura-botao);
+  height: var(--altura-botao);
+  border: 0;
+  border-radius: var(--raio-botao);
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background var(--transicao-rapida);
+}
+
+.fechar:hover {
+  background: var(--surface-muted);
+}
+
+.conversa {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco-4);
+  overflow-y: auto;
+  padding: var(--espaco-6);
+}
+
+.inicio {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--espaco-3);
+  color: var(--text-secondary);
+}
+
+.inicio p {
+  margin: 0;
+}
+
+.sugestao {
+  padding: var(--espaco-2) var(--espaco-3);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-primary);
+  font-size: var(--texto-label);
+  font-weight: var(--peso-medio);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background var(--transicao-rapida),
+    border-color var(--transicao-rapida);
+}
+
+.sugestao:hover {
+  background: var(--surface-muted);
+  border-color: var(--text-tertiary);
+}
+
+.pergunta {
+  align-self: flex-end;
+  max-width: 85%;
+  margin: 0;
+  padding: var(--espaco-2) var(--espaco-3);
+  border-radius: var(--raio-card);
+  background: var(--surface-muted);
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.resposta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco-2);
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espaco-2);
+  margin: 0;
+  font-size: var(--texto-label);
+  color: var(--text-secondary);
+}
+
+.atividade {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--serie-1);
+  animation: pulso 1.2s ease-in-out infinite;
+}
+
+@keyframes pulso {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atividade {
+    animation: none;
+  }
+}
+
+.erro {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: var(--espaco-2);
+  margin: 0;
+  font-size: var(--texto-label);
+  color: var(--erro);
+}
+
+.erro svg,
+.aviso svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+/* O aviso do fim (teto de chamadas): a resposta concluiu, mas parou antes. */
+.aviso {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: var(--espaco-2);
+  margin: 0;
+  font-size: var(--texto-label);
+  color: var(--atencao);
+}
+
+.composer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--espaco-2);
+  padding: var(--espaco-4) var(--espaco-6) var(--espaco-6);
+  border-top: 1px solid var(--border);
+}
+
+.campo {
+  flex: 1;
+  min-height: var(--altura-input);
+  padding: 10px var(--espaco-3);
+  border: 1px solid var(--border);
+  border-radius: var(--raio-botao);
+  background: var(--surface);
+  color: var(--text-primary);
+  font: inherit;
+  line-height: 1.5;
+  resize: none;
+}
+
+.campo[aria-invalid="true"] {
+  border-color: var(--erro);
+}
+
+/* A pergunta passou do teto: o motivo abaixo do campo, ocupando a linha inteira. */
+.limite {
+  display: flex;
+  flex-basis: 100%;
+  justify-content: space-between;
+  gap: var(--espaco-3);
+  margin: 0;
+  font-size: var(--texto-label);
+  color: var(--erro);
+}
+
+.contagem {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.campo::placeholder {
+  color: var(--text-tertiary);
+}
+
+.enviar {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: var(--altura-input);
+  height: var(--altura-input);
+  border: 0;
+  border-radius: var(--raio-botao);
+  background: var(--brand-ink);
+  color: var(--surface);
+  cursor: pointer;
+  transition: opacity var(--transicao-rapida);
+}
+
+.enviar:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+@media (max-width: 767px) {
+  .painel {
+    top: 0;
+    width: 100vw;
+    border-left: 0;
+  }
+
+  .conversa,
+  .composer {
+    padding-inline: var(--espaco-4);
+  }
+}

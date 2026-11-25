@@ -1,0 +1,27 @@
+/* A resposta do assistente: tipografia direta, sem caixa (FE §8). */
+.texto {
+  overflow-wrap: anywhere;
+}
+
+.texto p,
+.texto ul,
+.texto ol {
+  margin: 0;
+}
+
+.texto > * + * {
+  margin-top: var(--espaco-2);
+}
+
+.texto ul,
+.texto ol {
+  padding-left: var(--espaco-6);
+}
+
+.texto li + li {
+  margin-top: var(--espaco-1);
+}
+
+.texto strong {
+  font-weight: var(--peso-semibold);
+}
