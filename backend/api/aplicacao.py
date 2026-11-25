@@ -3,7 +3,7 @@
 import logging
 import uuid
 from collections.abc import AsyncIterator, Callable, Iterable
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from typing import Annotated
 
 import anyio
@@ -40,6 +40,7 @@ from consultas import (
     vendas,
 )
 from historico import (
+    ChamadaRastreada,
     ConversaGravada,
     ConversaInexistente,
     Historico,
@@ -139,16 +140,27 @@ def conversa_para_o_modelo(itens: Iterable[ItemGravado]) -> list[ItemDaConversa]
 
 
 def resposta_para_gravar(
-    id_da_pergunta: uuid.UUID, trechos: Iterable[str], desfecho: Evento | None
+    id_da_pergunta: uuid.UUID,
+    trechos: Iterable[str],
+    chamadas: Iterable[Evento],
+    desfecho: Evento | None,
 ) -> RespostaParaGravar:
-    """A resposta como vai para o histórico. Sem `fim` nem `erro`, ela foi interrompida."""
+    """A resposta como vai para o histórico, com o rastreio tirado dos eventos `chamada` que
+    saíram no fluxo. Sem `fim` nem `erro`, ela foi interrompida."""
     texto = "".join(trechos)
+    rastreio = tuple(ChamadaRastreada(**chamada.dados) for chamada in chamadas)
     if desfecho is None:
-        return RespostaParaGravar(id_da_pergunta, texto, Situacao.INTERROMPIDA)
+        return RespostaParaGravar(id_da_pergunta, texto, Situacao.INTERROMPIDA, rastreio=rastreio)
     if desfecho.tipo == "erro":
-        return RespostaParaGravar(id_da_pergunta, texto, Situacao.ERRO, erro=desfecho.dados["erro"])
+        return RespostaParaGravar(
+            id_da_pergunta, texto, Situacao.ERRO, erro=desfecho.dados["erro"], rastreio=rastreio
+        )
     return RespostaParaGravar(
-        id_da_pergunta, texto, Situacao.CONCLUIDA, aviso=desfecho.dados.get("aviso")
+        id_da_pergunta,
+        texto,
+        Situacao.CONCLUIDA,
+        aviso=desfecho.dados.get("aviso"),
+        rastreio=rastreio,
     )
 
 
@@ -165,6 +177,10 @@ def conversa_como_resposta(conversa: ConversaGravada) -> dict:
             lido["erro"] = item.erro
         if item.id_da_pergunta:
             lido["id_da_pergunta"] = str(item.id_da_pergunta)
+        if item.autor == "assistente":
+            # Sempre presente na resposta, mesmo vazio: sem chamadas, a tela diz que nenhuma
+            # ferramenta foi consultada.
+            lido["rastreio"] = [asdict(chamada) for chamada in item.rastreio]
         itens.append(lido)
     return {"id": str(conversa.id), "titulo": conversa.titulo, "itens": itens}
 
@@ -320,6 +336,7 @@ def criar_aplicacao(
         inicio = evento_da_conversa(pergunta.id_da_conversa, pergunta.id_da_pergunta)
         yield ServerSentEvent(event=inicio.tipo, data=inicio.dados)
         trechos: list[str] = []
+        chamadas: list[Evento] = []
         desfecho: Evento | None = None
         try:
             async for evento in disponivel.responder(
@@ -327,13 +344,15 @@ def criar_aplicacao(
             ):
                 if evento.tipo == "texto":
                     trechos.append(evento.dados["texto"])
+                elif evento.tipo == "chamada":
+                    chamadas.append(evento)
                 elif evento.tipo in ("fim", "erro"):
                     desfecho = evento
                 yield ServerSentEvent(event=evento.tipo, data=evento.dados)
         finally:
             # Vale também quando o navegador desconecta: o cancelamento não alcança a gravação,
             # e a resposta parada fica gravada com o texto que já tinha saído.
-            resposta = resposta_para_gravar(pergunta.id_da_pergunta, trechos, desfecho)
+            resposta = resposta_para_gravar(pergunta.id_da_pergunta, trechos, chamadas, desfecho)
             with anyio.CancelScope(shield=True):
                 await anyio.to_thread.run_sync(gravar_resposta, usuario, pergunta, resposta)
 

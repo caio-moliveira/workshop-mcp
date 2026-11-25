@@ -8,12 +8,13 @@ import os
 import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
-from dataclasses import dataclass, replace
+from dataclasses import asdict, dataclass, replace
 from enum import StrEnum
 from types import TracebackType
 from typing import Literal, Protocol
 
 import psycopg
+from psycopg.types.json import Jsonb
 from psycopg_pool import ConnectionPool, PoolTimeout
 
 from acesso import UsuarioAutenticado
@@ -38,8 +39,21 @@ class Situacao(StrEnum):
 
 
 @dataclass(frozen=True)
+class ChamadaRastreada:
+    """Uma chamada do rastreio da resposta: a ferramenta pedida, o desfecho e a duração.
+
+    Sem parâmetros nem texto de erro: o rastreio é o que o usuário vê (FE §8).
+    """
+
+    ferramenta: str
+    desfecho: Literal["concluida", "nao_concluida"]
+    milissegundos: int
+
+
+@dataclass(frozen=True)
 class ItemGravado:
-    """Uma pergunta ou resposta gravada. Só a resposta tem situação, aviso, erro e pergunta."""
+    """Uma pergunta ou resposta gravada. Só a resposta tem situação, aviso, erro, pergunta e
+    rastreio."""
 
     autor: Literal["usuario", "assistente"]
     texto: str
@@ -47,6 +61,7 @@ class ItemGravado:
     aviso: str | None = None
     erro: str | None = None
     id_da_pergunta: uuid.UUID | None = None
+    rastreio: tuple[ChamadaRastreada, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -60,13 +75,15 @@ class ConversaGravada:
 
 @dataclass(frozen=True)
 class RespostaParaGravar:
-    """A resposta ao fim do fluxo: o texto emitido até ali, a situação e o aviso ou o erro."""
+    """A resposta ao fim do fluxo: o texto emitido até ali, a situação, o aviso ou o erro e as
+    chamadas terminadas até ali."""
 
     id_da_pergunta: uuid.UUID
     texto: str
     situacao: Situacao
     aviso: str | None = None
     erro: str | None = None
+    rastreio: tuple[ChamadaRastreada, ...] = ()
 
 
 class HistoricoIndisponivel(Exception):
@@ -109,15 +126,15 @@ values (%(conversa)s, %(usuario)s, %(perfil)s, %(titulo)s, now())
 ATIVIDADE = f"update historico.conversa set ultima_atividade = now() where {DO_USUARIO}"
 GRAVACAO_DO_ITEM = """
 insert into historico.item (
-    id_da_conversa, autor, texto, horario, situacao, aviso, erro, id_da_pergunta
+    id_da_conversa, autor, texto, horario, situacao, aviso, erro, id_da_pergunta, rastreio
 ) values (
     %(conversa)s, %(autor)s, %(texto)s, now(), %(situacao)s, %(aviso)s, %(erro)s,
-    %(pergunta)s
+    %(pergunta)s, %(rastreio)s
 )
 """
 LEITURA_DA_CONVERSA = f"select titulo from historico.conversa where {DO_USUARIO}"
 LEITURA_DOS_ITENS = """
-select autor, texto, situacao, aviso, erro, id_da_pergunta from historico.item
+select autor, texto, situacao, aviso, erro, id_da_pergunta, rastreio from historico.item
 where id_da_conversa = %(conversa)s order by ordem
 """
 
@@ -176,6 +193,7 @@ class HistoricoNoBanco:
             aviso=resposta.aviso,
             erro=resposta.erro,
             id_da_pergunta=resposta.id_da_pergunta,
+            rastreio=resposta.rastreio,
         )
         self._gravar_item(usuario, id_da_conversa, item)
 
@@ -199,8 +217,9 @@ class HistoricoNoBanco:
                     aviso=aviso,
                     erro=erro,
                     id_da_pergunta=id_da_pergunta,
+                    rastreio=tuple(ChamadaRastreada(**chamada) for chamada in rastreio),
                 )
-                for autor, texto, situacao, aviso, erro, id_da_pergunta in itens
+                for autor, texto, situacao, aviso, erro, id_da_pergunta, rastreio in itens
             ),
         )
 
@@ -222,6 +241,7 @@ class HistoricoNoBanco:
                     "aviso": item.aviso,
                     "erro": item.erro,
                     "pergunta": item.id_da_pergunta,
+                    "rastreio": Jsonb([asdict(chamada) for chamada in item.rastreio]),
                 },
             )
 

@@ -7,6 +7,7 @@ o usuário autenticado e só enxerga as conversas dele.
 from historico.registro import (
     BANCO,
     PAPEL,
+    ChamadaRastreada,
     ConversaGravada,
     ConversaInexistente,
     Historico,
@@ -21,6 +22,7 @@ from historico.registro import (
 __all__ = [
     "BANCO",
     "PAPEL",
+    "ChamadaRastreada",
     "ConversaGravada",
     "ConversaInexistente",
     "Historico",

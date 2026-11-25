@@ -69,3 +69,27 @@ def test_nenhum_evento_traz_parametro_nem_texto_de_erro(criar_api, token_de):
     assert set(chamada) == CAMPOS_DA_CHAMADA
     assert parametro not in str(lidos)
     assert PARAMETRO_INVALIDO not in str(lidos)
+
+
+def test_a_conversa_lida_depois_traz_o_rastreio_e_a_pergunta_de_cada_resposta(criar_api, token_de):
+    token = token_de(Perfil.VENDAS)
+    chamadas = [(FERRAMENTA_DE_VENDAS, {"periodo": "30d"}), (FERRAMENTA_INVENTADA, {})]
+    api = criar_api(modelo=modelo_roteirizado(chamadas=chamadas))
+    lidos = eventos(perguntar(api, token))
+    _, inicio = lidos[0]
+    sem_chamada = criar_api(modelo=modelo_roteirizado())
+    corpo = {"pergunta": "E sem consultar nada?", "id_da_conversa": inicio["id_da_conversa"]}
+    segunda = eventos(perguntar(sem_chamada, token, corpo))
+
+    conversa = api.get(
+        f"/conversas/{inicio['id_da_conversa']}", headers={"Authorization": f"Bearer {token}"}
+    ).json()
+
+    respostas = [item for item in conversa["itens"] if item["autor"] == "assistente"]
+    # O rastreio gravado é o mesmo que saiu no fluxo, em ordem, com a duração medida então.
+    assert respostas[0]["rastreio"] == _chamadas(lidos)
+    assert [c["desfecho"] for c in respostas[0]["rastreio"]] == ["concluida", "nao_concluida"]
+    assert respostas[0]["id_da_pergunta"] == inicio["id_da_pergunta"]
+    # Sem chamadas, o rastreio vem vazio, e não ausente: a tela diz que nada foi consultado.
+    assert respostas[1]["rastreio"] == []
+    assert respostas[1]["id_da_pergunta"] == segunda[0][1]["id_da_pergunta"]

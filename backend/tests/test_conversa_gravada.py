@@ -104,6 +104,7 @@ def test_a_conversa_lida_depois_traz_a_pergunta_a_resposta_e_a_situacao(com_rote
                 "texto": "Três lojistas.",
                 "situacao": "concluida",
                 "id_da_pergunta": id_da_pergunta,
+                "rastreio": [],
             },
         ],
     }
@@ -217,6 +218,7 @@ def test_a_resposta_com_erro_fica_gravada_com_o_texto_emitido_e_o_erro(criar_api
         "situacao": "erro",
         "erro": mensagens.ASSISTENTE_INDISPONIVEL,
         "id_da_pergunta": id_da_pergunta,
+        "rastreio": [],
     }
 
 
@@ -265,6 +267,7 @@ def test_a_resposta_parada_pelo_navegador_fica_gravada_como_interrompida(criar_a
         "texto": "Os atrasos ",
         "situacao": "interrompida",
         "id_da_pergunta": dados["id_da_pergunta"],
+        "rastreio": [],
     }
 
 
