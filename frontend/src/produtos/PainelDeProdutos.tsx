@@ -7,6 +7,7 @@ import type { FonteDeDados } from "../useBloco";
 import { BlocoDeCategorias } from "./BlocoDeCategorias";
 import { BlocoDeIndicadores } from "./BlocoDeIndicadores";
 import { BlocoDeNotas } from "./BlocoDeNotas";
+import { BlocoDeMalAvaliados } from "./BlocoDeMalAvaliados";
 
 interface Propriedades {
   fonte: FonteDeDados;
@@ -37,6 +38,7 @@ export function PainelDeProdutos({ fonte, primeiroNome }: Propriedades) {
           <BlocoDeCategorias fonte={fonte} periodo={periodo} />
         </div>
       </div>
+      <BlocoDeMalAvaliados fonte={fonte} periodo={periodo} />
     </>
   );
 }
