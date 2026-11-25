@@ -13,6 +13,7 @@ COPY acesso ./acesso
 COPY api ./api
 COPY assistente ./assistente
 COPY consultas ./consultas
+COPY historico ./historico
 
 EXPOSE 8000
 CMD ["python", "-m", "api"]

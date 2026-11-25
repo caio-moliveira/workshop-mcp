@@ -10,6 +10,7 @@ import pytest
 from dotenv import load_dotenv
 
 import auditoria
+import historico
 from consultas import BancoDeDados
 from servidor_mcp import LimiteDeFrequencia
 
@@ -66,9 +67,18 @@ def conectar_como_vendas(banco: str | None = None) -> psycopg.Connection:
 BANCO_DA_AUDITORIA = auditoria.BANCO
 
 
-def conectar_como_auditoria() -> psycopg.Connection:
-    """Abre uma conexão no banco da auditoria com a credencial do papel `auditoria`."""
-    return _conectar(auditoria.PAPEL, variavel("SENHA_DO_PAPEL_AUDITORIA"), BANCO_DA_AUDITORIA)
+# O banco próprio do histórico das conversas, também fora da recarga (ADR 0009).
+BANCO_DO_HISTORICO = historico.BANCO
+
+
+def conectar_como_historico(banco: str = BANCO_DO_HISTORICO) -> psycopg.Connection:
+    """Abre uma conexão com a credencial do papel do histórico (por padrão, no banco dele)."""
+    return _conectar(historico.PAPEL, variavel("SENHA_DO_PAPEL_HISTORICO"), banco)
+
+
+def conectar_como_auditoria(banco: str = BANCO_DA_AUDITORIA) -> psycopg.Connection:
+    """Abre uma conexão com a credencial do papel `auditoria` (por padrão, no banco dele)."""
+    return _conectar(auditoria.PAPEL, variavel("SENHA_DO_PAPEL_AUDITORIA"), banco)
 
 
 def ultima_chamada_de(id_do_usuario: str) -> dict | None:

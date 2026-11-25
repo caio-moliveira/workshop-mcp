@@ -11,7 +11,7 @@ Uma pessoa da empresa que consulta os dados pelo `pulso.`, pela aplicação ou p
 _Avoid_: Cliente (que é quem compra), conta, login
 
 **Usuário de demonstração**:
-Um dos quatro usuários fictícios, um por perfil, que existem para mostrar o isolamento entre perfis.
+Um dos usuários fictícios que existem para mostrar o isolamento. Cada perfil tem um; Vendas tem dois, para mostrar também o isolamento entre usuários do mesmo perfil.
 _Avoid_: Usuário de teste, mock
 
 **Sessão**:
@@ -52,7 +52,15 @@ _Avoid_: Mensagem, saída, retorno
 
 **Conversa**:
 A sequência de perguntas e respostas de um usuário com o assistente.
-_Avoid_: Histórico (que é a conversa gravada), sessão, thread
+_Avoid_: Histórico (que é o conjunto das conversas gravadas), sessão, thread
+
+**Histórico**:
+As conversas gravadas de um usuário, que só ele reabre. Um usuário pode ter várias.
+_Avoid_: Conversa (que é uma só), auditoria (que é das chamadas), memória
+
+**Rastreio**:
+A lista das chamadas que produziram uma resposta, com a ferramenta, o desfecho e a duração de cada uma. O usuário a vê junto da resposta.
+_Avoid_: Auditoria (que é o registro permanente de todas as chamadas), log, trace
 
 **Assistente externo**:
 Um assistente de IA de terceiros, como o Claude ou o ChatGPT, conectado ao servidor MCP com o login do usuário.

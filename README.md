@@ -63,11 +63,12 @@ O Keycloak não guarda estado: a cada subida, importa `keycloak/realm/pulso.json
 
 A tela de login usa o tema `pulso`, em `keycloak/temas/pulso/login/`: herda os templates do tema `base` do Keycloak e troca a moldura (`template.ftl`), o estilo (`resources/css/pulso.css`, com os mesmos tokens de `frontend/src/estilos/tokens.css`) e os textos. Em modo de desenvolvimento o Keycloak não guarda temas em cache: uma mudança no tema aparece ao recarregar a tela.
 
-Usuários de demonstração, um por perfil, com as senhas em `backend/.env`:
+Usuários de demonstração, um por perfil e dois em Vendas (para mostrar que um não vê o histórico do outro), com as senhas em `backend/.env`:
 
 | Usuário | Nome | Perfil | Senha |
 | --- | --- | --- | --- |
 | `ana.vendas` | Ana Ribeiro | Vendas | `SENHA_DO_USUARIO_VENDAS` |
+| `vitor.vendas` | Vitor Nunes | Vendas | `SENHA_DO_USUARIO_VENDAS_VITOR` |
 | `bruno.produtos` | Bruno Costa | Produtos | `SENHA_DO_USUARIO_PRODUTOS` |
 | `carla.comercial` | Carla Mendes | Comercial | `SENHA_DO_USUARIO_COMERCIAL` |
 | `diego.diretoria` | Diego Almeida | Diretoria | `SENHA_DO_USUARIO_DIRETORIA` |
@@ -79,6 +80,7 @@ O perfil vem do grupo do usuário no realm e viaja no token como a claim `perfil
 - `GET /eu`: o nome e o perfil do usuário do token. Qualquer problema com o token (ausente, vencido, de outro serviço, assinatura, emissor, perfil) recebe `401` com a mesma resposta; o motivo fica só no log da API.
 - `GET /vendas/indicadores`, `/vendas/evolucao`, `/vendas/situacao-das-entregas` e `/vendas/pedidos-recentes`: os blocos do painel de Vendas, com `?periodo=` (`30d`, `90d`, `12m` ou `24m`; padrão `12m`).
 - `POST /assistente`: uma pergunta ao assistente. Veja a seção Assistente.
+- `GET /conversas`, `GET /conversas/{id}` e `DELETE /conversas/{id}`: o histórico do assistente, só do próprio usuário. Veja a seção Assistente.
 
 ## Servidor MCP
 
@@ -101,12 +103,13 @@ O comando imprime só o token de acesso, que vale 5 minutos. As aplicações sã
 
 ## Assistente
 
-O botão **Assistente**, na barra superior do frontend, abre um painel lateral em que o usuário pergunta em linguagem natural e vê a resposta chegar aos poucos. O agente mora na API (`backend/assistente`, com PydanticAI) e só obtém dados pelas ferramentas do servidor MCP: a cada pergunta, a API abre uma conexão nova com o servidor MCP pela rede interna e repassa o token de quem perguntou (RF-15). Por isso cada chamada aparece na auditoria com o usuário logado, conta no limite de frequência dele e só enxerga as ferramentas do perfil dele. A rota não tem regra de perfil própria, e a API não tem credencial própria para o servidor MCP.
+O botão **Assistente**, na barra superior do frontend, abre um painel lateral em que o usuário pergunta em linguagem natural e vê a resposta chegar aos poucos. No desktop, **Expandir o assistente** troca o painel por uma área central de leitura, com a lista de conversas à esquerda; abaixo de 768 px o painel ocupa a tela inteira e o botão **Conversas** mostra a lista. As respostas podem ter subtítulos e tabelas. O agente mora na API (`backend/assistente`, com PydanticAI) e só obtém dados pelas ferramentas do servidor MCP: a cada pergunta, a API abre uma conexão nova com o servidor MCP pela rede interna e repassa o token de quem perguntou (RF-15). Por isso cada chamada aparece na auditoria com o usuário logado, conta no limite de frequência dele e só enxerga as ferramentas do perfil dele. A rota não tem regra de perfil própria, e a API não tem credencial própria para o servidor MCP.
 
-- **Rota:** `POST /assistente`, com o token da aplicação (destinatário `pulso-api`). Corpo: `{"pergunta": "...", "conversa": [{"autor": "usuario", "texto": "..."}]}`, com `autor` `usuario` ou `assistente`; campos fora do previsto são recusados. Antes da resposta, erros JSON no formato da API: `401` para token recusado, `400` para pergunta vazia ou acima dos tetos, `503` sem modelo ou sem chave. Depois, um fluxo de eventos (SSE): `texto` (um trecho), `estado` (consultando os dados, sem nome de ferramenta) e, no fim, exatamente um `fim` (com `aviso` quando o teto de chamadas foi atingido) ou um `erro` (sessão expirada, assistente indisponível ou tempo esgotado, sem nome interno). Se o cliente desconecta, a execução é cancelada.
-- **Conversa:** fica só no navegador, acima das páginas; continua ao fechar o painel e ao trocar de página, e some ao recarregar e ao sair. O histórico gravado é da entrega 5b.
+- **Rota:** `POST /assistente`, com o token da aplicação (destinatário `pulso-api`). Corpo: `{"pergunta": "...", "id_da_conversa": "..."}`, com o identificador opcional: sem ele, nasce uma conversa nova, com o começo da pergunta como título; campos fora do previsto são recusados, entre eles a `conversa` reenviada da 5a. Antes da resposta, erros JSON no formato da API: `401` para token recusado, `400` para pergunta vazia ou acima dos tetos, `404` para conversa inexistente, de outro usuário ou com identificador fora do formato, `503` sem modelo, sem chave ou com o histórico fora do ar. Depois, um fluxo de eventos (SSE): `conversa` (o primeiro, com `id_da_conversa` e `id_da_pergunta`), `texto` (um trecho), `estado` (consultando os dados, sem nome de ferramenta), `chamada` (uma por chamada de ferramenta terminada, com `ferramenta`, `desfecho`, `concluida` ou `nao_concluida`, e `milissegundos`) e, no fim, exatamente um `fim` (com `aviso` quando o teto de chamadas foi atingido) ou um `erro` (sessão expirada, assistente indisponível ou tempo esgotado, sem nome interno). Se o cliente desconecta, a execução é cancelada.
+- **Conversa:** gravada no banco `historico` (ADR 0009): a pergunta antes de o modelo ser chamado e a resposta ao terminar, em qualquer desfecho, com o texto emitido e a situação. A continuação lê do banco os pares de pergunta e resposta com texto, cada resposta junto da pergunta dela pelo identificador da pergunta, e entrega ao modelo os 20 itens mais recentes desses pares; o navegador não envia mais a conversa. `GET /conversas` lista as 50 conversas mais recentes do usuário, com título e última atividade; `GET /conversas/{id}` lê uma, com perguntas, respostas, situações e rastreio; `DELETE /conversas/{id}` a apaga de vez, sem tocar na auditoria. A conversa de outro usuário, do mesmo perfil ou de outro, recebe o mesmo `404` da inexistente (RF-18). O painel abre numa conversa nova a cada carga da página, e o navegador não guarda nada do histórico.
+- **Rastreio:** cada resposta tem o bloco retrátil "Como esta resposta foi obtida", fechado por padrão: por chamada, a ferramenta pedida, se foi concluída e a duração, e o identificador da pergunta. Sem parâmetros nem texto de erro; uma chamada negada aparece como não concluída, com o nome pedido. O rastreio fica gravado com a resposta.
 - **Pergunta sugerida:** só Vendas tem uma ("O que está causando os atrasos?").
-- **Log:** a API registra o início, o fim e o erro de cada pergunta, com o identificador do usuário e sem o texto da pergunta.
+- **Log:** cada pergunta tem um identificador (UUID), que a API repassa ao servidor MCP num cabeçalho. Ele aparece em três linhas: a da pergunta, na API (início, fim e erro, com a conversa e o usuário); a de cada chamada, no servidor MCP; e a de cada consulta executada, com o nome e a duração (as consultas das telas saem "sem pergunta"). O texto da pergunta não vai para o log, e a auditoria não guarda o identificador. Para acompanhar uma pergunta: `docker compose logs api mcp | grep <identificador>`, com o identificador do bloco de rastreio.
 
 Variáveis, no `backend/.env` (todas com padrão; veja `backend/.env.example`):
 
@@ -115,11 +118,11 @@ Variáveis, no `backend/.env` (todas com padrão; veja `backend/.env.example`):
 | `MODELO_DO_ASSISTENTE` | `anthropic:claude-haiku-5-5` | O modelo, no formato `provedor:modelo` do PydanticAI. Trocar é mudar a linha e recriar só a API: `docker compose up -d --no-deps --wait api` (RF-16) |
 | `ANTHROPIC_API_KEY` | vazia | A chave do provedor do modelo padrão, na variável que o provedor lê (outro provedor lê a própria). Vazia, o ambiente sobe normalmente, a rota responde 503 e o painel avisa que o assistente está indisponível |
 | `LIMITE_DE_CHAMADAS_POR_PERGUNTA` | `8` | Chamadas de ferramenta por pergunta; ao atingir, a resposta termina com um aviso |
-| `LIMITE_DE_CARACTERES_DA_PERGUNTA` | `2000` | Caracteres da pergunta e de cada item da conversa reenviada (até 20 itens); acima, 400 |
+| `LIMITE_DE_CARACTERES_DA_PERGUNTA` | `2000` | Caracteres da pergunta; acima, 400 |
 | `TEMPO_MAXIMO_DA_PERGUNTA_EM_SEGUNDOS` | `60` | Tempo máximo de uma pergunta; ao passar, a resposta termina com erro |
 | `ENDERECO_INTERNO_DO_MCP` | `http://mcp:8001/mcp` | Onde a API chama o servidor MCP; o `compose.yaml` já o define para o serviço `api` |
 
-A chave do provedor não vai para o repositório, para o log nem para as mensagens de erro. O passo a passo com o modelo real está em `docs/demonstracao/entrega-5a.md`.
+A chave do provedor não vai para o repositório, para o log nem para as mensagens de erro. O passo a passo com o modelo real está em `docs/demonstracao/entrega-5a.md` e, para o histórico, o rastreio e o modo expandido, em `docs/demonstracao/entrega-5b.md`.
 
 ## Frontend
 
@@ -154,13 +157,14 @@ npm test
 npm run build
 ```
 
-`npm test` roda o Vitest nas funções puras: formatação, período da URL, variação, validação das respostas da API e, do assistente, a leitura do fluxo de eventos, o estado da conversa, o teto de caracteres e a rede.
+`npm test` roda o Vitest nas funções puras: formatação, período da URL, variação, validação das respostas da API e, do assistente, a leitura do fluxo de eventos, o estado da conversa, a lista de conversas, o Markdown com tabelas, o painel (lateral e expandido), o teto de caracteres e a rede.
 
 ## Credenciais do banco
 
 - `dono` (`POSTGRES_USER`): usado pela carga; recria o banco inteiro.
 - `vendas` (`SENHA_DO_PAPEL_VENDAS`): lê apenas o esquema `vendas`, a camada de leitura do perfil Vendas, e é recusado nos dados de origem (ADR 0002).
 - `auditoria` (`SENHA_DO_PAPEL_AUDITORIA`): usado pelo servidor MCP; só insere na tabela da auditoria, sem ler, alterar nem apagar (ADR 0008).
+- `historico` (`SENHA_DO_PAPEL_HISTORICO`): usado só pela API; lê, grava e apaga as conversas no banco `historico` e não se conecta a nenhum outro banco (ADR 0009).
 
 As senhas ficam em `backend/.env`, que não é versionado.
 
@@ -168,7 +172,7 @@ A API lê o banco só pelo mecanismo de consultas (`backend/consultas`): cada co
 
 ## Recarga
 
-A recarga roda só a carga, que derruba o banco e o recria (ADR 0001). Os outros serviços continuam no ar.
+A recarga roda só a carga, que derruba o banco e o recria (ADR 0001). Os outros serviços continuam no ar, e os bancos `auditoria` e `historico` ficam como estavam; só `docker compose down -v` os apaga.
 
 ```
 docker compose run --rm --build carga
@@ -207,6 +211,7 @@ Os roteiros, com comandos e resultados esperados, estão em `docs/demonstracao/`
 - Entrega 4a, servidor MCP de Vendas: `docs/demonstracao/entrega-4a.md`.
 - Entrega 4b, auditoria e limite de frequência: `docs/demonstracao/entrega-4b.md`.
 - Entrega 5a, chat de Vendas no painel lateral: `docs/demonstracao/entrega-5a.md`.
+- Entrega 5b, chat expandido, rastreio e histórico: `docs/demonstracao/entrega-5b.md`.
 
 ## Parar o ambiente
 

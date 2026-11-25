@@ -48,6 +48,11 @@ class UsuarioDeDemonstracao:
 
 USUARIOS_DE_DEMONSTRACAO = [
     UsuarioDeDemonstracao("ana.vendas", "SENHA_DO_USUARIO_VENDAS", "Ana Ribeiro", Perfil.VENDAS),
+    # O segundo usuário de Vendas mostra que um usuário não vê o histórico de outro do mesmo
+    # perfil (RF-08, RF-18). Fica depois da Ana: quem pede "o usuário de um perfil" recebe ela.
+    UsuarioDeDemonstracao(
+        "vitor.vendas", "SENHA_DO_USUARIO_VENDAS_VITOR", "Vitor Nunes", Perfil.VENDAS
+    ),
     UsuarioDeDemonstracao(
         "bruno.produtos", "SENHA_DO_USUARIO_PRODUTOS", "Bruno Costa", Perfil.PRODUTOS
     ),

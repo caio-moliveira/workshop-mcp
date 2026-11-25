@@ -2,12 +2,15 @@
  * O estado da conversa com o assistente, sem React nem rede: cada pergunta enviada abre uma
  * resposta, e os eventos do fluxo vão preenchendo a resposta em andamento.
  *
+ * A conversa fica gravada na API (ADR 0009): daqui só sai o identificador dela com a pergunta
+ * seguinte, nunca as perguntas e respostas anteriores.
+ *
  * Para estender: uma situação nova em `RespostaDoAssistente` e o caso dela em `receber` ou numa
  * função irmã de `enviar`.
  */
-import type { EventoDaResposta } from "./fluxo";
-import { cortarNoLimite, ITENS_DA_CONVERSA, passouDoLimite } from "./limites";
-import type { ItemDaConversa } from "./rede";
+import { eChamadaDoRastreio, type ChamadaDoRastreio, type EventoDaResposta } from "./fluxo";
+import { passouDoLimite } from "./limites";
+import type { CorpoDaPergunta } from "./rede";
 
 export interface PerguntaDoUsuario {
   autor: "usuario";
@@ -25,15 +28,104 @@ export interface RespostaDoAssistente {
   erro?: string;
   /** O aviso do fim (teto de chamadas): a resposta concluiu, mas parou antes. */
   aviso?: string;
+  /** O identificador da pergunta que a API deu, quando o fluxo chegou a começar. */
+  idDaPergunta?: string;
+  /** As chamadas terminadas que produziram a resposta, em ordem; vazio se nada foi consultado. */
+  rastreio: readonly ChamadaDoRastreio[];
 }
 
 export type PerguntaOuResposta = PerguntaDoUsuario | RespostaDoAssistente;
 
 export interface Conversa {
+  /** A conversa gravada na API, depois que a primeira resposta começou; antes, nenhuma. */
+  id?: string;
   perguntasERespostas: readonly PerguntaOuResposta[];
 }
 
 export const CONVERSA_VAZIA: Conversa = { perguntasERespostas: [] };
+
+/** Começa outra conversa: a próxima pergunta vai sem identificador, e a API abre uma nova. */
+export function comecarNova(): Conversa {
+  return CONVERSA_VAZIA;
+}
+
+/** Como uma resposta terminada fica gravada: nunca "chegando". */
+type SituacaoGravada = Exclude<RespostaDoAssistente["situacao"], "chegando">;
+
+/** Um item da conversa como a rota `GET /conversas/{id}` o devolve: só os campos que ele tem. */
+export type ItemLido =
+  | { autor: "usuario"; texto: string }
+  | {
+      autor: "assistente";
+      texto: string;
+      situacao: SituacaoGravada;
+      aviso?: string;
+      erro?: string;
+      id_da_pergunta?: string;
+      rastreio: ChamadaDoRastreio[];
+    };
+
+/** A conversa lida do histórico, no contrato da rota. */
+export interface ConversaLida {
+  id: string;
+  titulo: string;
+  itens: ItemLido[];
+}
+
+/** A conversa como estava na tela quando foi gravada; a pergunta seguinte a continua. */
+export function carregar(lida: ConversaLida): Conversa {
+  return {
+    id: lida.id,
+    perguntasERespostas: lida.itens.map((item): PerguntaOuResposta => {
+      if (item.autor === "usuario") return { autor: "usuario", texto: item.texto };
+      const resposta: RespostaDoAssistente = {
+        autor: "assistente",
+        texto: item.texto,
+        situacao: item.situacao,
+        consultando: false,
+        rastreio: item.rastreio,
+      };
+      if (item.aviso) resposta.aviso = item.aviso;
+      if (item.erro) resposta.erro = item.erro;
+      if (item.id_da_pergunta) resposta.idDaPergunta = item.id_da_pergunta;
+      return resposta;
+    }),
+  };
+}
+
+const SITUACOES_GRAVADAS: readonly unknown[] = ["concluida", "erro", "interrompida"];
+
+/** A resposta de `GET /conversas/{id}` está no contrato. Fora dele, não vira conversa na tela. */
+export function eConversaLida(valor: unknown): valor is ConversaLida {
+  if (typeof valor !== "object" || valor === null) return false;
+  const { id, titulo, itens } = valor as Record<string, unknown>;
+  return (
+    typeof id === "string" &&
+    typeof titulo === "string" &&
+    Array.isArray(itens) &&
+    itens.every(eItemLido)
+  );
+}
+
+function eItemLido(valor: unknown): boolean {
+  if (typeof valor !== "object" || valor === null) return false;
+  const item = valor as Record<string, unknown>;
+  if (typeof item.texto !== "string") return false;
+  if (item.autor === "usuario") return true;
+  return (
+    item.autor === "assistente" &&
+    SITUACOES_GRAVADAS.includes(item.situacao) &&
+    opcionalDeTexto(item.aviso) &&
+    opcionalDeTexto(item.erro) &&
+    opcionalDeTexto(item.id_da_pergunta) &&
+    Array.isArray(item.rastreio) &&
+    item.rastreio.every(eChamadaDoRastreio)
+  );
+}
+
+function opcionalDeTexto(valor: unknown): boolean {
+  return valor === undefined || typeof valor === "string";
+}
 
 function respostaEmAndamento(conversa: Conversa): RespostaDoAssistente | null {
   const ultima = conversa.perguntasERespostas.at(-1);
@@ -54,10 +146,11 @@ export function podeEnviar(conversa: Conversa, pergunta: string): boolean {
 export function enviar(conversa: Conversa, pergunta: string): Conversa {
   if (!podeEnviar(conversa, pergunta)) return conversa;
   return {
+    ...conversa,
     perguntasERespostas: [
       ...conversa.perguntasERespostas,
       { autor: "usuario", texto: pergunta },
-      { autor: "assistente", texto: "", situacao: "chegando", consultando: false },
+      { autor: "assistente", texto: "", situacao: "chegando", consultando: false, rastreio: [] },
     ],
   };
 }
@@ -68,12 +161,22 @@ export function receber(conversa: Conversa, evento: EventoDaResposta): Conversa 
   if (!atual) return conversa;
   let nova: RespostaDoAssistente;
   switch (evento.tipo) {
+    case "conversa":
+      return comResposta(
+        { ...conversa, id: evento.idDaConversa },
+        { ...atual, idDaPergunta: evento.idDaPergunta },
+      );
     case "texto":
       nova = { ...atual, texto: atual.texto + evento.texto, consultando: false };
       break;
     case "estado":
       nova = { ...atual, consultando: true };
       break;
+    case "chamada": {
+      const { ferramenta, desfecho, milissegundos } = evento;
+      nova = { ...atual, rastreio: [...atual.rastreio, { ferramenta, desfecho, milissegundos }] };
+      break;
+    }
     case "fim":
       nova = { ...atual, situacao: "concluida", consultando: false };
       if (evento.aviso) nova.aviso = evento.aviso;
@@ -82,37 +185,25 @@ export function receber(conversa: Conversa, evento: EventoDaResposta): Conversa 
       nova = { ...atual, situacao: "erro", consultando: false, erro: evento.mensagem };
       break;
   }
-  return { perguntasERespostas: [...conversa.perguntasERespostas.slice(0, -1), nova] };
+  return comResposta(conversa, nova);
+}
+
+/** A conversa com a resposta em andamento trocada pela nova. */
+function comResposta(conversa: Conversa, nova: RespostaDoAssistente): Conversa {
+  return { ...conversa, perguntasERespostas: [...conversa.perguntasERespostas.slice(0, -1), nova] };
 }
 
 /** O usuário parou a resposta em andamento: o texto recebido fica, e o envio é liberado. */
 export function parar(conversa: Conversa): Conversa {
   const atual = respostaEmAndamento(conversa);
   if (!atual) return conversa;
-  const nova: RespostaDoAssistente = { ...atual, situacao: "interrompida", consultando: false };
-  return { perguntasERespostas: [...conversa.perguntasERespostas.slice(0, -1), nova] };
+  return comResposta(conversa, { ...atual, situacao: "interrompida", consultando: false });
 }
 
 /**
- * A conversa anterior que vai com a pergunta seguinte: cada pergunta com a sua resposta, só quando
- * a resposta foi concluída. Uma resposta interrompida, com erro ou ainda chegando fica de fora, e a
- * pergunta dela também, para o modelo não receber uma pergunta sem resposta.
- *
- * Vai só o que a API aceita: os pares mais recentes que cabem no teto de itens, e cada texto
- * dentro do teto de caracteres, cortado com a marca quando passa.
+ * O corpo da pergunta: o texto e, depois que a API gravou a conversa, o identificador dela. A API
+ * lê do histórico o que entrega ao modelo; uma conversa reenviada daqui seria recusada.
  */
-export function itensParaEnviar(conversa: Conversa): ItemDaConversa[] {
-  const itens: ItemDaConversa[] = [];
-  conversa.perguntasERespostas.forEach((item, indice) => {
-    if (item.autor !== "assistente" || item.situacao !== "concluida") return;
-    const pergunta = conversa.perguntasERespostas[indice - 1];
-    if (pergunta?.autor !== "usuario") return;
-    itens.push(
-      { autor: "usuario", texto: cortarNoLimite(pergunta.texto) },
-      { autor: "assistente", texto: cortarNoLimite(item.texto) },
-    );
-  });
-  // Um número par de itens: nenhum par pergunta e resposta fica pela metade.
-  const cabem = ITENS_DA_CONVERSA - (ITENS_DA_CONVERSA % 2);
-  return itens.slice(Math.max(0, itens.length - cabem));
+export function corpoDaPergunta(conversa: Conversa, pergunta: string): CorpoDaPergunta {
+  return conversa.id ? { pergunta, id_da_conversa: conversa.id } : { pergunta };
 }

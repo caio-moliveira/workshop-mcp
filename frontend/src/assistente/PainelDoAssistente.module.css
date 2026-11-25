@@ -78,6 +78,21 @@
   background: var(--surface-muted);
 }
 
+/* Abaixo do cabeçalho: no painel lateral, só a coluna de leitura; no expandido, lista e leitura. */
+.corpo {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.leitura {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
 .conversa {
   flex: 1;
   display: flex;
@@ -257,6 +272,138 @@
 .enviar:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+/*
+ * Modo expandido (FE §8): o painel toma a área de conteúdo, abaixo da barra superior e ao lado da
+ * sidebar, com a lista de conversas à esquerda e a conversa numa coluna central de leitura. A
+ * entrada é só de opacidade, em 180 ms; `prefers-reduced-motion` a desliga no estilo global.
+ */
+.expandido {
+  left: var(--largura-sidebar);
+  width: auto;
+  max-width: none;
+  box-shadow: none;
+  animation: entrada-expandida 180ms ease both;
+}
+
+@keyframes entrada-expandida {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Cabeçalho editorial: a marca maior, alinhada à margem do conteúdo das páginas. */
+.expandido .cabecalho {
+  padding: var(--espaco-4) var(--margem-conteudo);
+}
+
+.expandido .titulo {
+  font-family: var(--fonte-marca);
+  font-size: var(--texto-titulo-secao);
+}
+
+.expandido .corpo {
+  display: grid;
+  grid-template-columns: var(--largura-da-lista-de-conversas) minmax(0, 1fr);
+}
+
+.colunaDasConversas {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco-3);
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--espaco-6) var(--espaco-4);
+  border-right: 1px solid var(--border);
+  background: var(--bg-app);
+}
+
+.tituloDaColuna {
+  margin: 0;
+  padding-inline: var(--espaco-3);
+  font-size: var(--texto-label);
+  font-weight: var(--peso-semibold);
+  color: var(--text-secondary);
+}
+
+/* A coluna de leitura fica no centro, com 760 a 860 px (o token fica no meio da faixa). */
+.expandido .leitura {
+  width: 100%;
+  max-width: var(--largura-da-leitura);
+  margin-inline: auto;
+}
+
+.expandido .conversa {
+  gap: var(--espaco-6);
+  padding: var(--espaco-8) var(--espaco-6);
+}
+
+.expandido .composer {
+  border-top: 0;
+  padding-bottom: var(--espaco-8);
+}
+
+/* A conversa vazia no modo expandido: manchete, convite curto e sugestões em linhas. */
+.abertura {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco-3);
+  padding-top: var(--espaco-8);
+}
+
+.manchete {
+  margin: 0;
+  font-family: var(--fonte-marca);
+  font-size: var(--texto-titulo-pagina);
+  font-weight: var(--peso-semibold);
+  line-height: 1.2;
+  color: var(--text-primary);
+}
+
+.convite {
+  max-width: 60ch;
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.sugestoes {
+  margin: var(--espaco-4) 0 0;
+  padding: 0;
+  border-top: 1px solid var(--border);
+  list-style: none;
+}
+
+.linhaDeSugestao {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--espaco-4);
+  width: 100%;
+  padding: var(--espaco-3) var(--espaco-2);
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--transicao-rapida);
+}
+
+.linhaDeSugestao::after {
+  content: "→";
+  color: var(--text-tertiary);
+}
+
+.linhaDeSugestao:hover {
+  background: var(--surface-muted);
+}
+
+/* Sem a sidebar fixa (FE §11), a área expandida começa na borda esquerda. */
+@media (max-width: 1023px) {
+  .expandido {
+    left: 0;
+  }
 }
 
 @media (max-width: 767px) {

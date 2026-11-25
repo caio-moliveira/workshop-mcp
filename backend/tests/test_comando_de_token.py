@@ -95,7 +95,7 @@ def test_pedido_que_nao_da_para_atender_termina_com_erro_claro(argumentos, mensa
 
 
 def test_o_erro_de_usuario_ou_aplicacao_desconhecidos_diz_quais_existem():
-    assert "ana.vendas, bruno.produtos, carla.comercial, diego.diretoria" in (
+    assert "ana.vendas, vitor.vendas, bruno.produtos, carla.comercial, diego.diretoria" in (
         _rodar("fulano.inexistente", "pulso-web").stderr
     )
     assert (

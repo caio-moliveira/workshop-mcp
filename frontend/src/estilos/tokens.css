@@ -71,6 +71,8 @@
 
   /* §8 Assistente */
   --largura-do-assistente: 420px;
+  --largura-da-leitura: 820px;
+  --largura-da-lista-de-conversas: 280px;
 
   /* §10 Interações */
   --transicao-rapida: 140ms ease;

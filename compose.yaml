@@ -24,8 +24,9 @@ services:
       retries: 30
 
   # Roda uma vez e termina; sobe o Postgres antes, pela dependência. Também cria o banco, o papel
-  # e a tabela da auditoria, se faltarem, sem nunca apagá-los (ADR 0008); a senha do papel,
-  # SENHA_DO_PAPEL_AUDITORIA, vem do .env.
+  # e a tabela da auditoria, se faltarem, sem nunca apagá-los (ADR 0008), e o mesmo para o banco
+  # do histórico das conversas (ADR 0009); as senhas dos papéis, SENHA_DO_PAPEL_AUDITORIA e
+  # SENHA_DO_PAPEL_HISTORICO, vêm do .env.
   carga:
     build:
       context: backend
@@ -88,7 +89,8 @@ services:
   # só pelo mecanismo de consultas, com o papel do perfil de quem pede. O assistente chama o
   # servidor MCP pela rede interna, com o token de quem pergunta; o modelo vem de
   # MODELO_DO_ASSISTENTE e a chave, da variável do provedor (ANTHROPIC_API_KEY), as duas do
-  # .env. Sem a chave, a API sobe assim mesmo e só o assistente fica indisponível.
+  # .env. Sem a chave, a API sobe assim mesmo e só o assistente fica indisponível. Grava e lê as
+  # conversas no banco do histórico com o papel `historico` (SENHA_DO_PAPEL_HISTORICO, do .env).
   api:
     build:
       context: backend

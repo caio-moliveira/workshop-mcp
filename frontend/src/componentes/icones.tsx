@@ -52,6 +52,49 @@ export function IconeAssistente() {
   );
 }
 
+export function IconeNovaConversa() {
+  return (
+    <Icone>
+      <path d="M12 5v14M5 12h14" />
+    </Icone>
+  );
+}
+
+/** A lista de conversas do histórico. */
+export function IconeConversas() {
+  return (
+    <Icone>
+      <path d="M4 6h16M4 12h16M4 18h10" />
+    </Icone>
+  );
+}
+
+/** Expandir o painel do assistente para a área de leitura. */
+export function IconeExpandir() {
+  return (
+    <Icone>
+      <path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7" />
+    </Icone>
+  );
+}
+
+/** Recolher a área de leitura de volta ao painel lateral. */
+export function IconeRecolher() {
+  return (
+    <Icone>
+      <path d="M20 10h-6V4M4 14h6v6M14 10l7-7M10 14l-7 7" />
+    </Icone>
+  );
+}
+
+export function IconeLixeira() {
+  return (
+    <Icone>
+      <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" />
+    </Icone>
+  );
+}
+
 export function IconeEnviar() {
   return (
     <Icone>
