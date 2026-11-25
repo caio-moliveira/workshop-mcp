@@ -6,6 +6,7 @@
  * `RespostaDoAssistente` e o caso dela em `receber` ou numa função irmã de `enviar`.
  */
 import type { EventoDaResposta } from "./fluxo";
+import { passouDoLimite } from "./limites";
 
 export interface PerguntaDoUsuario {
   autor: "usuario";
@@ -43,9 +44,9 @@ export function respondendo(conversa: Conversa): boolean {
   return respostaEmAndamento(conversa) !== null;
 }
 
-/** Só uma pergunta por vez, e nunca em branco. */
+/** Só uma pergunta por vez, nunca em branco e dentro do teto de caracteres. */
 export function podeEnviar(conversa: Conversa, pergunta: string): boolean {
-  return pergunta.trim() !== "" && !respondendo(conversa);
+  return pergunta.trim() !== "" && !passouDoLimite(pergunta) && !respondendo(conversa);
 }
 
 /** A pergunta entra na conversa com a resposta dela ainda vazia. Sem envio possível, nada muda. */
