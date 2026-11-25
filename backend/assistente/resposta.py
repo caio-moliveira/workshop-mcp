@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import uuid
 from collections.abc import AsyncIterator, Generator, Iterable
 from dataclasses import dataclass, field
 from typing import Any, Literal
@@ -43,7 +44,7 @@ Responda em Markdown simples e curto: parágrafos, negrito e listas."""
 
 
 class ItemDaConversa(BaseModel):
-    """Uma pergunta ou resposta anterior da conversa, como o navegador a guardou."""
+    """Uma pergunta ou resposta anterior da conversa, como o modelo a recebe."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -51,7 +52,7 @@ class ItemDaConversa(BaseModel):
     texto: str
 
 
-TipoDeEvento = Literal["texto", "estado", "fim", "erro"]
+TipoDeEvento = Literal["conversa", "texto", "estado", "fim", "erro"]
 
 
 @dataclass(frozen=True)
@@ -60,6 +61,13 @@ class Evento:
 
     tipo: TipoDeEvento
     dados: dict[str, Any] = field(default_factory=dict)
+
+
+def conversa(id_da_conversa: uuid.UUID, id_da_pergunta: uuid.UUID) -> Evento:
+    """O primeiro evento: a conversa em que a pergunta foi gravada e o identificador dela."""
+    return Evento(
+        "conversa", {"id_da_conversa": str(id_da_conversa), "id_da_pergunta": str(id_da_pergunta)}
+    )
 
 
 def texto(trecho: str) -> Evento:

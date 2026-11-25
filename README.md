@@ -103,8 +103,8 @@ O comando imprime só o token de acesso, que vale 5 minutos. As aplicações sã
 
 O botão **Assistente**, na barra superior do frontend, abre um painel lateral em que o usuário pergunta em linguagem natural e vê a resposta chegar aos poucos. O agente mora na API (`backend/assistente`, com PydanticAI) e só obtém dados pelas ferramentas do servidor MCP: a cada pergunta, a API abre uma conexão nova com o servidor MCP pela rede interna e repassa o token de quem perguntou (RF-15). Por isso cada chamada aparece na auditoria com o usuário logado, conta no limite de frequência dele e só enxerga as ferramentas do perfil dele. A rota não tem regra de perfil própria, e a API não tem credencial própria para o servidor MCP.
 
-- **Rota:** `POST /assistente`, com o token da aplicação (destinatário `pulso-api`). Corpo: `{"pergunta": "...", "conversa": [{"autor": "usuario", "texto": "..."}]}`, com `autor` `usuario` ou `assistente`; campos fora do previsto são recusados. Antes da resposta, erros JSON no formato da API: `401` para token recusado, `400` para pergunta vazia ou acima dos tetos, `503` sem modelo ou sem chave. Depois, um fluxo de eventos (SSE): `texto` (um trecho), `estado` (consultando os dados, sem nome de ferramenta) e, no fim, exatamente um `fim` (com `aviso` quando o teto de chamadas foi atingido) ou um `erro` (sessão expirada, assistente indisponível ou tempo esgotado, sem nome interno). Se o cliente desconecta, a execução é cancelada.
-- **Conversa:** fica só no navegador, acima das páginas; continua ao fechar o painel e ao trocar de página, e some ao recarregar e ao sair. O histórico gravado é da entrega 5b.
+- **Rota:** `POST /assistente`, com o token da aplicação (destinatário `pulso-api`). Corpo: `{"pergunta": "...", "id_da_conversa": "..."}`, com o identificador opcional: sem ele, nasce uma conversa nova, com o começo da pergunta como título; campos fora do previsto são recusados, entre eles a `conversa` reenviada da 5a. Antes da resposta, erros JSON no formato da API: `401` para token recusado, `400` para pergunta vazia ou acima dos tetos, `404` para conversa inexistente ou de outro usuário, `503` sem modelo, sem chave ou com o histórico fora do ar. Depois, um fluxo de eventos (SSE): `conversa` (o primeiro, com `id_da_conversa` e `id_da_pergunta`), `texto` (um trecho), `estado` (consultando os dados, sem nome de ferramenta) e, no fim, exatamente um `fim` (com `aviso` quando o teto de chamadas foi atingido) ou um `erro` (sessão expirada, assistente indisponível ou tempo esgotado, sem nome interno). Se o cliente desconecta, a execução é cancelada.
+- **Conversa:** gravada no banco `historico` (ADR 0009): a pergunta antes de o modelo ser chamado e a resposta ao terminar, em qualquer desfecho, com o texto emitido e a situação. A continuação lê do banco os últimos pares de pergunta e resposta com texto (até 20 itens); o navegador não envia mais a conversa. `GET /conversas/{id}` lê uma conversa do usuário; a de outro usuário recebe o mesmo `404` da inexistente. O painel abre numa conversa nova a cada carga da página.
 - **Pergunta sugerida:** só Vendas tem uma ("O que está causando os atrasos?").
 - **Log:** a API registra o início, o fim e o erro de cada pergunta, com o identificador do usuário e sem o texto da pergunta.
 
@@ -115,7 +115,7 @@ Variáveis, no `backend/.env` (todas com padrão; veja `backend/.env.example`):
 | `MODELO_DO_ASSISTENTE` | `anthropic:claude-haiku-5-5` | O modelo, no formato `provedor:modelo` do PydanticAI. Trocar é mudar a linha e recriar só a API: `docker compose up -d --no-deps --wait api` (RF-16) |
 | `ANTHROPIC_API_KEY` | vazia | A chave do provedor do modelo padrão, na variável que o provedor lê (outro provedor lê a própria). Vazia, o ambiente sobe normalmente, a rota responde 503 e o painel avisa que o assistente está indisponível |
 | `LIMITE_DE_CHAMADAS_POR_PERGUNTA` | `8` | Chamadas de ferramenta por pergunta; ao atingir, a resposta termina com um aviso |
-| `LIMITE_DE_CARACTERES_DA_PERGUNTA` | `2000` | Caracteres da pergunta e de cada item da conversa reenviada (até 20 itens); acima, 400 |
+| `LIMITE_DE_CARACTERES_DA_PERGUNTA` | `2000` | Caracteres da pergunta; acima, 400 |
 | `TEMPO_MAXIMO_DA_PERGUNTA_EM_SEGUNDOS` | `60` | Tempo máximo de uma pergunta; ao passar, a resposta termina com erro |
 | `ENDERECO_INTERNO_DO_MCP` | `http://mcp:8001/mcp` | Onde a API chama o servidor MCP; o `compose.yaml` já o define para o serviço `api` |
 
@@ -161,6 +161,7 @@ npm run build
 - `dono` (`POSTGRES_USER`): usado pela carga; recria o banco inteiro.
 - `vendas` (`SENHA_DO_PAPEL_VENDAS`): lê apenas o esquema `vendas`, a camada de leitura do perfil Vendas, e é recusado nos dados de origem (ADR 0002).
 - `auditoria` (`SENHA_DO_PAPEL_AUDITORIA`): usado pelo servidor MCP; só insere na tabela da auditoria, sem ler, alterar nem apagar (ADR 0008).
+- `historico` (`SENHA_DO_PAPEL_HISTORICO`): usado só pela API; lê, grava e apaga as conversas no banco `historico` e não se conecta a nenhum outro banco (ADR 0009).
 
 As senhas ficam em `backend/.env`, que não é versionado.
 

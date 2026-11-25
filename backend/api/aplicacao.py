@@ -1,16 +1,19 @@
 """Fábrica da aplicação FastAPI."""
 
 import logging
-from collections.abc import AsyncIterator, Callable
+import uuid
+from collections.abc import AsyncIterator, Callable, Iterable
+from dataclasses import dataclass
 from typing import Annotated
 
+import anyio
 from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.routing import APIRoute
 from fastapi.sse import EventSourceResponse, ServerSentEvent
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+from pydantic import BaseModel, ConfigDict, StringConstraints
 from pydantic_ai.models import Model
 from starlette.datastructures import QueryParams
 
@@ -22,9 +25,10 @@ from acesso import (
     autenticar,
     mensagens,
 )
-from assistente import Assistente, ItemDaConversa, Limites
+from assistente import Assistente, Evento, ItemDaConversa, Limites
 from assistente.limites import ITENS_DA_CONVERSA
 from assistente.limites import PADRAO as LIMITES_PADRAO
+from assistente.resposta import conversa as evento_da_conversa
 from consultas import (
     PERIODO_PADRAO,
     AcessoNegado,
@@ -34,6 +38,15 @@ from consultas import (
     ParametroInvalido,
     Periodo,
     vendas,
+)
+from historico import (
+    ConversaGravada,
+    ConversaInexistente,
+    Historico,
+    HistoricoIndisponivel,
+    ItemGravado,
+    RespostaParaGravar,
+    Situacao,
 )
 
 registro = logging.getLogger("api")
@@ -46,20 +59,35 @@ PARAMETRO_INVALIDO = {"erro": mensagens.PARAMETRO_INVALIDO}
 INDISPONIVEL = {"erro": mensagens.SERVICO_INDISPONIVEL}
 ERRO_INTERNO = {"erro": mensagens.ERRO_INTERNO}
 ASSISTENTE_INDISPONIVEL = {"erro": mensagens.ASSISTENTE_INDISPONIVEL}
+CONVERSA_INEXISTENTE = {"erro": mensagens.CONVERSA_INEXISTENTE}
 
 # As rotas que só exigem um usuário autenticado, sem perfil. Toda outra rota serve uma consulta,
 # e o perfil é o que a consulta declara (RS-05). O assistente não tem regra de perfil própria: o
 # que ele alcança é o que o servidor MCP lista e permite para o token do usuário (RF-13).
-ROTAS_SO_AUTENTICADAS = frozenset({"/eu", "/assistente"})
+# O histórico também não: cada usuário só alcança as próprias conversas, com o perfil que tinha
+# ao criá-las (RF-18).
+ROTAS_SO_AUTENTICADAS = frozenset({"/eu", "/assistente", "/conversas/{id_da_conversa}"})
 
 
 class Pergunta(BaseModel):
-    """O corpo da rota do assistente. Campos fora do previsto são recusados."""
+    """O corpo da rota do assistente. Campos fora do previsto são recusados, entre eles a conversa
+    reenviada da 5a: o que vai ao modelo é a conversa gravada, nunca a do navegador (ADR 0009)."""
 
     model_config = ConfigDict(extra="forbid")
 
     pergunta: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
-    conversa: list[ItemDaConversa] = Field(default_factory=list, max_length=ITENS_DA_CONVERSA)
+    # Sem ele, a pergunta abre uma conversa nova.
+    id_da_conversa: uuid.UUID | None = None
+
+
+@dataclass(frozen=True)
+class PerguntaGravada:
+    """A pergunta aceita e já gravada, com a conversa como estava antes dela."""
+
+    texto: str
+    id_da_conversa: uuid.UUID
+    id_da_pergunta: uuid.UUID
+    anteriores: tuple[ItemGravado, ...]
 
 
 class AssistenteIndisponivel(Exception):
@@ -90,19 +118,73 @@ def ler_periodo(parametros: QueryParams) -> Periodo:
     return Periodo.ler(parametros.get("periodo", PERIODO_PADRAO))
 
 
+def conversa_para_o_modelo(itens: Iterable[ItemGravado]) -> list[ItemDaConversa]:
+    """A conversa gravada como o modelo a recebe: só os pares de pergunta e resposta em que a
+    resposta tem texto, e só os mais recentes que cabem no teto de itens.
+
+    Uma resposta sem texto (parada antes de escrever, ou com erro logo no início) fica de fora com
+    a pergunta dela: o modelo não recebe pergunta sem resposta.
+    """
+    gravados = list(itens)
+    pares: list[ItemDaConversa] = []
+    for anterior, item in zip(gravados, gravados[1:], strict=False):
+        if anterior.autor == "usuario" and item.autor == "assistente" and item.texto:
+            pares += [
+                ItemDaConversa(autor="usuario", texto=anterior.texto),
+                ItemDaConversa(autor="assistente", texto=item.texto),
+            ]
+    # Um número par de itens: nenhum par fica pela metade.
+    cabem = ITENS_DA_CONVERSA - ITENS_DA_CONVERSA % 2
+    return pares[-cabem:]
+
+
+def resposta_para_gravar(
+    id_da_pergunta: uuid.UUID, trechos: Iterable[str], desfecho: Evento | None
+) -> RespostaParaGravar:
+    """A resposta como vai para o histórico. Sem `fim` nem `erro`, ela foi interrompida."""
+    texto = "".join(trechos)
+    if desfecho is None:
+        return RespostaParaGravar(id_da_pergunta, texto, Situacao.INTERROMPIDA)
+    if desfecho.tipo == "erro":
+        return RespostaParaGravar(id_da_pergunta, texto, Situacao.ERRO, erro=desfecho.dados["erro"])
+    return RespostaParaGravar(
+        id_da_pergunta, texto, Situacao.CONCLUIDA, aviso=desfecho.dados.get("aviso")
+    )
+
+
+def conversa_como_resposta(conversa: ConversaGravada) -> dict:
+    """A conversa lida, como a rota a devolve: só os campos que o item tem."""
+    itens = []
+    for item in conversa.itens:
+        lido: dict = {"autor": item.autor, "texto": item.texto}
+        if item.situacao:
+            lido["situacao"] = item.situacao.value
+        if item.aviso:
+            lido["aviso"] = item.aviso
+        if item.erro:
+            lido["erro"] = item.erro
+        if item.id_da_pergunta:
+            lido["id_da_pergunta"] = str(item.id_da_pergunta)
+        itens.append(lido)
+    return {"id": str(conversa.id), "titulo": conversa.titulo, "itens": itens}
+
+
 def criar_aplicacao(
     configuracao: ConfiguracaoDeAcesso,
     origem_do_frontend: str,
     consultas: ExecutorDeConsultas,
     modelo: Model | None,
     endereco_do_mcp: str,
+    historico: Historico,
     limites: Limites = LIMITES_PADRAO,
 ) -> FastAPI:
     """A API valida tokens pela configuração dada, lê o banco só pelo executor de consultas e só
     aceita o navegador vindo do frontend.
 
     O assistente responde com o modelo dado (sem ele, fica indisponível) e com as ferramentas do
-    servidor MCP do endereço dado, chamado com o token de quem pergunta.
+    servidor MCP do endereço dado, chamado com o token de quem pergunta. Cada pergunta e cada
+    resposta ficam gravadas no histórico dado, que é também de onde vem a conversa entregue ao
+    modelo.
     """
     assistente = Assistente(modelo, endereco_do_mcp, limites)
     # Sem /docs, /redoc nem /openapi.json: a API não descreve as próprias rotas a ninguém.
@@ -141,6 +223,16 @@ def criar_aplicacao(
         registro.error("consulta falhou: %s", erro)
         return JSONResponse(INDISPONIVEL, status_code=503)
 
+    @aplicacao.exception_handler(ConversaInexistente)
+    def conversa_inexistente(_: Request, erro: ConversaInexistente) -> JSONResponse:
+        registro.info("conversa inexistente ou de outro usuário")
+        return JSONResponse(CONVERSA_INEXISTENTE, status_code=404)
+
+    @aplicacao.exception_handler(HistoricoIndisponivel)
+    def historico_indisponivel(_: Request, erro: HistoricoIndisponivel) -> JSONResponse:
+        registro.error("histórico indisponível: %s", erro)
+        return JSONResponse(INDISPONIVEL, status_code=503)
+
     @aplicacao.exception_handler(AssistenteIndisponivel)
     def sem_assistente(_: Request, erro: AssistenteIndisponivel) -> JSONResponse:
         registro.warning("assistente indisponível: %s", erro)
@@ -173,26 +265,86 @@ def criar_aplicacao(
 
     def pergunta_dentro_dos_tetos(corpo: Pergunta) -> Pergunta:
         # O teto de caracteres vem da configuração: o modelo do corpo não o conhece.
-        textos = [corpo.pergunta, *(item.texto for item in corpo.conversa)]
-        if any(len(texto) > limites.caracteres for texto in textos):
-            raise ParametroInvalido("pergunta ou item da conversa acima do teto de caracteres")
+        if len(corpo.pergunta) > limites.caracteres:
+            raise ParametroInvalido("pergunta acima do teto de caracteres")
         return corpo
+
+    def pergunta_gravada(
+        usuario: Autenticado,
+        _: Annotated[Assistente, Depends(assistente_disponivel)],
+        corpo: Annotated[Pergunta, Depends(pergunta_dentro_dos_tetos)],
+    ) -> PerguntaGravada:
+        # A pergunta fica gravada antes de o modelo ser chamado: sem o histórico, ela não é
+        # respondida, para a resposta não se perder. A conversa inexistente (404) vem antes.
+        try:
+            if corpo.id_da_conversa is None:
+                id_da_conversa = historico.criar_conversa(usuario, corpo.pergunta)
+                anteriores: tuple[ItemGravado, ...] = ()
+            else:
+                id_da_conversa = corpo.id_da_conversa
+                anteriores = historico.ler_conversa(usuario, id_da_conversa).itens
+            historico.gravar_pergunta(usuario, id_da_conversa, corpo.pergunta)
+        except HistoricoIndisponivel as erro:
+            raise AssistenteIndisponivel(f"histórico indisponível: {erro}") from erro
+        return PerguntaGravada(corpo.pergunta, id_da_conversa, uuid.uuid4(), anteriores)
+
+    def gravar_resposta(
+        usuario: UsuarioAutenticado, pergunta: PerguntaGravada, resposta: RespostaParaGravar
+    ) -> None:
+        # Quem leu a resposta já a tem na tela: uma falha aqui fica só no log.
+        try:
+            historico.gravar_resposta(usuario, pergunta.id_da_conversa, resposta)
+        except (HistoricoIndisponivel, ConversaInexistente) as erro:
+            registro.error(
+                "resposta não gravada: conversa %s, pergunta %s, usuário %s: %r",
+                pergunta.id_da_conversa,
+                pergunta.id_da_pergunta,
+                usuario.id,
+                erro,
+            )
 
     @aplicacao.get("/eu")
     def eu(usuario: Autenticado) -> dict:
         return {"nome": usuario.nome, "perfil": usuario.perfil}
 
-    # Validações antes do fluxo, como erro JSON: token (401), assistente (503), corpo (400). Só
-    # depois a resposta 200 começa, em eventos.
+    # Validações antes do fluxo, como erro JSON: token (401), assistente (503), corpo (400),
+    # conversa (404) e a gravação da pergunta (503). Só depois a resposta 200 começa, em eventos,
+    # e o primeiro diz a conversa e a pergunta.
     @aplicacao.post("/assistente", response_class=EventSourceResponse)
     async def perguntar(
         usuario: Autenticado,
         token: Token,
         disponivel: Annotated[Assistente, Depends(assistente_disponivel)],
-        corpo: Annotated[Pergunta, Depends(pergunta_dentro_dos_tetos)],
+        pergunta: Annotated[PerguntaGravada, Depends(pergunta_gravada)],
     ) -> AsyncIterator[ServerSentEvent]:
-        async for evento in disponivel.responder(corpo.pergunta, usuario, token, corpo.conversa):
-            yield ServerSentEvent(event=evento.tipo, data=evento.dados)
+        inicio = evento_da_conversa(pergunta.id_da_conversa, pergunta.id_da_pergunta)
+        yield ServerSentEvent(event=inicio.tipo, data=inicio.dados)
+        trechos: list[str] = []
+        desfecho: Evento | None = None
+        try:
+            async for evento in disponivel.responder(
+                pergunta.texto, usuario, token, conversa_para_o_modelo(pergunta.anteriores)
+            ):
+                if evento.tipo == "texto":
+                    trechos.append(evento.dados["texto"])
+                elif evento.tipo in ("fim", "erro"):
+                    desfecho = evento
+                yield ServerSentEvent(event=evento.tipo, data=evento.dados)
+        finally:
+            # Vale também quando o navegador desconecta: o cancelamento não alcança a gravação,
+            # e a resposta parada fica gravada com o texto que já tinha saído.
+            resposta = resposta_para_gravar(pergunta.id_da_pergunta, trechos, desfecho)
+            with anyio.CancelScope(shield=True):
+                await anyio.to_thread.run_sync(gravar_resposta, usuario, pergunta, resposta)
+
+    @aplicacao.get("/conversas/{id_da_conversa}")
+    def ler_conversa(id_da_conversa: str, usuario: Autenticado) -> dict:
+        # Um identificador fora do formato também é uma conversa que não existe.
+        try:
+            identificador = uuid.UUID(id_da_conversa)
+        except ValueError as erro:
+            raise ConversaInexistente() from erro
+        return conversa_como_resposta(historico.ler_conversa(usuario, identificador))
 
     def servir(consulta: Consulta) -> Callable:
         # Ordem fixa: token (na dependência), perfil, parâmetros e só então a consulta.
