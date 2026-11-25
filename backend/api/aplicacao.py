@@ -2,7 +2,7 @@
 
 import logging
 from collections.abc import AsyncIterator, Callable
-from typing import Annotated, Literal
+from typing import Annotated
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -22,7 +22,7 @@ from acesso import (
     autenticar,
     mensagens,
 )
-from assistente import Assistente, Limites
+from assistente import Assistente, ItemDaConversa, Limites
 from assistente.limites import ITENS_DA_CONVERSA
 from assistente.limites import PADRAO as LIMITES_PADRAO
 from consultas import (
@@ -51,15 +51,6 @@ ASSISTENTE_INDISPONIVEL = {"erro": mensagens.ASSISTENTE_INDISPONIVEL}
 # e o perfil é o que a consulta declara (RS-05). O assistente não tem regra de perfil própria: o
 # que ele alcança é o que o servidor MCP lista e permite para o token do usuário (RF-13).
 ROTAS_SO_AUTENTICADAS = frozenset({"/eu", "/assistente"})
-
-
-class ItemDaConversa(BaseModel):
-    """Uma pergunta ou resposta anterior da conversa, como o navegador a guardou."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    autor: Literal["usuario", "assistente"]
-    texto: str
 
 
 class Pergunta(BaseModel):
@@ -200,8 +191,7 @@ def criar_aplicacao(
         disponivel: Annotated[Assistente, Depends(assistente_disponivel)],
         corpo: Annotated[Pergunta, Depends(pergunta_dentro_dos_tetos)],
     ) -> AsyncIterator[ServerSentEvent]:
-        conversa = [(item.autor, item.texto) for item in corpo.conversa]
-        async for evento in disponivel.responder(corpo.pergunta, usuario, token, conversa):
+        async for evento in disponivel.responder(corpo.pergunta, usuario, token, corpo.conversa):
             yield ServerSentEvent(event=evento.tipo, data=evento.dados)
 
     def servir(consulta: Consulta) -> Callable:
