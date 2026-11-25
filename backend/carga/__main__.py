@@ -1,8 +1,8 @@
 """Executa a carga: derruba o banco, recria e aplica a estrutura em ordem.
 
 A recarga é esta mesma execução, para que "subir do zero" e "voltar ao
-estado inicial" nunca divirjam (ADR 0001). A auditoria fica de fora: a carga
-só cria o que dela ainda não existe (ADR 0008).
+estado inicial" nunca divirjam (ADR 0001). A auditoria e o histórico ficam de
+fora: a carga só cria o que deles ainda não existe (ADR 0008, ADR 0009).
 """
 
 import random
@@ -21,6 +21,7 @@ from carga.comercial import gerar_comercial
 from carga.conexao import conectar, variavel_obrigatoria
 from carga.configuracao import Configuracao, ler_configuracao
 from carga.gravacao import gravar
+from carga.historico import preparar_historico
 from carga.impressao_digital import impressao_digital, imprimir
 from carga.vendas import gerar_vendas
 
@@ -65,9 +66,10 @@ def _restringir_outros_bancos_do_servidor(conexao: psycopg.Connection, banco: st
 
 def _recriar_banco(banco: str) -> None:
     with conectar("postgres", autocommit=True) as conexao:
-        # Antes de restringir os outros bancos: assim o da auditoria também fica fechado aos
-        # papéis de perfil.
+        # Antes de restringir os outros bancos: assim os da auditoria e do histórico também
+        # ficam fechados aos papéis de perfil e um ao papel do outro.
         preparar_auditoria(conexao)
+        preparar_historico(conexao)
         nome = sql.Identifier(banco)
         conexao.execute(sql.SQL("drop database if exists {} with (force)").format(nome))
         conexao.execute(sql.SQL("create database {}").format(nome))
