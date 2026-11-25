@@ -7,6 +7,7 @@ import {
   formatarMoeda,
   formatarMoedaCompacta,
   formatarNumero,
+  formatarNota,
   formatarNumeroCompacto,
   formatarPercentual,
   formatarPontosPercentuais,
@@ -20,6 +21,11 @@ describe("formatação em pt-BR", () => {
   it("moeda em reais, com centavos", () => {
     expect(formatarMoeda(1234567.8)).toBe(`R$${ESPACO}1.234.567,80`);
     expect(formatarMoeda(0)).toBe(`R$${ESPACO}0,00`);
+  });
+
+  it("nota média de 1 a 5, com duas casas", () => {
+    expect(formatarNota(4.1234)).toBe("4,12");
+    expect(formatarNota(3)).toBe("3,00");
   });
 
   it("contagens com separador de milhar", () => {

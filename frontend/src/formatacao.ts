@@ -57,6 +57,13 @@ export function formatarPontosPercentuais(diferenca: number): string {
   return `${PONTOS_COM_SINAL.format(diferenca * 100)} p.p.`;
 }
 
+const NOTA = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+/** Uma nota média de 1 a 5 com duas casas ("4,12"), na mesma precisão da sua variação. */
+export function formatarNota(nota: number): string {
+  return NOTA.format(nota);
+}
+
 /** A diferença entre duas notas médias (0,07), em pontos da nota, com sinal ("+0,07"). */
 export function formatarDiferencaDeNota(diferenca: number): string {
   return DIFERENCA_DE_NOTA.format(diferenca);
