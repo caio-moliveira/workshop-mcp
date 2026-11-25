@@ -64,9 +64,7 @@ def test_a_conversa_enviada_chega_ao_modelo_na_ordem_antes_da_pergunta(criar_api
     ]
 
 
-def test_quando_o_cliente_desconecta_a_execucao_e_cancelada_sem_novas_chamadas(
-    criar_api, token_de
-):
+def test_quando_o_cliente_desconecta_a_execucao_e_cancelada_sem_novas_chamadas(criar_api, token_de):
     token = token_de(Perfil.VENDAS)
     usuario = conteudo(token)["sub"]
     na_segunda_requisicao = threading.Event()
