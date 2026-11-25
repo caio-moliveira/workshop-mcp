@@ -231,4 +231,18 @@ FERRAMENTAS: dict[str, Ferramenta] = {
         ),
         parametros=(PERIODO,),
     ),
+    "produtos_notas": Ferramenta(
+        consulta=produtos.notas,
+        titulo="Avaliações por nota",
+        descricao=(
+            "Como as notas das avaliações de produtos se distribuem em um período: quantas "
+            "avaliações receberam cada nota, de 1 a 5. Use para saber se as notas estão "
+            "concentradas no alto ou no baixo e quantas são reclamações (notas 1 e 2); para a "
+            "nota média e a comparação com o período anterior, use produtos_indicadores. "
+            "'notas' traz sempre as cinco notas, de 1 a 5, nesta ordem, cada uma com "
+            "'avaliacoes' (quantas avaliações do período têm aquela nota, zero quando nenhuma). "
+            "'periodo' traz as datas de início e fim usadas, em formato ISO."
+        ),
+        parametros=(PERIODO,),
+    ),
 }

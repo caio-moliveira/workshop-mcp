@@ -34,6 +34,7 @@ PARAMETROS_PREVISTOS = {
     "vendas_pedidos_recentes": {"periodo"},
     "vendas_atrasos": {"periodo", "agrupamento"},
     "produtos_indicadores": {"periodo"},
+    "produtos_notas": {"periodo"},
 }
 # Os valores de cada parâmetro, também repetidos: a enumeração é fechada.
 VALORES_PREVISTOS = {
