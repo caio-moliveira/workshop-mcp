@@ -17,6 +17,7 @@
     "oidc-client-ts": "3.5.0",
     "react": "19.3.1",
     "react-dom": "19.3.1",
+    "react-markdown": "10.1.0",
     "recharts": "3.10.1"
   },
   "devDependencies": {

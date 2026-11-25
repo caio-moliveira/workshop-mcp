@@ -10,7 +10,7 @@
 export type EventoDaResposta =
   | { tipo: "texto"; texto: string }
   | { tipo: "estado" }
-  | { tipo: "fim" }
+  | { tipo: "fim"; aviso?: string }
   | { tipo: "erro"; mensagem: string };
 
 /** O fluxo acabou sem `fim` nem `erro`, ou trouxe algo fora do contrato. */
@@ -71,7 +71,10 @@ function lerBloco(bloco: string): EventoDaResposta | null {
     case "estado":
       return { tipo: "estado" };
     case "fim":
-      return { tipo: "fim" };
+      // O aviso (teto de chamadas) é opcional; um aviso que não é texto fica fora do contrato.
+      if (dados.aviso === undefined) return { tipo: "fim" };
+      if (typeof dados.aviso !== "string") throw new ForaDoContrato();
+      return { tipo: "fim", aviso: dados.aviso };
     case "erro":
       if (typeof dados.erro !== "string") throw new ForaDoContrato();
       return { tipo: "erro", mensagem: dados.erro };
