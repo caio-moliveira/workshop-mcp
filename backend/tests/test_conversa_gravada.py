@@ -14,6 +14,7 @@ from dataclasses import replace
 
 import pytest
 from apoio import banco_local, variavel
+from chaves_locais import ChavesLocais, assinar, conteudo_valido, nova_chave
 from provedor import conteudo
 from pydantic_ai.messages import (
     ModelMessage,
@@ -25,10 +26,17 @@ from pydantic_ai.messages import (
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 from roteiro import ROTA, eventos, modelo_roteirizado, perguntar
 
-from acesso import Perfil, mensagens
+from acesso import Perfil, UsuarioAutenticado, mensagens
 from assistente import Limites
 from consultas import Credencial
-from historico import PAPEL, HistoricoIndisponivel, HistoricoNoBanco
+from historico import (
+    PAPEL,
+    FimDaResposta,
+    HistoricoIndisponivel,
+    HistoricoNoBanco,
+    RespostaParaGravar,
+    Situacao,
+)
 
 PERGUNTA = "O que está causando os atrasos?"
 CONVERSA_INEXISTENTE = {"erro": mensagens.CONVERSA_INEXISTENTE}
@@ -182,6 +190,35 @@ def test_a_resposta_sem_texto_e_a_pergunta_dela_nao_chegam_ao_modelo(criar_api, 
     assert _conversa_recebida(vistos["mensagens"]) == [("usuario", "De novo?")]
 
 
+def test_perguntas_simultaneas_chegam_ao_modelo_cada_uma_com_a_sua_resposta(
+    criar_api, historico_local, token_de
+):
+    # A conversa é gravada direto no histórico, na ordem de duas perguntas feitas ao mesmo tempo.
+    token = token_de(Perfil.VENDAS)
+    dados = conteudo(token)
+    usuario = UsuarioAutenticado(id=dados["sub"], nome=dados["name"], perfil=Perfil.VENDAS)
+    primeira, segunda = uuid.uuid4(), uuid.uuid4()
+    # Duas perguntas feitas ao mesmo tempo: as duas gravadas antes de qualquer resposta.
+    id_da_conversa = historico_local.criar_conversa(usuario, "Quem atrasa mais?", primeira)
+    historico_local.gravar_pergunta(usuario, id_da_conversa, "Desde quando?", segunda)
+    for id_da_pergunta, texto in [(primeira, "A Transportadora X."), (segunda, "Desde março.")]:
+        resposta = RespostaParaGravar(id_da_pergunta, texto, FimDaResposta(Situacao.CONCLUIDA))
+        historico_local.gravar_resposta(usuario, id_da_conversa, resposta)
+    vistos: dict = {}
+    api = criar_api(modelo=modelo_roteirizado(vistos=vistos))
+
+    corpo = {"pergunta": "E agora?", "id_da_conversa": str(id_da_conversa)}
+    eventos(perguntar(api, token, corpo))
+
+    assert _conversa_recebida(vistos["mensagens"]) == [
+        ("usuario", "Quem atrasa mais?"),
+        ("assistente", "A Transportadora X."),
+        ("usuario", "Desde quando?"),
+        ("assistente", "Desde março."),
+        ("usuario", "E agora?"),
+    ]
+
+
 # Toda resposta fica gravada com o texto que saiu e a situação dela.
 
 
@@ -281,10 +318,13 @@ def test_ler_uma_conversa_inexistente_da_404_generico(com_roteiro, token_de, id_
     )
 
 
-def test_continuar_uma_conversa_inexistente_da_404_sem_chamar_o_modelo(criar_api, token_de):
+@pytest.mark.parametrize("id_da_conversa", [str(uuid.uuid4()), "nao-e-uuid"])
+def test_continuar_uma_conversa_inexistente_da_404_sem_chamar_o_modelo(
+    criar_api, token_de, id_da_conversa
+):
     vistos: dict = {}
     api = criar_api(modelo=modelo_roteirizado(vistos=vistos))
-    corpo = {"pergunta": "Desde quando?", "id_da_conversa": str(uuid.uuid4())}
+    corpo = {"pergunta": "Desde quando?", "id_da_conversa": id_da_conversa}
 
     _assert_conversa_inexistente(perguntar(api, token_de(Perfil.VENDAS), corpo))
     assert vistos == {}
@@ -319,6 +359,62 @@ def test_com_o_historico_fora_do_ar_a_pergunta_recebe_503_sem_chamar_o_modelo(
     assert resposta.status_code == 503
     assert resposta.json() == {"erro": mensagens.ASSISTENTE_INDISPONIVEL}
     assert vistos == {}
+
+
+# Um usuário só dos testes, com o token assinado pelas chaves locais: a lista dele começa vazia.
+CHAVE = nova_chave()
+
+
+def test_a_pergunta_que_nao_se_grava_nao_deixa_conversa_vazia(criar_api):
+    api = criar_api(chaves=ChavesLocais(CHAVE), modelo=modelo_roteirizado())
+    token = assinar(conteudo_valido(), CHAVE)
+    # O título cabe no banco; a pergunta inteira não: o Postgres recusa o caractere nulo.
+    pergunta = "Quais lojistas atrasam mais? " * 4 + "\x00"
+
+    resposta = perguntar(api, token, {"pergunta": pergunta})
+
+    assert resposta.status_code == 503
+    conversas = api.get("/conversas", headers={"Authorization": f"Bearer {token}"})
+    assert conversas.json() == {"conversas": []}
+
+
+class _HistoricoQueNaoGravaPergunta:
+    """O histórico de verdade, exceto pela gravação da pergunta, que falha com o texto dela no
+    detalhe, como o Postgres faz ao recusar uma linha."""
+
+    def __init__(self, historico) -> None:
+        self._historico = historico
+
+    def __getattr__(self, nome):
+        return getattr(self._historico, nome)
+
+    def criar_conversa(self, usuario, primeira_pergunta, id_da_pergunta):
+        raise HistoricoIndisponivel(f"linha recusada: {primeira_pergunta}")
+
+    def gravar_pergunta(self, usuario, id_da_conversa, texto, id_da_pergunta):
+        raise HistoricoIndisponivel(f"linha recusada: {texto}")
+
+
+@pytest.mark.parametrize("continuar", [False, True])
+def test_a_falha_ao_gravar_a_pergunta_fica_no_log_sem_o_texto_dela(
+    criar_api, token_de, historico_local, caplog, continuar
+):
+    token = token_de(Perfil.VENDAS)
+    corpo = {"pergunta": "Pergunta que não pode ir para o log"}
+    if continuar:
+        gravada = eventos(perguntar(criar_api(modelo=modelo_roteirizado()), token))
+        corpo["id_da_conversa"] = _identificadores(gravada)[0]
+    api = criar_api(
+        modelo=modelo_roteirizado(), historico=_HistoricoQueNaoGravaPergunta(historico_local)
+    )
+    caplog.set_level(logging.INFO)
+
+    resposta = perguntar(api, token, corpo)
+
+    assert resposta.status_code == 503
+    linhas = [r.getMessage() for r in caplog.records]
+    assert any("histórico" in linha for linha in linhas)
+    assert not [linha for linha in linhas if corpo["pergunta"] in linha]
 
 
 class _HistoricoQueNaoGravaResposta:

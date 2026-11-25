@@ -67,7 +67,9 @@ CHAVE = nova_chave()
 
 def test_a_lista_traz_so_as_50_mais_recentes(criar_api, historico_local):
     usuario = UsuarioAutenticado(id=str(uuid.uuid4()), nome="Ana Ribeiro", perfil=Perfil.VENDAS)
-    criadas = [historico_local.criar_conversa(usuario, f"Pergunta {n}") for n in range(55)]
+    criadas = [
+        historico_local.criar_conversa(usuario, f"Pergunta {n}", uuid.uuid4()) for n in range(55)
+    ]
     api = criar_api(chaves=ChavesLocais(CHAVE))
     token = assinar(conteudo_valido(sub=usuario.id), CHAVE)
 

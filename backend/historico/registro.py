@@ -41,6 +41,11 @@ class Situacao(StrEnum):
     INTERROMPIDA = "interrompida"
 
 
+# Como terminou uma chamada do rastreio. Negada, inexistente, com parâmetro inválido, barrada pelo
+# limite ou com falha: o rastreio não distingue o motivo, que fica só no log e na auditoria.
+Desfecho = Literal["concluida", "nao_concluida"]
+
+
 @dataclass(frozen=True)
 class ChamadaRastreada:
     """Uma chamada do rastreio da resposta: a ferramenta pedida, o desfecho e a duração.
@@ -49,22 +54,29 @@ class ChamadaRastreada:
     """
 
     ferramenta: str
-    desfecho: Literal["concluida", "nao_concluida"]
+    desfecho: Desfecho
     milissegundos: int
 
 
 @dataclass(frozen=True)
+class FimDaResposta:
+    """Como a resposta terminou: a situação, o aviso ou o erro e as chamadas terminadas até ali."""
+
+    situacao: Situacao
+    aviso: str | None = None
+    erro: str | None = None
+    rastreio: tuple[ChamadaRastreada, ...] = ()
+
+
+@dataclass(frozen=True)
 class ItemGravado:
-    """Uma pergunta ou resposta gravada. Só a resposta tem situação, aviso, erro, pergunta e
-    rastreio."""
+    """Uma pergunta ou resposta gravada, com o identificador da pergunta (a pergunta gravada
+    antes de ele ser gravado com ela não o tem). Só a resposta tem o fim."""
 
     autor: Literal["usuario", "assistente"]
     texto: str
-    situacao: Situacao | None = None
-    aviso: str | None = None
-    erro: str | None = None
     id_da_pergunta: uuid.UUID | None = None
-    rastreio: tuple[ChamadaRastreada, ...] = ()
+    fim: FimDaResposta | None = None
 
 
 @dataclass(frozen=True)
@@ -87,15 +99,12 @@ class ResumoDaConversa:
 
 @dataclass(frozen=True)
 class RespostaParaGravar:
-    """A resposta ao fim do fluxo: o texto emitido até ali, a situação, o aviso ou o erro e as
-    chamadas terminadas até ali."""
+    """A resposta ao fim do fluxo: a pergunta que ela responde, o texto emitido até ali e como
+    terminou."""
 
     id_da_pergunta: uuid.UUID
     texto: str
-    situacao: Situacao
-    aviso: str | None = None
-    erro: str | None = None
-    rastreio: tuple[ChamadaRastreada, ...] = ()
+    fim: FimDaResposta
 
 
 class HistoricoIndisponivel(Exception):
@@ -109,11 +118,18 @@ class ConversaInexistente(Exception):
 class Historico(Protocol):
     """Onde a API grava e lê as conversas. Toda operação recebe o usuário autenticado."""
 
-    def criar_conversa(self, usuario: UsuarioAutenticado, primeira_pergunta: str) -> uuid.UUID:
-        """Cria uma conversa vazia, com o começo da primeira pergunta como título."""
+    def criar_conversa(
+        self, usuario: UsuarioAutenticado, primeira_pergunta: str, id_da_pergunta: uuid.UUID
+    ) -> uuid.UUID:
+        """Cria a conversa já com a primeira pergunta, e o começo dela como título. As duas
+        coisas juntas: nenhuma conversa fica vazia."""
 
     def gravar_pergunta(
-        self, usuario: UsuarioAutenticado, id_da_conversa: uuid.UUID, texto: str
+        self,
+        usuario: UsuarioAutenticado,
+        id_da_conversa: uuid.UUID,
+        texto: str,
+        id_da_pergunta: uuid.UUID,
     ) -> None:
         """Acrescenta a pergunta à conversa, ou levanta ConversaInexistente."""
 
@@ -193,35 +209,32 @@ class HistoricoNoBanco:
             open=True,
         )
 
-    def criar_conversa(self, usuario: UsuarioAutenticado, primeira_pergunta: str) -> uuid.UUID:
+    def criar_conversa(
+        self, usuario: UsuarioAutenticado, primeira_pergunta: str, id_da_pergunta: uuid.UUID
+    ) -> uuid.UUID:
         identificador = uuid.uuid4()
-        with self._conexao() as conexao:
+        parametros = _parametros(usuario, identificador)
+        pergunta = ItemGravado("usuario", primeira_pergunta, id_da_pergunta)
+        with self._conexao() as conexao, conexao.transaction():
             conexao.execute(
-                CRIACAO,
-                {
-                    **_parametros(usuario, identificador),
-                    "titulo": primeira_pergunta[:TAMANHO_DO_TITULO],
-                },
+                CRIACAO, {**parametros, "titulo": primeira_pergunta[:TAMANHO_DO_TITULO]}
             )
+            _inserir_item(conexao, parametros, pergunta)
         return identificador
 
     def gravar_pergunta(
-        self, usuario: UsuarioAutenticado, id_da_conversa: uuid.UUID, texto: str
+        self,
+        usuario: UsuarioAutenticado,
+        id_da_conversa: uuid.UUID,
+        texto: str,
+        id_da_pergunta: uuid.UUID,
     ) -> None:
-        self._gravar_item(usuario, id_da_conversa, ItemGravado("usuario", texto))
+        self._gravar_item(usuario, id_da_conversa, ItemGravado("usuario", texto, id_da_pergunta))
 
     def gravar_resposta(
         self, usuario: UsuarioAutenticado, id_da_conversa: uuid.UUID, resposta: RespostaParaGravar
     ) -> None:
-        item = ItemGravado(
-            "assistente",
-            resposta.texto,
-            situacao=resposta.situacao,
-            aviso=resposta.aviso,
-            erro=resposta.erro,
-            id_da_pergunta=resposta.id_da_pergunta,
-            rastreio=resposta.rastreio,
-        )
+        item = ItemGravado("assistente", resposta.texto, resposta.id_da_pergunta, resposta.fim)
         self._gravar_item(usuario, id_da_conversa, item)
 
     def ler_conversa(
@@ -240,11 +253,16 @@ class HistoricoNoBanco:
                 ItemGravado(
                     autor,
                     texto,
-                    situacao=Situacao(situacao) if situacao else None,
-                    aviso=aviso,
-                    erro=erro,
-                    id_da_pergunta=id_da_pergunta,
-                    rastreio=tuple(ChamadaRastreada(**chamada) for chamada in rastreio),
+                    id_da_pergunta,
+                    # Só a resposta tem situação: a tabela garante.
+                    FimDaResposta(
+                        Situacao(situacao),
+                        aviso,
+                        erro,
+                        tuple(ChamadaRastreada(**chamada) for chamada in rastreio),
+                    )
+                    if situacao
+                    else None,
                 )
                 for autor, texto, situacao, aviso, erro, id_da_pergunta, rastreio in itens
             ),
@@ -269,19 +287,7 @@ class HistoricoNoBanco:
         with self._conexao() as conexao, conexao.transaction():
             if conexao.execute(ATIVIDADE, parametros).rowcount == 0:
                 raise ConversaInexistente()
-            conexao.execute(
-                GRAVACAO_DO_ITEM,
-                {
-                    **parametros,
-                    "autor": item.autor,
-                    "texto": item.texto,
-                    "situacao": item.situacao.value if item.situacao else None,
-                    "aviso": item.aviso,
-                    "erro": item.erro,
-                    "pergunta": item.id_da_pergunta,
-                    "rastreio": Jsonb([asdict(chamada) for chamada in item.rastreio]),
-                },
-            )
+            _inserir_item(conexao, parametros, item)
 
     @contextmanager
     def _conexao(self) -> Iterator[psycopg.Connection]:
@@ -290,7 +296,12 @@ class HistoricoNoBanco:
             with self._pool.connection() as conexao:
                 yield conexao
         except (psycopg.Error, PoolTimeout) as erro:
-            raise HistoricoIndisponivel(str(erro)) from erro
+            # Só o tipo e o código do erro: o detalhe do Postgres pode citar a linha recusada, e
+            # com ela o texto da pergunta, que nunca vai para o log.
+            codigo = getattr(erro, "sqlstate", None)
+            raise HistoricoIndisponivel(
+                f"{type(erro).__name__} ({codigo})" if codigo else type(erro).__name__
+            ) from erro
 
     def fechar(self) -> None:
         self._pool.close()
@@ -305,6 +316,23 @@ class HistoricoNoBanco:
         rastro: TracebackType | None,
     ) -> None:
         self.fechar()
+
+
+def _inserir_item(conexao: psycopg.Connection, parametros: dict, item: ItemGravado) -> None:
+    fim = item.fim
+    conexao.execute(
+        GRAVACAO_DO_ITEM,
+        {
+            **parametros,
+            "autor": item.autor,
+            "texto": item.texto,
+            "situacao": fim.situacao.value if fim else None,
+            "aviso": fim.aviso if fim else None,
+            "erro": fim.erro if fim else None,
+            "pergunta": item.id_da_pergunta,
+            "rastreio": Jsonb([asdict(chamada) for chamada in fim.rastreio] if fim else []),
+        },
+    )
 
 
 def _parametros(usuario: UsuarioAutenticado, id_da_conversa: uuid.UUID) -> dict:

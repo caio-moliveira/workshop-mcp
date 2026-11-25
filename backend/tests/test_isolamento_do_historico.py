@@ -110,7 +110,9 @@ def test_o_mesmo_usuario_com_outro_perfil_nao_alcanca_as_conversas_do_perfil_ant
 ):
     sub = str(uuid.uuid4())
     como_vendas = UsuarioAutenticado(id=sub, nome="Ana Ribeiro", perfil=Perfil.VENDAS)
-    id_da_conversa = str(historico_local.criar_conversa(como_vendas, "Do tempo de Vendas"))
+    id_da_conversa = str(
+        historico_local.criar_conversa(como_vendas, "Do tempo de Vendas", uuid.uuid4())
+    )
     api = criar_api(chaves=ChavesLocais(CHAVE), modelo=modelo_roteirizado())
     token_de_vendas = assinar(conteudo_valido(sub=sub, perfil="vendas"), CHAVE)
     token_de_produtos = assinar(conteudo_valido(sub=sub, perfil="produtos"), CHAVE)

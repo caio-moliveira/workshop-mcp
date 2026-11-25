@@ -43,6 +43,7 @@ from historico import (
     ChamadaRastreada,
     ConversaGravada,
     ConversaInexistente,
+    FimDaResposta,
     Historico,
     HistoricoIndisponivel,
     ItemGravado,
@@ -79,8 +80,9 @@ class Pergunta(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     pergunta: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
-    # Sem ele, a pergunta abre uma conversa nova.
-    id_da_conversa: uuid.UUID | None = None
+    # Sem ele, a pergunta abre uma conversa nova. Texto, e não UUID: fora do formato, é uma
+    # conversa que não existe (404), como no caminho das rotas do histórico.
+    id_da_conversa: str | None = None
 
 
 @dataclass(frozen=True)
@@ -122,23 +124,47 @@ def ler_periodo(parametros: QueryParams) -> Periodo:
 
 
 def conversa_para_o_modelo(itens: Iterable[ItemGravado]) -> list[ItemDaConversa]:
-    """A conversa gravada como o modelo a recebe: só os pares de pergunta e resposta em que a
-    resposta tem texto, e só os mais recentes que cabem no teto de itens.
+    """A conversa gravada como o modelo a recebe: os pares de pergunta e resposta, na ordem das
+    perguntas.
+
+    Cada resposta vai com a pergunta que ela responde, pelo identificador da pergunta: duas
+    perguntas feitas ao mesmo tempo ficam gravadas antes das duas respostas, e cada resposta acha
+    a sua. A pergunta gravada antes de o identificador ser gravado com ela não o tem: a resposta
+    logo depois dela é a dela.
 
     Uma resposta sem texto (parada antes de escrever, ou com erro logo no início) fica de fora com
     a pergunta dela: o modelo não recebe pergunta sem resposta.
     """
     gravados = list(itens)
-    pares: list[ItemDaConversa] = []
-    for anterior, item in zip(gravados, gravados[1:], strict=False):
-        if anterior.autor == "usuario" and item.autor == "assistente" and item.texto:
-            pares += [
-                ItemDaConversa(autor="usuario", texto=anterior.texto),
-                ItemDaConversa(autor="assistente", texto=item.texto),
-            ]
-    # Um número par de itens: nenhum par fica pela metade.
+    perguntas: dict[uuid.UUID, tuple[int, ItemGravado]] = {}
+    pares: list[tuple[int, ItemGravado, ItemGravado]] = []
+    for posicao, item in enumerate(gravados):
+        if item.autor == "usuario":
+            if item.id_da_pergunta:
+                perguntas[item.id_da_pergunta] = (posicao, item)
+            continue
+        achada = perguntas.get(item.id_da_pergunta) if item.id_da_pergunta else None
+        anterior = gravados[posicao - 1] if posicao else None
+        if (
+            achada is None
+            and anterior
+            and anterior.autor == "usuario"
+            and anterior.id_da_pergunta is None
+        ):
+            achada = (posicao - 1, anterior)
+        if achada and item.texto:
+            pares.append((achada[0], achada[1], item))
+    pares.sort(key=lambda par: par[0])
+    conversa = [
+        ItemDaConversa(autor=item.autor, texto=item.texto)
+        for _, pergunta, resposta in pares
+        for item in (pergunta, resposta)
+    ]
+    # O teto conta os itens que o modelo recebe, não os gravados: primeiro saem os pares sem
+    # texto, e só então ficam os mais recentes, até o teto. Um número par de itens: nenhum par
+    # fica pela metade.
     cabem = ITENS_DA_CONVERSA - ITENS_DA_CONVERSA % 2
-    return pares[-cabem:]
+    return conversa[-cabem:]
 
 
 def resposta_para_gravar(
@@ -152,25 +178,21 @@ def resposta_para_gravar(
     texto = "".join(trechos)
     rastreio = tuple(ChamadaRastreada(**chamada.dados) for chamada in chamadas)
     if desfecho is None:
-        return RespostaParaGravar(id_da_pergunta, texto, Situacao.INTERROMPIDA, rastreio=rastreio)
-    if desfecho.tipo == "erro":
-        return RespostaParaGravar(
-            id_da_pergunta, texto, Situacao.ERRO, erro=desfecho.dados["erro"], rastreio=rastreio
+        fim = FimDaResposta(Situacao.INTERROMPIDA, rastreio=rastreio)
+    elif desfecho.tipo == "erro":
+        fim = FimDaResposta(Situacao.ERRO, erro=desfecho.dados["erro"], rastreio=rastreio)
+    else:
+        fim = FimDaResposta(
+            Situacao.CONCLUIDA, aviso=desfecho.dados.get("aviso"), rastreio=rastreio
         )
-    return RespostaParaGravar(
-        id_da_pergunta,
-        texto,
-        Situacao.CONCLUIDA,
-        aviso=desfecho.dados.get("aviso"),
-        rastreio=rastreio,
-    )
+    return RespostaParaGravar(id_da_pergunta, texto, fim)
 
 
-def identificador_da_conversa(caminho: str) -> uuid.UUID:
-    """O identificador da conversa no caminho. Fora do formato, é uma conversa que não existe:
-    o mesmo 404, sem dizer que o formato estava errado."""
+def identificador_da_conversa(valor: str) -> uuid.UUID:
+    """O identificador da conversa, no caminho ou no corpo. Fora do formato, é uma conversa que
+    não existe: o mesmo 404, sem dizer que o formato estava errado."""
     try:
-        return uuid.UUID(caminho)
+        return uuid.UUID(valor)
     except ValueError as erro:
         raise ConversaInexistente() from erro
 
@@ -180,18 +202,17 @@ def conversa_como_resposta(conversa: ConversaGravada) -> dict:
     itens = []
     for item in conversa.itens:
         lido: dict = {"autor": item.autor, "texto": item.texto}
-        if item.situacao:
-            lido["situacao"] = item.situacao.value
-        if item.aviso:
-            lido["aviso"] = item.aviso
-        if item.erro:
-            lido["erro"] = item.erro
-        if item.id_da_pergunta:
-            lido["id_da_pergunta"] = str(item.id_da_pergunta)
-        if item.autor == "assistente":
+        if fim := item.fim:
+            lido["situacao"] = fim.situacao.value
+            if fim.aviso:
+                lido["aviso"] = fim.aviso
+            if fim.erro:
+                lido["erro"] = fim.erro
+            if item.id_da_pergunta:
+                lido["id_da_pergunta"] = str(item.id_da_pergunta)
             # Sempre presente na resposta, mesmo vazio: sem chamadas, a tela diz que nenhuma
             # ferramenta foi consultada.
-            lido["rastreio"] = [asdict(chamada) for chamada in item.rastreio]
+            lido["rastreio"] = [asdict(chamada) for chamada in fim.rastreio]
         itens.append(lido)
     return {"id": str(conversa.id), "titulo": conversa.titulo, "itens": itens}
 
@@ -304,17 +325,24 @@ def criar_aplicacao(
     ) -> PerguntaGravada:
         # A pergunta fica gravada antes de o modelo ser chamado: sem o histórico, ela não é
         # respondida, para a resposta não se perder. A conversa inexistente (404) vem antes.
+        # Gravada com o identificador dela, que a resposta leva também: é o que as liga.
+        id_da_pergunta = uuid.uuid4()
         try:
             if corpo.id_da_conversa is None:
-                id_da_conversa = historico.criar_conversa(usuario, corpo.pergunta)
+                id_da_conversa = historico.criar_conversa(usuario, corpo.pergunta, id_da_pergunta)
                 anteriores: tuple[ItemGravado, ...] = ()
             else:
-                id_da_conversa = corpo.id_da_conversa
+                id_da_conversa = identificador_da_conversa(corpo.id_da_conversa)
                 anteriores = historico.ler_conversa(usuario, id_da_conversa).itens
-            historico.gravar_pergunta(usuario, id_da_conversa, corpo.pergunta)
+                historico.gravar_pergunta(usuario, id_da_conversa, corpo.pergunta, id_da_pergunta)
         except HistoricoIndisponivel as erro:
-            raise AssistenteIndisponivel(f"histórico indisponível: {erro}") from erro
-        return PerguntaGravada(corpo.pergunta, id_da_conversa, uuid.uuid4(), anteriores)
+            # Só o tipo da falha: o detalhe do banco pode citar a linha recusada, com o texto da
+            # pergunta, que nunca vai para o log.
+            falha = type(erro.__cause__ or erro).__name__
+            raise AssistenteIndisponivel(
+                f"histórico indisponível ao gravar a pergunta ({falha})"
+            ) from erro
+        return PerguntaGravada(corpo.pergunta, id_da_conversa, id_da_pergunta, anteriores)
 
     def gravar_resposta(
         usuario: UsuarioAutenticado, pergunta: PerguntaGravada, resposta: RespostaParaGravar
