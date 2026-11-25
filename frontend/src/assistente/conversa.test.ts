@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   CONVERSA_VAZIA,
+  corpoDaPergunta,
   enviar,
-  itensParaEnviar,
   parar,
   podeEnviar,
   receber,
@@ -11,7 +11,6 @@ import {
   type Conversa,
 } from "./conversa";
 import type { EventoDaResposta } from "./fluxo";
-import { ITENS_DA_CONVERSA, LIMITE_DE_CARACTERES_DA_PERGUNTA, MARCA_DE_CORTE } from "./limites";
 
 describe("conversa", () => {
   it("ao enviar, guarda a pergunta e abre uma resposta ainda chegando", () => {
@@ -160,70 +159,51 @@ describe("conversa", () => {
     expect(parar(concluida)).toBe(concluida);
   });
 
-  it("a pergunta seguinte leva só as perguntas com resposta concluída, em ordem", () => {
-    const comErro = "Mensagem de erro, escrita pela API.";
-    let conversa = aplicar(perguntada, { tipo: "texto", texto: "Três lojistas." }, { tipo: "fim" });
-    conversa = aplicar(
-      enviar(conversa, "Desde quando?"),
-      { tipo: "texto", texto: "Desde" },
-      { tipo: "erro", mensagem: comErro },
-    );
-    conversa = parar(receber(enviar(conversa, "Quais?"), { tipo: "texto", texto: "A Loja" }));
-    conversa = aplicar(enviar(conversa, "Por estado?"), { tipo: "texto", texto: "SP." }, {
+  const DA_CONVERSA: EventoDaResposta = {
+    tipo: "conversa",
+    idDaConversa: "conversa-1",
+    idDaPergunta: "pergunta-1",
+  };
+
+  it("o evento da conversa guarda a conversa gravada e a pergunta na resposta", () => {
+    const conversa = receber(perguntada, DA_CONVERSA);
+    expect(conversa.id).toBe("conversa-1");
+    expect(resposta(conversa)).toEqual({
+      autor: "assistente",
+      texto: "",
+      situacao: "chegando",
+      consultando: false,
+      idDaPergunta: "pergunta-1",
+    });
+  });
+
+  it("a primeira pergunta vai sem conversa: a API abre uma nova", () => {
+    expect(corpoDaPergunta(CONVERSA_VAZIA, "O que está causando os atrasos?")).toEqual({
+      pergunta: "O que está causando os atrasos?",
+    });
+  });
+
+  it("a pergunta seguinte leva só o identificador da conversa, nunca a conversa", () => {
+    const conversa = aplicar(perguntada, DA_CONVERSA, { tipo: "texto", texto: "Três." }, {
       tipo: "fim",
     });
-
-    expect(itensParaEnviar(conversa)).toEqual([
-      { autor: "usuario", texto: "O que está causando os atrasos?" },
-      { autor: "assistente", texto: "Três lojistas." },
-      { autor: "usuario", texto: "Por estado?" },
-      { autor: "assistente", texto: "SP." },
-    ]);
+    expect(corpoDaPergunta(conversa, "e por lojista?")).toEqual({
+      pergunta: "e por lojista?",
+      id_da_conversa: "conversa-1",
+    });
   });
 
-  it("sem conversa anterior, a pergunta vai sozinha", () => {
-    expect(itensParaEnviar(CONVERSA_VAZIA)).toEqual([]);
+  it("a conversa gravada continua depois de uma resposta com erro ou parada", () => {
+    const comErro = aplicar(perguntada, DA_CONVERSA, { tipo: "erro", mensagem: "Falhou." });
+    const parada = parar(receber(enviar(comErro, "De novo?"), { tipo: "texto", texto: "A" }));
+    expect(corpoDaPergunta(parada, "Mais uma?")).toEqual({
+      pergunta: "Mais uma?",
+      id_da_conversa: "conversa-1",
+    });
   });
 
-  it("a pergunta seguinte entra depois da resposta anterior", () => {
-    const conversa = enviar(
-      aplicar(perguntada, { tipo: "texto", texto: "Três lojistas." }, { tipo: "fim" }),
-      "e por estado?",
-    );
-    expect(conversa.perguntasERespostas.map((item) => [item.autor, item.texto])).toEqual([
-      ["usuario", "O que está causando os atrasos?"],
-      ["assistente", "Três lojistas."],
-      ["usuario", "e por estado?"],
-      ["assistente", ""],
-    ]);
-  });
-
-  function respondida(conversa: Conversa, pergunta: string, texto: string): Conversa {
-    return aplicar(enviar(conversa, pergunta), { tipo: "texto", texto }, { tipo: "fim" });
-  }
-
-  it("numa conversa longa, leva só os pares mais recentes que cabem no teto de itens", () => {
-    let conversa = CONVERSA_VAZIA;
-    for (let n = 1; n <= 15; n++) conversa = respondida(conversa, `pergunta ${n}`, `resposta ${n}`);
-
-    const itens = itensParaEnviar(conversa);
-    expect(itens).toHaveLength(ITENS_DA_CONVERSA);
-    expect(itens[0]).toEqual({ autor: "usuario", texto: "pergunta 6" });
-    expect(itens.at(-1)).toEqual({ autor: "assistente", texto: "resposta 15" });
-  });
-
-  it("corta a resposta longa no teto de caracteres e marca o corte", () => {
-    const longa = "📦".repeat(LIMITE_DE_CARACTERES_DA_PERGUNTA + 500);
-    const texto = itensParaEnviar(respondida(CONVERSA_VAZIA, "Quais?", longa)).at(1)?.texto ?? "";
-
-    expect([...texto]).toHaveLength(LIMITE_DE_CARACTERES_DA_PERGUNTA);
-    expect(texto.startsWith("📦".repeat(100))).toBe(true);
-    expect(texto.endsWith(MARCA_DE_CORTE)).toBe(true);
-  });
-
-  it("a resposta no teto de caracteres vai inteira", () => {
-    const noTeto = "a".repeat(LIMITE_DE_CARACTERES_DA_PERGUNTA);
-    const resposta = itensParaEnviar(respondida(CONVERSA_VAZIA, "Quais?", noTeto)).at(1);
-    expect(resposta).toEqual({ autor: "assistente", texto: noTeto });
+  it("a nova pergunta não perde a conversa gravada", () => {
+    const concluida = aplicar(perguntada, DA_CONVERSA, { tipo: "fim" });
+    expect(enviar(concluida, "e por estado?").id).toBe("conversa-1");
   });
 });

@@ -8,6 +8,8 @@
 
 /** Um evento da resposta, já com os dados lidos do JSON. */
 export type EventoDaResposta =
+  /** O primeiro: a conversa em que a API gravou a pergunta, e o identificador da pergunta. */
+  | { tipo: "conversa"; idDaConversa: string; idDaPergunta: string }
   | { tipo: "texto"; texto: string }
   | { tipo: "estado" }
   | { tipo: "fim"; aviso?: string }
@@ -65,6 +67,15 @@ function lerBloco(bloco: string): EventoDaResposta | null {
   if (linhasDeDados.length === 0) return null;
   const dados = lerDados(linhasDeDados.join("\n"));
   switch (tipo) {
+    case "conversa":
+      if (typeof dados.id_da_conversa !== "string" || typeof dados.id_da_pergunta !== "string") {
+        throw new ForaDoContrato();
+      }
+      return {
+        tipo: "conversa",
+        idDaConversa: dados.id_da_conversa,
+        idDaPergunta: dados.id_da_pergunta,
+      };
     case "texto":
       if (typeof dados.texto !== "string") throw new ForaDoContrato();
       return { tipo: "texto", texto: dados.texto };

@@ -2,8 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   CONVERSA_VAZIA,
+  corpoDaPergunta,
   enviar,
-  itensParaEnviar,
   parar as pararResposta,
   podeEnviar,
   receber,
@@ -21,7 +21,8 @@ export interface FonteDoAssistente {
 /**
  * A conversa com o assistente, o envio de perguntas e a parada da resposta. Fica no estado de quem
  * chama: enquanto ele estiver montado, a conversa sobrevive a fechar o painel e a trocar de
- * página. Nada é gravado no navegador: recarregar ou sair descarta a conversa.
+ * página. A conversa fica gravada na API, mas o navegador não guarda nada, nem o identificador
+ * dela: recarregar ou sair abre uma conversa nova.
  */
 export function useConversa(fonte: FonteDoAssistente): {
   conversa: Conversa;
@@ -35,7 +36,7 @@ export function useConversa(fonte: FonteDoAssistente): {
   const perguntar = useCallback(
     (pergunta: string) => {
       if (!podeEnviar(conversa, pergunta)) return;
-      const corpo = { pergunta, conversa: itensParaEnviar(conversa) };
+      const corpo = corpoDaPergunta(conversa, pergunta);
       const controle = new AbortController();
       emAndamento.current = controle;
       setConversa((atual) => enviar(atual, pergunta));

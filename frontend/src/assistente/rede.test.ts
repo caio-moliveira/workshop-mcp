@@ -21,7 +21,7 @@ function responderComTexto(status: number, corpo: string) {
 
 async function falhaDaPergunta(): Promise<unknown> {
   try {
-    await perguntarAoAssistente("http://api", "abc", { pergunta: "Oi?", conversa: [] });
+    await perguntarAoAssistente("http://api", "abc", { pergunta: "Oi?" });
   } catch (erro) {
     return erro;
   }

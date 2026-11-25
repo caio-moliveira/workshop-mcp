@@ -41,16 +41,13 @@ async function avisoDaRecusa(resposta: Response, reserva: string): Promise<strin
   return reserva;
 }
 
-/** Uma pergunta ou resposta anterior, como a rota `POST /assistente` a recebe. */
-export interface ItemDaConversa {
-  autor: "usuario" | "assistente";
-  texto: string;
-}
-
-/** O corpo da rota `POST /assistente`. */
+/**
+ * O corpo da rota `POST /assistente`: a pergunta e, para continuar uma conversa gravada, o
+ * identificador dela. Sem ele, a API abre uma conversa nova.
+ */
 export interface CorpoDaPergunta {
   pergunta: string;
-  conversa: ItemDaConversa[];
+  id_da_conversa?: string;
 }
 
 /**
