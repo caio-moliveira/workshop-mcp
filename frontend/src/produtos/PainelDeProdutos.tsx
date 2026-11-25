@@ -3,6 +3,7 @@ import { PeriodFilter } from "../componentes/PeriodFilter";
 import { usePeriodoDaUrl } from "../painel/usePeriodoDaUrl";
 import { DESCRICAO_DOS_PERFIS } from "../perfis";
 import type { FonteDeDados } from "../useBloco";
+import { BlocoDeAvaliacoesRecentes } from "./BlocoDeAvaliacoesRecentes";
 import { BlocoDeIndicadores } from "./BlocoDeIndicadores";
 
 interface Propriedades {
@@ -26,6 +27,7 @@ export function PainelDeProdutos({ fonte, primeiroNome }: Propriedades) {
         controles={<PeriodFilter periodo={periodo} aoMudar={mudarPeriodo} />}
       />
       <BlocoDeIndicadores fonte={fonte} periodo={periodo} />
+      <BlocoDeAvaliacoesRecentes fonte={fonte} periodo={periodo} />
     </>
   );
 }
