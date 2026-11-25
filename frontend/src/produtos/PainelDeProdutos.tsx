@@ -1,10 +1,14 @@
 import { PageHeading } from "../componentes/PageHeading";
 import { PeriodFilter } from "../componentes/PeriodFilter";
+import linha from "../painel/LinhaAnalitica.module.css";
 import { usePeriodoDaUrl } from "../painel/usePeriodoDaUrl";
 import { DESCRICAO_DOS_PERFIS } from "../perfis";
 import type { FonteDeDados } from "../useBloco";
 import { BlocoDeAvaliacoesRecentes } from "./BlocoDeAvaliacoesRecentes";
+import { BlocoDeCategorias } from "./BlocoDeCategorias";
 import { BlocoDeIndicadores } from "./BlocoDeIndicadores";
+import { BlocoDeNotas } from "./BlocoDeNotas";
+import { BlocoDeMalAvaliados } from "./BlocoDeMalAvaliados";
 
 interface Propriedades {
   fonte: FonteDeDados;
@@ -27,6 +31,15 @@ export function PainelDeProdutos({ fonte, primeiroNome }: Propriedades) {
         controles={<PeriodFilter periodo={periodo} aoMudar={mudarPeriodo} />}
       />
       <BlocoDeIndicadores fonte={fonte} periodo={periodo} />
+      <div className={linha.linhaAnalitica}>
+        <div className={linha.principal}>
+          <BlocoDeNotas fonte={fonte} periodo={periodo} />
+        </div>
+        <div className={linha.complementar}>
+          <BlocoDeCategorias fonte={fonte} periodo={periodo} />
+        </div>
+      </div>
+      <BlocoDeMalAvaliados fonte={fonte} periodo={periodo} />
       <BlocoDeAvaliacoesRecentes fonte={fonte} periodo={periodo} />
     </>
   );

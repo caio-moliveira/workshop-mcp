@@ -281,6 +281,55 @@ FERRAMENTAS: dict[str, Ferramenta] = {
         ),
         parametros=(PERIODO,),
     ),
+    "produtos_notas": Ferramenta(
+        consulta=produtos.notas,
+        titulo="Avaliações por nota",
+        descricao=(
+            "Como as notas das avaliações de produtos se distribuem em um período: quantas "
+            "avaliações receberam cada nota, de 1 a 5. Use para saber se as notas estão "
+            "concentradas no alto ou no baixo e quantas são reclamações (notas 1 e 2); para a "
+            "nota média e a comparação com o período anterior, use produtos_indicadores. "
+            "'notas' traz sempre as cinco notas, de 1 a 5, nesta ordem, cada uma com "
+            "'avaliacoes' (quantas avaliações do período têm aquela nota, zero quando nenhuma). "
+            "'periodo' traz as datas de início e fim usadas, em formato ISO."
+        ),
+        parametros=(PERIODO,),
+    ),
+    "produtos_categorias": Ferramenta(
+        consulta=produtos.categorias,
+        titulo="Notas e reclamações por categoria",
+        descricao=(
+            "As 20 categorias de produtos com a nota média e as reclamações das avaliações de "
+            "um período, já ordenadas da pior nota média para a melhor. Use para responder "
+            "quais categorias concentram as piores notas ou as mais reclamações e como as "
+            "categorias se comparam; a primeira da lista é a de pior nota média, sem precisar "
+            "de conta. Cada item de 'categorias' traz 'categoria' (o nome), 'produtos' (quantos "
+            "produtos do catálogo são da categoria; não depende do período), 'avaliacoes' "
+            "(avaliações do período nos produtos da categoria), 'nota_media' (de 1 a 5), "
+            "'reclamacoes' (quantas dessas avaliações têm nota 1 ou 2) e 'taxa_de_reclamacao' "
+            "(reclamações ÷ avaliações da categoria, de 0 a 1). Nota média e taxa vêm nulas numa "
+            "categoria sem avaliação no período, que fica no fim da lista. As categorias "
+            "costumam diferir pouco na nota média e muito no número de reclamações, que acompanha "
+            "o volume de avaliações: para comparar categorias de tamanhos diferentes, use a taxa "
+            "de reclamação. 'periodo' traz as datas de início e fim usadas, em formato ISO."
+        ),
+        parametros=(PERIODO,),
+    ),
+    "produtos_mal_avaliados": Ferramenta(
+        consulta=produtos.mal_avaliados,
+        titulo="Produtos mal avaliados",
+        descricao=(
+            "A lista dos produtos mal avaliados de um período: os que têm nota média abaixo de "
+            "3,0 com pelo menos 3 avaliações com data no período. Use para saber quais produtos "
+            "os clientes avaliam pior. A lista vem da pior nota média para a melhor (na mesma "
+            "nota, primeiro o produto com mais avaliações) e é limitada a 50 produtos. Cada item "
+            "de 'produtos' traz 'produto' (identificador do produto, para pedir as avaliações "
+            "dele), 'nome', 'categoria', 'preco' (em reais), 'nota_media' (de 1 a 5, só das "
+            "avaliações do período) e 'avaliacoes' (quantas avaliações o produto recebeu no "
+            "período). 'periodo' traz as datas de início e fim usadas, em formato ISO."
+        ),
+        parametros=(PERIODO,),
+    ),
     "produtos_avaliacoes": Ferramenta(
         consulta=produtos.avaliacoes,
         titulo="Avaliações recentes de Produtos",
