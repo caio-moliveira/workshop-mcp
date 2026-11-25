@@ -21,6 +21,8 @@ export interface RespostaDoAssistente {
   consultando: boolean;
   /** A mensagem genérica, quando a resposta terminou em erro. */
   erro?: string;
+  /** O aviso do fim (teto de chamadas): a resposta concluiu, mas parou antes. */
+  aviso?: string;
 }
 
 export type Fala = PerguntaDoUsuario | RespostaDoAssistente;
@@ -72,6 +74,7 @@ export function receber(conversa: Conversa, evento: EventoDaResposta): Conversa 
       break;
     case "fim":
       nova = { ...atual, situacao: "concluida", consultando: false };
+      if (evento.aviso) nova.aviso = evento.aviso;
       break;
     case "erro":
       nova = { ...atual, situacao: "erro", consultando: false, erro: evento.mensagem };
