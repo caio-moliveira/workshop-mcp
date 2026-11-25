@@ -5,8 +5,8 @@ import logging
 import time
 import uuid
 from collections.abc import AsyncIterator, Generator, Iterable
-from dataclasses import dataclass, field
-from typing import Any, Literal
+from dataclasses import asdict, dataclass, field
+from typing import Any, ClassVar, Literal
 
 # O cliente HTTP do FastMCP 4, pelo qual o PydanticAI fala com o servidor MCP.
 import httpx2
@@ -30,6 +30,8 @@ from pydantic_ai.models import Model
 from acesso import UsuarioAutenticado, mensagens
 from assistente.limites import PADRAO, Limites
 from consultas import pergunta_no_log
+from consultas.duracao import milissegundos_desde
+from historico import ChamadaRastreada, Desfecho, FimDaResposta, RespostaParaGravar, Situacao
 
 registro = logging.getLogger("assistente")
 
@@ -58,52 +60,113 @@ class ItemDaConversa(BaseModel):
 
 
 TipoDeEvento = Literal["conversa", "texto", "estado", "chamada", "fim", "erro"]
-Desfecho = Literal["concluida", "nao_concluida"]
 
 
 @dataclass(frozen=True)
 class Evento:
-    """Um evento do fluxo da resposta, com os seus dados. Cada tipo nasce da sua fábrica abaixo."""
+    """Um evento do fluxo da resposta. Cada tipo é uma das classes abaixo, com os seus campos;
+    `dados` é como ele sai no fluxo."""
 
-    tipo: TipoDeEvento
-    dados: dict[str, Any] = field(default_factory=dict)
+    tipo: ClassVar[TipoDeEvento]
+
+    @property
+    def dados(self) -> dict[str, Any]:
+        return asdict(self)
 
 
-def conversa(id_da_conversa: uuid.UUID, id_da_pergunta: uuid.UUID) -> Evento:
+@dataclass(frozen=True)
+class ConversaDaPergunta(Evento):
     """O primeiro evento: a conversa em que a pergunta foi gravada e o identificador dela."""
-    return Evento(
-        "conversa", {"id_da_conversa": str(id_da_conversa), "id_da_pergunta": str(id_da_pergunta)}
-    )
+
+    tipo: ClassVar[TipoDeEvento] = "conversa"
+    id_da_conversa: uuid.UUID
+    id_da_pergunta: uuid.UUID
+
+    @property
+    def dados(self) -> dict[str, Any]:
+        return {
+            "id_da_conversa": str(self.id_da_conversa),
+            "id_da_pergunta": str(self.id_da_pergunta),
+        }
 
 
-def texto(trecho: str) -> Evento:
-    return Evento("texto", {"texto": trecho})
+@dataclass(frozen=True)
+class Trecho(Evento):
+    """Um trecho do texto da resposta."""
+
+    tipo: ClassVar[TipoDeEvento] = "texto"
+    texto: str
 
 
-def consultando() -> Evento:
+@dataclass(frozen=True)
+class Consultando(Evento):
     """O assistente está consultando os dados. Não diz qual ferramenta."""
-    return Evento("estado", {"estado": "consultando"})
+
+    tipo: ClassVar[TipoDeEvento] = "estado"
+    estado: Literal["consultando"] = "consultando"
 
 
-def chamada(ferramenta: str, desfecho: Desfecho, milissegundos: int) -> Evento:
+@dataclass(frozen=True)
+class ChamadaTerminada(Evento):
     """Uma chamada terminada, para o rastreio: a ferramenta pedida, o desfecho e a duração.
 
     Só isso. Os parâmetros e o texto do erro ficam fora: o rastreio é para o usuário ver de onde
     veio a resposta, não para expor o que foi pedido nem por que falhou (FE §8).
     """
-    return Evento(
-        "chamada",
-        {"ferramenta": ferramenta, "desfecho": desfecho, "milissegundos": milissegundos},
-    )
+
+    tipo: ClassVar[TipoDeEvento] = "chamada"
+    chamada: ChamadaRastreada
+
+    @property
+    def dados(self) -> dict[str, Any]:
+        return asdict(self.chamada)
 
 
-def fim(aviso: str | None = None) -> Evento:
+@dataclass(frozen=True)
+class Fim(Evento):
     """A resposta terminou; com aviso, terminou antes do que pedia a pergunta."""
-    return Evento("fim", {"aviso": aviso} if aviso else {})
+
+    tipo: ClassVar[TipoDeEvento] = "fim"
+    aviso: str | None = None
+
+    @property
+    def dados(self) -> dict[str, Any]:
+        return {"aviso": self.aviso} if self.aviso else {}
 
 
-def erro(mensagem: str) -> Evento:
-    return Evento("erro", {"erro": mensagem})
+@dataclass(frozen=True)
+class Erro(Evento):
+    """A resposta terminou com erro, numa mensagem para o usuário, sem nome interno."""
+
+    tipo: ClassVar[TipoDeEvento] = "erro"
+    erro: str
+
+
+@dataclass
+class RespostaEmCurso:
+    """A resposta como saiu até aqui, evento a evento: o texto, as chamadas terminadas e como
+    terminou. Sem `Fim` nem `Erro`, ela foi interrompida."""
+
+    trechos: list[str] = field(default_factory=list)
+    rastreio: list[ChamadaRastreada] = field(default_factory=list)
+    situacao: Situacao = Situacao.INTERROMPIDA
+    aviso: str | None = None
+    erro: str | None = None
+
+    def acompanhar(self, evento: Evento) -> None:
+        match evento:
+            case Trecho(texto=trecho):
+                self.trechos.append(trecho)
+            case ChamadaTerminada(chamada=chamada):
+                self.rastreio.append(chamada)
+            case Fim(aviso=aviso):
+                self.situacao, self.aviso = Situacao.CONCLUIDA, aviso
+            case Erro(erro=mensagem):
+                self.situacao, self.erro = Situacao.ERRO, mensagem
+
+    def para_gravar(self, id_da_pergunta: uuid.UUID) -> RespostaParaGravar:
+        fim = FimDaResposta(self.situacao, self.aviso, self.erro, tuple(self.rastreio))
+        return RespostaParaGravar(id_da_pergunta, "".join(self.trechos), fim)
 
 
 @dataclass
@@ -237,24 +300,24 @@ class Assistente:
         except UsageLimitExceeded as falha:
             # O que já saiu fica; a resposta termina com o aviso, sem erro.
             registro.warning("pergunta parou no teto: %s: %s", quem, falha)
-            yield fim(mensagens.CONSULTAS_DEMAIS)
+            yield Fim(mensagens.CONSULTAS_DEMAIS)
             return
         except RunTimedOut:
             registro.warning("pergunta passou do tempo máximo: %s", quem)
-            yield erro(mensagens.TEMPO_ESGOTADO)
+            yield Erro(mensagens.TEMPO_ESGOTADO)
             return
         except Exception as falha:
             # O 401 na abertura da conexão sai como falha genérica do cliente MCP; o que diz que
             # foi recusa do token é a anotação no contexto.
             if isinstance(falha, SessaoExpirada) or contexto.token_recusado:
                 registro.warning("pergunta falhou: o servidor MCP recusou o token: %s", quem)
-                yield erro(mensagens.SESSAO_EXPIRADA)
+                yield Erro(mensagens.SESSAO_EXPIRADA)
                 return
             registro.error("pergunta falhou: %s", quem, exc_info=falha)
-            yield erro(mensagens.ASSISTENTE_INDISPONIVEL)
+            yield Erro(mensagens.ASSISTENTE_INDISPONIVEL)
             return
         registro.info("pergunta terminada: %s", quem)
-        yield fim()
+        yield Fim()
 
 
 def _conversa_como_mensagens(conversa: Iterable[ItemDaConversa]) -> list[ModelMessage]:
@@ -281,19 +344,17 @@ class _Traducao:
         """O evento do fluxo, ou nada se não interessa a quem lê."""
         if isinstance(evento, PartStartEvent) and isinstance(evento.part, TextPart):
             # O primeiro trecho de cada parte de texto vem aqui, e não num delta.
-            return texto(evento.part.content) if evento.part.content else None
+            return Trecho(evento.part.content) if evento.part.content else None
         if isinstance(evento, PartDeltaEvent) and isinstance(evento.delta, TextPartDelta):
-            return texto(evento.delta.content_delta) if evento.delta.content_delta else None
+            return Trecho(evento.delta.content_delta) if evento.delta.content_delta else None
         if isinstance(evento, FunctionToolCallEvent):
             self._inicios[evento.part.tool_call_id] = time.monotonic()
-            return consultando()
+            return Consultando()
         if isinstance(evento, FunctionToolResultEvent):
             inicio = self._inicios.pop(evento.part.tool_call_id, time.monotonic())
-            # Negada, inexistente, com parâmetro inválido, barrada pelo limite ou com falha: o
-            # rastreio não distingue o motivo, que fica só no log e na auditoria.
             desfecho: Desfecho = (
                 "concluida" if evento.part.outcome == "success" else "nao_concluida"
             )
-            milissegundos = round((time.monotonic() - inicio) * 1000)
-            return chamada(evento.part.tool_name, desfecho, milissegundos)
+            chamada = ChamadaRastreada(evento.part.tool_name, desfecho, milissegundos_desde(inicio))
+            return ChamadaTerminada(chamada)
         return None

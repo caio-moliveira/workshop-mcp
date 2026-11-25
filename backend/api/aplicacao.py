@@ -25,10 +25,10 @@ from acesso import (
     autenticar,
     mensagens,
 )
-from assistente import Assistente, Evento, ItemDaConversa, Limites
+from assistente import Assistente, ItemDaConversa, Limites
 from assistente.limites import ITENS_DA_CONVERSA
 from assistente.limites import PADRAO as LIMITES_PADRAO
-from assistente.resposta import conversa as evento_da_conversa
+from assistente.resposta import ConversaDaPergunta, RespostaEmCurso
 from consultas import (
     PERIODO_PADRAO,
     AcessoNegado,
@@ -40,15 +40,12 @@ from consultas import (
     vendas,
 )
 from historico import (
-    ChamadaRastreada,
     ConversaGravada,
     ConversaInexistente,
-    FimDaResposta,
     Historico,
     HistoricoIndisponivel,
     ItemGravado,
     RespostaParaGravar,
-    Situacao,
 )
 
 registro = logging.getLogger("api")
@@ -165,27 +162,6 @@ def conversa_para_o_modelo(itens: Iterable[ItemGravado]) -> list[ItemDaConversa]
     # fica pela metade.
     cabem = ITENS_DA_CONVERSA - ITENS_DA_CONVERSA % 2
     return conversa[-cabem:]
-
-
-def resposta_para_gravar(
-    id_da_pergunta: uuid.UUID,
-    trechos: Iterable[str],
-    chamadas: Iterable[Evento],
-    desfecho: Evento | None,
-) -> RespostaParaGravar:
-    """A resposta como vai para o histórico, com o rastreio tirado dos eventos `chamada` que
-    saíram no fluxo. Sem `fim` nem `erro`, ela foi interrompida."""
-    texto = "".join(trechos)
-    rastreio = tuple(ChamadaRastreada(**chamada.dados) for chamada in chamadas)
-    if desfecho is None:
-        fim = FimDaResposta(Situacao.INTERROMPIDA, rastreio=rastreio)
-    elif desfecho.tipo == "erro":
-        fim = FimDaResposta(Situacao.ERRO, erro=desfecho.dados["erro"], rastreio=rastreio)
-    else:
-        fim = FimDaResposta(
-            Situacao.CONCLUIDA, aviso=desfecho.dados.get("aviso"), rastreio=rastreio
-        )
-    return RespostaParaGravar(id_da_pergunta, texto, fim)
 
 
 def identificador_da_conversa(valor: str) -> uuid.UUID:
@@ -373,11 +349,9 @@ def criar_aplicacao(
         disponivel: Annotated[Assistente, Depends(assistente_disponivel)],
         pergunta: Annotated[PerguntaGravada, Depends(pergunta_gravada)],
     ) -> AsyncIterator[ServerSentEvent]:
-        inicio = evento_da_conversa(pergunta.id_da_conversa, pergunta.id_da_pergunta)
+        inicio = ConversaDaPergunta(pergunta.id_da_conversa, pergunta.id_da_pergunta)
         yield ServerSentEvent(event=inicio.tipo, data=inicio.dados)
-        trechos: list[str] = []
-        chamadas: list[Evento] = []
-        desfecho: Evento | None = None
+        em_curso = RespostaEmCurso()
         try:
             async for evento in disponivel.responder(
                 pergunta.texto,
@@ -387,17 +361,12 @@ def criar_aplicacao(
                 id_da_pergunta=pergunta.id_da_pergunta,
                 id_da_conversa=pergunta.id_da_conversa,
             ):
-                if evento.tipo == "texto":
-                    trechos.append(evento.dados["texto"])
-                elif evento.tipo == "chamada":
-                    chamadas.append(evento)
-                elif evento.tipo in ("fim", "erro"):
-                    desfecho = evento
+                em_curso.acompanhar(evento)
                 yield ServerSentEvent(event=evento.tipo, data=evento.dados)
         finally:
             # Vale também quando o navegador desconecta: o cancelamento não alcança a gravação,
             # e a resposta parada fica gravada com o texto que já tinha saído.
-            resposta = resposta_para_gravar(pergunta.id_da_pergunta, trechos, chamadas, desfecho)
+            resposta = em_curso.para_gravar(pergunta.id_da_pergunta)
             with anyio.CancelScope(shield=True):
                 await anyio.to_thread.run_sync(gravar_resposta, usuario, pergunta, resposta)
 

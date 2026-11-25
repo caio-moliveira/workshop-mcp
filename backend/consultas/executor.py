@@ -13,6 +13,7 @@ from psycopg_pool import ConnectionPool, PoolTimeout
 
 from acesso import Perfil, UsuarioAutenticado
 from consultas import pergunta_no_log
+from consultas.duracao import milissegundos_desde
 from consultas.registro import Consulta
 
 registro = logging.getLogger("consultas")
@@ -110,7 +111,7 @@ class ExecutorDeConsultas:
             registro.info(
                 "consulta %s executada: %d ms, %s",
                 consulta.nome,
-                round((time.monotonic() - inicio) * 1000),
+                milissegundos_desde(inicio),
                 pergunta_no_log.atual(),
             )
 
