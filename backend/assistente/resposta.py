@@ -1,13 +1,14 @@
-"""O agente que responde a pergunta, e os eventos em que a resposta sai."""
+"""A resposta do assistente à pergunta, e os eventos em que ela sai."""
 
 import asyncio
 import logging
 from collections.abc import AsyncIterator, Generator, Iterable
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Literal
 
 # O cliente HTTP do FastMCP 4, pelo qual o PydanticAI fala com o servidor MCP.
 import httpx2
+from pydantic import BaseModel, ConfigDict
 from pydantic_ai import (
     Agent,
     FunctionToolCallEvent,
@@ -41,11 +42,23 @@ novo em instantes.
 Responda em Markdown simples e curto: parágrafos, negrito e listas."""
 
 
+class ItemDaConversa(BaseModel):
+    """Uma pergunta ou resposta anterior da conversa, como o navegador a guardou."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    autor: Literal["usuario", "assistente"]
+    texto: str
+
+
+TipoDeEvento = Literal["texto", "estado", "fim", "erro"]
+
+
 @dataclass(frozen=True)
 class Evento:
-    """Um evento do fluxo da resposta: `texto`, `estado`, `fim` ou `erro`, com os seus dados."""
+    """Um evento do fluxo da resposta, com os seus dados. Cada tipo nasce da sua fábrica abaixo."""
 
-    tipo: str
+    tipo: TipoDeEvento
     dados: dict[str, Any] = field(default_factory=dict)
 
 
@@ -53,9 +66,14 @@ def texto(trecho: str) -> Evento:
     return Evento("texto", {"texto": trecho})
 
 
-# O assistente está consultando os dados. Não diz qual ferramenta.
-ESTADO_CONSULTANDO = Evento("estado", {"estado": "consultando"})
-FIM = Evento("fim")
+def consultando() -> Evento:
+    """O assistente está consultando os dados. Não diz qual ferramenta."""
+    return Evento("estado", {"estado": "consultando"})
+
+
+def fim(aviso: str | None = None) -> Evento:
+    """A resposta terminou; com aviso, terminou antes do que pedia a pergunta."""
+    return Evento("fim", {"aviso": aviso} if aviso else {})
 
 
 def erro(mensagem: str) -> Evento:
@@ -134,7 +152,9 @@ class Assistente:
             tool_error_behavior="failed",
             process_tool_call=_interromper_se_recusado,
         )
-        self._agente = Agent(deps_type=Contexto, toolsets=[ferramentas], instructions=_instrucoes)
+        self._respondedor = Agent(
+            deps_type=Contexto, toolsets=[ferramentas], instructions=_instrucoes
+        )
 
     @property
     def disponivel(self) -> bool:
@@ -145,20 +165,20 @@ class Assistente:
         pergunta: str,
         usuario: UsuarioAutenticado,
         token: str,
-        conversa: Iterable[tuple[str, str]] = (),
+        conversa: Iterable[ItemDaConversa] = (),
     ) -> AsyncIterator[Evento]:
         """Os eventos da resposta. Termina sempre com exatamente um `fim` ou um `erro`.
 
-        A conversa anterior, em ordem e como (autor, texto), chega ao modelo como contexto.
+        A conversa anterior, em ordem, chega ao modelo como contexto.
         """
         registro.info("pergunta iniciada: usuário %s", usuario.id)
         contexto = Contexto(token, usuario)
         try:
-            async with self._agente.run_stream_events(
+            async with self._respondedor.run_stream_events(
                 pergunta,
                 model=self.modelo,
                 deps=contexto,
-                message_history=_historico(conversa),
+                message_history=_conversa_como_mensagens(conversa),
                 usage_limits=UsageLimits(
                     tool_calls_limit=self.limites.chamadas,
                     request_limit=self.limites.requisicoes_ao_modelo,
@@ -176,7 +196,7 @@ class Assistente:
         except UsageLimitExceeded as falha:
             # O que já saiu fica; a resposta termina com o aviso, sem erro.
             registro.warning("pergunta parou no teto: usuário %s: %s", usuario.id, falha)
-            yield Evento("fim", {"aviso": mensagens.CONSULTAS_DEMAIS})
+            yield fim(mensagens.CONSULTAS_DEMAIS)
             return
         except RunTimedOut:
             registro.warning("pergunta passou do tempo máximo: usuário %s", usuario.id)
@@ -195,26 +215,26 @@ class Assistente:
             yield erro(mensagens.ASSISTENTE_INDISPONIVEL)
             return
         registro.info("pergunta terminada: usuário %s", usuario.id)
-        yield FIM
+        yield fim()
 
 
-def _historico(conversa: Iterable[tuple[str, str]]) -> list[ModelMessage]:
+def _conversa_como_mensagens(conversa: Iterable[ItemDaConversa]) -> list[ModelMessage]:
     """A conversa anterior como mensagens do modelo: a pergunta do usuário e a resposta em texto."""
     return [
-        ModelRequest.user_text_prompt(texto)
-        if autor == "usuario"
-        else ModelResponse(parts=[TextPart(content=texto)])
-        for autor, texto in conversa
+        ModelRequest.user_text_prompt(item.texto)
+        if item.autor == "usuario"
+        else ModelResponse(parts=[TextPart(content=item.texto)])
+        for item in conversa
     ]
 
 
 def _traduzir(evento: object) -> Evento | None:
-    """O evento da execução do agente como evento do fluxo, ou nada se não interessa a quem lê."""
+    """O evento do PydanticAI como evento do fluxo, ou nada se não interessa a quem lê."""
     if isinstance(evento, PartStartEvent) and isinstance(evento.part, TextPart):
         # O primeiro trecho de cada parte de texto vem aqui, e não num delta.
         return texto(evento.part.content) if evento.part.content else None
     if isinstance(evento, PartDeltaEvent) and isinstance(evento.delta, TextPartDelta):
         return texto(evento.delta.content_delta) if evento.delta.content_delta else None
     if isinstance(evento, FunctionToolCallEvent):
-        return ESTADO_CONSULTANDO
+        return consultando()
     return None

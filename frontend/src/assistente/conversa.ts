@@ -6,7 +6,7 @@
  * função irmã de `enviar`.
  */
 import type { EventoDaResposta } from "./fluxo";
-import { passouDoLimite } from "./limites";
+import { cortarNoLimite, ITENS_DA_CONVERSA, passouDoLimite } from "./limites";
 import type { ItemDaConversa } from "./rede";
 
 export interface PerguntaDoUsuario {
@@ -27,16 +27,16 @@ export interface RespostaDoAssistente {
   aviso?: string;
 }
 
-export type Fala = PerguntaDoUsuario | RespostaDoAssistente;
+export type PerguntaOuResposta = PerguntaDoUsuario | RespostaDoAssistente;
 
 export interface Conversa {
-  falas: readonly Fala[];
+  perguntasERespostas: readonly PerguntaOuResposta[];
 }
 
-export const CONVERSA_VAZIA: Conversa = { falas: [] };
+export const CONVERSA_VAZIA: Conversa = { perguntasERespostas: [] };
 
 function respostaEmAndamento(conversa: Conversa): RespostaDoAssistente | null {
-  const ultima = conversa.falas.at(-1);
+  const ultima = conversa.perguntasERespostas.at(-1);
   return ultima?.autor === "assistente" && ultima.situacao === "chegando" ? ultima : null;
 }
 
@@ -54,8 +54,8 @@ export function podeEnviar(conversa: Conversa, pergunta: string): boolean {
 export function enviar(conversa: Conversa, pergunta: string): Conversa {
   if (!podeEnviar(conversa, pergunta)) return conversa;
   return {
-    falas: [
-      ...conversa.falas,
+    perguntasERespostas: [
+      ...conversa.perguntasERespostas,
       { autor: "usuario", texto: pergunta },
       { autor: "assistente", texto: "", situacao: "chegando", consultando: false },
     ],
@@ -82,7 +82,7 @@ export function receber(conversa: Conversa, evento: EventoDaResposta): Conversa 
       nova = { ...atual, situacao: "erro", consultando: false, erro: evento.mensagem };
       break;
   }
-  return { falas: [...conversa.falas.slice(0, -1), nova] };
+  return { perguntasERespostas: [...conversa.perguntasERespostas.slice(0, -1), nova] };
 }
 
 /** O usuário parou a resposta em andamento: o texto recebido fica, e o envio é liberado. */
@@ -90,24 +90,29 @@ export function parar(conversa: Conversa): Conversa {
   const atual = respostaEmAndamento(conversa);
   if (!atual) return conversa;
   const nova: RespostaDoAssistente = { ...atual, situacao: "interrompida", consultando: false };
-  return { falas: [...conversa.falas.slice(0, -1), nova] };
+  return { perguntasERespostas: [...conversa.perguntasERespostas.slice(0, -1), nova] };
 }
 
 /**
  * A conversa anterior que vai com a pergunta seguinte: cada pergunta com a sua resposta, só quando
  * a resposta foi concluída. Uma resposta interrompida, com erro ou ainda chegando fica de fora, e a
  * pergunta dela também, para o modelo não receber uma pergunta sem resposta.
+ *
+ * Vai só o que a API aceita: os pares mais recentes que cabem no teto de itens, e cada texto
+ * dentro do teto de caracteres, cortado com a marca quando passa.
  */
 export function itensParaEnviar(conversa: Conversa): ItemDaConversa[] {
   const itens: ItemDaConversa[] = [];
-  conversa.falas.forEach((fala, indice) => {
-    if (fala.autor !== "assistente" || fala.situacao !== "concluida") return;
-    const pergunta = conversa.falas[indice - 1];
+  conversa.perguntasERespostas.forEach((item, indice) => {
+    if (item.autor !== "assistente" || item.situacao !== "concluida") return;
+    const pergunta = conversa.perguntasERespostas[indice - 1];
     if (pergunta?.autor !== "usuario") return;
     itens.push(
-      { autor: "usuario", texto: pergunta.texto },
-      { autor: "assistente", texto: fala.texto },
+      { autor: "usuario", texto: cortarNoLimite(pergunta.texto) },
+      { autor: "assistente", texto: cortarNoLimite(item.texto) },
     );
   });
-  return itens;
+  // Um número par de itens: nenhum par pergunta e resposta fica pela metade.
+  const cabem = ITENS_DA_CONVERSA - (ITENS_DA_CONVERSA % 2);
+  return itens.slice(Math.max(0, itens.length - cabem));
 }

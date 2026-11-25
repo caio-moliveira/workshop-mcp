@@ -12,12 +12,9 @@ from pydantic_ai.models.function import FunctionModel
 from recusa import RESPOSTA_DE_PARAMETRO_INVALIDO
 from roteiro import ASSISTENTE_INDISPONIVEL, eventos, modelo_roteirizado, perguntar
 
-from acesso import Perfil
+from acesso import Perfil, mensagens
 from assistente import Limites, limites_do_ambiente
 
-# As mensagens genéricas do evento `erro`, ao lado da de assistente indisponível.
-TEMPO_ESGOTADO = "O assistente demorou demais para responder. Tente de novo."
-SESSAO_EXPIRADA = "Sua sessão expirou. Entre de novo para continuar."
 # O que nenhuma mensagem ao usuário pode citar: provedor, modelo, ferramenta, protocolo e o
 # detalhe da exceção (RS-08).
 NOMES_INTERNOS = ["anthropic", "claude", "haiku", "vendas_indicadores", "mcp", "529", "overloaded"]
@@ -59,7 +56,7 @@ def test_o_modelo_em_laco_para_no_teto_de_chamadas_e_termina_com_fim_e_aviso(cri
 
     tipo, dados = lidos[-1]
     assert tipo == "fim"
-    assert dados["aviso"]
+    assert dados == {"aviso": mensagens.CONSULTAS_DEMAIS}
     assert [tipo for tipo, _ in lidos].count("estado") <= 3
     _assert_um_unico_desfecho_generico(lidos)
 
@@ -105,7 +102,10 @@ def test_modelo_lento_termina_com_erro_de_tempo_esgotado_sem_desfazer_o_texto(cr
 
     lidos = eventos(perguntar(api, token_de(Perfil.VENDAS)))
 
-    assert lidos == [("texto", {"texto": "Os atrasos "}), ("erro", {"erro": TEMPO_ESGOTADO})]
+    assert lidos == [
+        ("texto", {"texto": "Os atrasos "}),
+        ("erro", {"erro": mensagens.TEMPO_ESGOTADO}),
+    ]
     _assert_um_unico_desfecho_generico(lidos)
 
 
@@ -138,7 +138,7 @@ def test_token_que_o_servidor_mcp_recusa_termina_com_erro_de_sessao_expirada(cri
 
     lidos = eventos(perguntar(api, token))
 
-    assert lidos == [("erro", {"erro": SESSAO_EXPIRADA})]
+    assert lidos == [("erro", {"erro": mensagens.SESSAO_EXPIRADA})]
     _assert_um_unico_desfecho_generico(lidos)
 
 

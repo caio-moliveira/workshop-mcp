@@ -9,20 +9,19 @@ import {
 } from "./rede";
 
 function responderCom(status: number, corpo: unknown) {
+  responderComTexto(status, JSON.stringify(corpo));
+}
+
+function responderComTexto(status: number, corpo: string) {
   vi.stubGlobal(
     "fetch",
-    vi.fn(async () => new Response(JSON.stringify(corpo), { status })),
+    vi.fn(async () => new Response(corpo, { status })),
   );
 }
 
 async function falhaDaPergunta(): Promise<unknown> {
   try {
-    for await (const evento of perguntarAoAssistente("http://api", "abc", {
-      pergunta: "Oi?",
-      conversa: [],
-    })) {
-      void evento;
-    }
+    await perguntarAoAssistente("http://api", "abc", { pergunta: "Oi?", conversa: [] });
   } catch (erro) {
     return erro;
   }
@@ -34,20 +33,27 @@ afterEach(() => {
 });
 
 describe("falhas da pergunta antes do fluxo", () => {
-  it("o 503 da rota vira o aviso de assistente indisponível", async () => {
-    responderCom(503, { erro: "O assistente está indisponível no momento." });
+  it("o 503 da rota vira o aviso com o texto que a API devolveu", async () => {
+    const doServidor = "Texto do aviso escrito pela API.";
+    responderCom(503, { erro: doServidor });
+
+    expect(mensagemDaFalha(await falhaDaPergunta())).toBe(doServidor);
+  });
+
+  it("o 503 sem o texto no corpo vira o aviso de reserva", async () => {
+    responderComTexto(503, "<html>Service Unavailable</html>");
 
     expect(mensagemDaFalha(await falhaDaPergunta())).toBe(ASSISTENTE_INDISPONIVEL);
   });
 
   it("o 401 segue como TokenRecusado, para a sessão tratar", async () => {
-    responderCom(401, { erro: "Não autenticado." });
+    responderCom(401, {});
 
     expect(await falhaDaPergunta()).toBeInstanceOf(TokenRecusado);
   });
 
   it("outra recusa, ou a rede fora, vira a mensagem genérica", async () => {
-    responderCom(400, { erro: "Parâmetro inválido." });
+    responderCom(400, {});
 
     const erro = await falhaDaPergunta();
     expect(erro).toBeInstanceOf(ApiIndisponivel);

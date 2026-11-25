@@ -11,11 +11,12 @@ import {
   type Conversa,
 } from "./conversa";
 import type { EventoDaResposta } from "./fluxo";
+import { ITENS_DA_CONVERSA, LIMITE_DE_CARACTERES_DA_PERGUNTA, MARCA_DE_CORTE } from "./limites";
 
 describe("conversa", () => {
   it("ao enviar, guarda a pergunta e abre uma resposta ainda chegando", () => {
     const conversa = enviar(CONVERSA_VAZIA, "O que está causando os atrasos?");
-    expect(conversa.falas).toEqual([
+    expect(conversa.perguntasERespostas).toEqual([
       { autor: "usuario", texto: "O que está causando os atrasos?" },
       { autor: "assistente", texto: "", situacao: "chegando", consultando: false },
     ]);
@@ -29,7 +30,7 @@ describe("conversa", () => {
   }
 
   function resposta(conversa: Conversa) {
-    return conversa.falas.at(-1);
+    return conversa.perguntasERespostas.at(-1);
   }
 
   it("acumula os trechos na resposta", () => {
@@ -74,7 +75,7 @@ describe("conversa", () => {
   });
 
   it("o fim com aviso conclui a resposta mantendo o texto e guarda o aviso", () => {
-    const aviso = "A resposta parou aqui: a pergunta precisou de consultas demais.";
+    const aviso = "Aviso do fim, escrito pela API.";
     const conversa = aplicar(perguntada, { tipo: "texto", texto: "Parcial" }, { tipo: "fim", aviso });
     expect(resposta(conversa)).toEqual({
       autor: "assistente",
@@ -93,7 +94,7 @@ describe("conversa", () => {
       { tipo: "erro", mensagem: "Falhou." },
     );
     const conversa = enviar(comErro, "De novo?");
-    expect(conversa.falas.slice(1)).toEqual([
+    expect(conversa.perguntasERespostas.slice(1)).toEqual([
       { autor: "assistente", texto: "Parcial", situacao: "erro", consultando: false, erro: "Falhou." },
       { autor: "usuario", texto: "De novo?" },
       { autor: "assistente", texto: "", situacao: "chegando", consultando: false },
@@ -101,7 +102,7 @@ describe("conversa", () => {
   });
 
   it("no erro, guarda a mensagem, mantém o texto recebido e libera o envio", () => {
-    const mensagem = "O assistente está indisponível no momento. Tente de novo mais tarde.";
+    const mensagem = "Mensagem de erro, escrita pela API.";
     const conversa = aplicar(
       perguntada,
       { tipo: "texto", texto: "Parcial" },
@@ -160,7 +161,7 @@ describe("conversa", () => {
   });
 
   it("a pergunta seguinte leva só as perguntas com resposta concluída, em ordem", () => {
-    const comErro = "O assistente está indisponível no momento. Tente de novo mais tarde.";
+    const comErro = "Mensagem de erro, escrita pela API.";
     let conversa = aplicar(perguntada, { tipo: "texto", texto: "Três lojistas." }, { tipo: "fim" });
     conversa = aplicar(
       enviar(conversa, "Desde quando?"),
@@ -189,11 +190,40 @@ describe("conversa", () => {
       aplicar(perguntada, { tipo: "texto", texto: "Três lojistas." }, { tipo: "fim" }),
       "e por estado?",
     );
-    expect(conversa.falas.map((fala) => [fala.autor, fala.texto])).toEqual([
+    expect(conversa.perguntasERespostas.map((item) => [item.autor, item.texto])).toEqual([
       ["usuario", "O que está causando os atrasos?"],
       ["assistente", "Três lojistas."],
       ["usuario", "e por estado?"],
       ["assistente", ""],
     ]);
+  });
+
+  function respondida(conversa: Conversa, pergunta: string, texto: string): Conversa {
+    return aplicar(enviar(conversa, pergunta), { tipo: "texto", texto }, { tipo: "fim" });
+  }
+
+  it("numa conversa longa, leva só os pares mais recentes que cabem no teto de itens", () => {
+    let conversa = CONVERSA_VAZIA;
+    for (let n = 1; n <= 15; n++) conversa = respondida(conversa, `pergunta ${n}`, `resposta ${n}`);
+
+    const itens = itensParaEnviar(conversa);
+    expect(itens).toHaveLength(ITENS_DA_CONVERSA);
+    expect(itens[0]).toEqual({ autor: "usuario", texto: "pergunta 6" });
+    expect(itens.at(-1)).toEqual({ autor: "assistente", texto: "resposta 15" });
+  });
+
+  it("corta a resposta longa no teto de caracteres e marca o corte", () => {
+    const longa = "📦".repeat(LIMITE_DE_CARACTERES_DA_PERGUNTA + 500);
+    const texto = itensParaEnviar(respondida(CONVERSA_VAZIA, "Quais?", longa)).at(1)?.texto ?? "";
+
+    expect([...texto]).toHaveLength(LIMITE_DE_CARACTERES_DA_PERGUNTA);
+    expect(texto.startsWith("📦".repeat(100))).toBe(true);
+    expect(texto.endsWith(MARCA_DE_CORTE)).toBe(true);
+  });
+
+  it("a resposta no teto de caracteres vai inteira", () => {
+    const noTeto = "a".repeat(LIMITE_DE_CARACTERES_DA_PERGUNTA);
+    const resposta = itensParaEnviar(respondida(CONVERSA_VAZIA, "Quais?", noTeto)).at(1);
+    expect(resposta).toEqual({ autor: "assistente", texto: noTeto });
   });
 });

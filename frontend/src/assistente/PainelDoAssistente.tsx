@@ -111,7 +111,7 @@ export function PainelDoAssistente({
       </header>
 
       <div className={estilos.conversa} role="log" aria-label="Conversa com o assistente">
-        {conversa.falas.length === 0 && (
+        {conversa.perguntasERespostas.length === 0 && (
           <div className={estilos.inicio}>
             <p>Pergunte em linguagem natural sobre os dados do seu perfil.</p>
             {perfil.perguntaSugerida && (
@@ -125,13 +125,13 @@ export function PainelDoAssistente({
             )}
           </div>
         )}
-        {conversa.falas.map((fala, indice) =>
-          fala.autor === "usuario" ? (
+        {conversa.perguntasERespostas.map((item, indice) =>
+          item.autor === "usuario" ? (
             <p key={indice} className={estilos.pergunta}>
-              {fala.texto}
+              {item.texto}
             </p>
           ) : (
-            <Resposta key={indice} resposta={fala} />
+            <Resposta key={indice} resposta={item} />
           ),
         )}
         <div ref={fim} />
