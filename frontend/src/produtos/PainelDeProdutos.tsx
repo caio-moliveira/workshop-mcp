@@ -4,6 +4,7 @@ import linha from "../painel/LinhaAnalitica.module.css";
 import { usePeriodoDaUrl } from "../painel/usePeriodoDaUrl";
 import { DESCRICAO_DOS_PERFIS } from "../perfis";
 import type { FonteDeDados } from "../useBloco";
+import { BlocoDeAvaliacoesRecentes } from "./BlocoDeAvaliacoesRecentes";
 import { BlocoDeCategorias } from "./BlocoDeCategorias";
 import { BlocoDeIndicadores } from "./BlocoDeIndicadores";
 import { BlocoDeNotas } from "./BlocoDeNotas";
@@ -39,6 +40,7 @@ export function PainelDeProdutos({ fonte, primeiroNome }: Propriedades) {
         </div>
       </div>
       <BlocoDeMalAvaliados fonte={fonte} periodo={periodo} />
+      <BlocoDeAvaliacoesRecentes fonte={fonte} periodo={periodo} />
     </>
   );
 }
