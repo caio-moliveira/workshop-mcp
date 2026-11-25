@@ -3,8 +3,9 @@
 import logging
 import uuid
 from collections.abc import AsyncIterator, Callable, Iterable
-from dataclasses import asdict, dataclass
-from typing import Annotated
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Annotated, Literal
 
 import anyio
 from fastapi import Depends, FastAPI, Request
@@ -13,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from fastapi.routing import APIRoute
 from fastapi.sse import EventSourceResponse, ServerSentEvent
-from pydantic import BaseModel, ConfigDict, StringConstraints
+from pydantic import BaseModel, ConfigDict, PlainSerializer, StringConstraints
 from pydantic_ai.models import Model
 from starlette.datastructures import QueryParams
 
@@ -40,12 +41,14 @@ from consultas import (
     vendas,
 )
 from historico import (
+    ChamadaRastreada,
     ConversaGravada,
     ConversaInexistente,
     Historico,
     HistoricoIndisponivel,
     ItemGravado,
     RespostaParaGravar,
+    Situacao,
 )
 
 registro = logging.getLogger("api")
@@ -173,24 +176,60 @@ def identificador_da_conversa(valor: str) -> uuid.UUID:
         raise ConversaInexistente() from erro
 
 
-def conversa_como_resposta(conversa: ConversaGravada) -> dict:
-    """A conversa lida, como a rota a devolve: só os campos que o item tem."""
-    itens = []
-    for item in conversa.itens:
-        lido: dict = {"autor": item.autor, "texto": item.texto}
-        if fim := item.fim:
-            lido["situacao"] = fim.situacao.value
-            if fim.aviso:
-                lido["aviso"] = fim.aviso
-            if fim.erro:
-                lido["erro"] = fim.erro
-            if item.id_da_pergunta:
-                lido["id_da_pergunta"] = str(item.id_da_pergunta)
-            # Sempre presente na resposta, mesmo vazio: sem chamadas, a tela diz que nenhuma
-            # ferramenta foi consultada.
-            lido["rastreio"] = [asdict(chamada) for chamada in fim.rastreio]
-        itens.append(lido)
-    return {"id": str(conversa.id), "titulo": conversa.titulo, "itens": itens}
+# A data como `isoformat()`, com o fuso em `+00:00`, e não em `Z` como o Pydantic a escreveria.
+Horario = Annotated[datetime, PlainSerializer(datetime.isoformat, return_type=str)]
+
+
+class ConversaNaLista(BaseModel):
+    """Uma conversa na lista: sem os itens."""
+
+    id: uuid.UUID
+    titulo: str
+    ultima_atividade: Horario
+
+
+class ListaDeConversas(BaseModel):
+    conversas: list[ConversaNaLista]
+
+
+class ItemLido(BaseModel):
+    """Um item da conversa lida. Só a resposta tem situação, aviso, erro, pergunta e rastreio: o
+    campo que o item não tem fica fora do JSON (a rota exclui os vazios)."""
+
+    autor: Literal["usuario", "assistente"]
+    texto: str
+    situacao: Situacao | None = None
+    aviso: str | None = None
+    erro: str | None = None
+    id_da_pergunta: uuid.UUID | None = None
+    # Na resposta, sempre presente, mesmo vazio: sem chamadas, a tela diz que nenhuma ferramenta
+    # foi consultada.
+    rastreio: list[ChamadaRastreada] | None = None
+
+    @classmethod
+    def do_historico(cls, item: ItemGravado) -> "ItemLido":
+        if (fim := item.fim) is None:
+            return cls(autor=item.autor, texto=item.texto)
+        return cls(
+            autor=item.autor,
+            texto=item.texto,
+            situacao=fim.situacao,
+            aviso=fim.aviso,
+            erro=fim.erro,
+            id_da_pergunta=item.id_da_pergunta,
+            rastreio=list(fim.rastreio),
+        )
+
+
+class ConversaLida(BaseModel):
+    id: uuid.UUID
+    titulo: str
+    itens: list[ItemLido]
+
+    @classmethod
+    def do_historico(cls, conversa: ConversaGravada) -> "ConversaLida":
+        itens = [ItemLido.do_historico(item) for item in conversa.itens]
+        return cls(id=conversa.id, titulo=conversa.titulo, itens=itens)
 
 
 def criar_aplicacao(
@@ -371,22 +410,19 @@ def criar_aplicacao(
                 await anyio.to_thread.run_sync(gravar_resposta, usuario, pergunta, resposta)
 
     @aplicacao.get("/conversas")
-    def listar_conversas(usuario: Autenticado) -> dict:
-        return {
-            "conversas": [
-                {
-                    "id": str(resumo.id),
-                    "titulo": resumo.titulo,
-                    "ultima_atividade": resumo.ultima_atividade.isoformat(),
-                }
-                for resumo in historico.listar_conversas(usuario)
+    def listar_conversas(usuario: Autenticado) -> ListaDeConversas:
+        resumos = historico.listar_conversas(usuario)
+        return ListaDeConversas(
+            conversas=[
+                ConversaNaLista(id=r.id, titulo=r.titulo, ultima_atividade=r.ultima_atividade)
+                for r in resumos
             ]
-        }
+        )
 
-    @aplicacao.get("/conversas/{id_da_conversa}")
-    def ler_conversa(id_da_conversa: str, usuario: Autenticado) -> dict:
+    @aplicacao.get("/conversas/{id_da_conversa}", response_model_exclude_none=True)
+    def ler_conversa(id_da_conversa: str, usuario: Autenticado) -> ConversaLida:
         identificador = identificador_da_conversa(id_da_conversa)
-        return conversa_como_resposta(historico.ler_conversa(usuario, identificador))
+        return ConversaLida.do_historico(historico.ler_conversa(usuario, identificador))
 
     # Definitivo, e só no histórico: a auditoria das chamadas da conversa fica (ADR 0009).
     @aplicacao.delete("/conversas/{id_da_conversa}", status_code=204)
