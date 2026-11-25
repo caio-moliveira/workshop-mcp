@@ -5,15 +5,22 @@ menos 3 avaliações no período. As linhas esperadas vêm de uma consulta indep
 papel dono nos dados de origem. O banco é o da carga padrão (data de referência 30/11/2026).
 """
 
+import uuid
 from datetime import date
 from decimal import Decimal
 
 import pytest
+from apoio import ultima_chamada_de
+from chaves_locais import ChavesLocais, assinar, conteudo_valido, nova_chave
+from cliente_mcp import chamar
+from provedor import DESTINATARIO_DO_MCP
 from recusa import pedir
 
 from acesso import Perfil
 
 ROTA = "/produtos/mal-avaliados"
+FERRAMENTA = "produtos_mal_avaliados"
+CHAVE = nova_chave()
 
 PERIODOS = {
     "30d": (date(2026, 11, 1), date(2026, 11, 30)),
@@ -135,3 +142,29 @@ def test_resposta_tem_numeros_crus_e_nenhum_nome_interno(respostas):
     texto = respostas["12m"].text
     for proibido in ("cliente", "pedido", "lojista", "_id", "dados_de_origem", "produtos."):
         assert proibido not in texto
+
+
+@pytest.fixture(scope="module")
+def mcp(criar_mcp):
+    """O servidor MCP criado no processo, com o código desta branch."""
+    return criar_mcp(chaves=ChavesLocais(CHAVE))
+
+
+@pytest.mark.parametrize("periodo", PERIODOS)
+def test_a_ferramenta_devolve_o_mesmo_que_a_rota_e_fica_na_auditoria(mcp, respostas, periodo):
+    """Tela e agente nunca divergem: a mesma consulta, pelo mesmo mecanismo (RF-13)."""
+    sub = str(uuid.uuid4())
+    token = assinar(
+        conteudo_valido(aud=DESTINATARIO_DO_MCP, perfil=Perfil.PRODUTOS.value, sub=sub), CHAVE
+    )
+
+    resultado = chamar(mcp, token, FERRAMENTA, {"periodo": periodo})
+
+    assert not resultado.is_error
+    assert resultado.structured_content == respostas[periodo].json()
+    linha = ultima_chamada_de(sub)
+    assert linha is not None
+    assert linha["perfil"] == "produtos"
+    assert linha["ferramenta"] == FERRAMENTA
+    assert linha["parametros"] == {"periodo": periodo}
+    assert linha["resultado"] == "permitida"

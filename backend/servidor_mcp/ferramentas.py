@@ -231,4 +231,19 @@ FERRAMENTAS: dict[str, Ferramenta] = {
         ),
         parametros=(PERIODO,),
     ),
+    "produtos_mal_avaliados": Ferramenta(
+        consulta=produtos.mal_avaliados,
+        titulo="Produtos mal avaliados",
+        descricao=(
+            "A lista dos produtos mal avaliados de um período: os que têm nota média abaixo de "
+            "3,0 com pelo menos 3 avaliações com data no período. Use para saber quais produtos "
+            "os clientes avaliam pior. A lista vem da pior nota média para a melhor (na mesma "
+            "nota, primeiro o produto com mais avaliações) e é limitada a 50 produtos. Cada item "
+            "de 'produtos' traz 'produto' (identificador do produto, para pedir as avaliações "
+            "dele), 'nome', 'categoria', 'preco' (em reais), 'nota_media' (de 1 a 5, só das "
+            "avaliações do período) e 'avaliacoes' (quantas avaliações o produto recebeu no "
+            "período). 'periodo' traz as datas de início e fim usadas, em formato ISO."
+        ),
+        parametros=(PERIODO,),
+    ),
 }
