@@ -143,3 +143,68 @@ def mal_avaliados(conexao: psycopg.Connection, periodo: Periodo) -> dict:
             for produto, nome, categoria, preco, nota_media, avaliacoes in linhas
         ],
     }
+
+
+@consulta(Perfil.PRODUTOS)
+def notas(conexao: psycopg.Connection, periodo: Periodo) -> dict:
+    """Quantas avaliações do período há em cada nota, de 1 a 5, com zero na nota sem avaliação."""
+    datas = _datas_do(periodo, conexao)
+    linhas = conexao.execute(
+        """
+        select n.nota, count(a.id)
+        from generate_series(1, 5) as n(nota)
+        left join produtos.avaliacao a
+            on a.nota = n.nota and a.data_avaliacao between %s and %s
+        group by n.nota
+        order by n.nota
+        """,
+        (datas.inicio, datas.fim),
+    ).fetchall()
+    return {
+        "periodo": datas.como_json(),
+        "notas": [{"nota": nota, "avaliacoes": quantas} for nota, quantas in linhas],
+    }
+
+
+@consulta(Perfil.PRODUTOS)
+def categorias(conexao: psycopg.Connection, periodo: Periodo) -> dict:
+    """Todas as categorias, da pior nota média do período para a melhor (empate pelo nome).
+
+    De cada uma: os produtos do catálogo, que não dependem do período, e as avaliações, a nota
+    média, as reclamações e a taxa de reclamação do período. Uma categoria sem avaliação no período
+    vem por último, com nota média e taxa nulas.
+    """
+    datas = _datas_do(periodo, conexao)
+    linhas = conexao.execute(
+        """
+        with do_periodo as (
+            select produto_id, nota from produtos.avaliacao
+            where data_avaliacao between %(inicio)s and %(fim)s
+        )
+        select
+            p.categoria,
+            count(distinct p.id),
+            count(a.nota),
+            avg(a.nota)::float,
+            count(a.nota) filter (where a.nota <= %(reclamacao)s)
+        from produtos.produto p
+        left join do_periodo a on a.produto_id = p.id
+        group by p.categoria
+        order by avg(a.nota) asc nulls last, p.categoria
+        """,
+        {"inicio": datas.inicio, "fim": datas.fim, "reclamacao": NOTA_MAXIMA_DA_RECLAMACAO},
+    ).fetchall()
+    return {
+        "periodo": datas.como_json(),
+        "categorias": [
+            {
+                "categoria": categoria,
+                "produtos": produtos_da_categoria,
+                "avaliacoes": avaliacoes,
+                "nota_media": nota_media,
+                "reclamacoes": reclamacoes,
+                "taxa_de_reclamacao": reclamacoes / avaliacoes if avaliacoes else None,
+            }
+            for categoria, produtos_da_categoria, avaliacoes, nota_media, reclamacoes in linhas
+        ],
+    }

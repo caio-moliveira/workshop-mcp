@@ -107,6 +107,8 @@ ROTAS_DE_DADOS: dict[str, Consulta] = {
     "/vendas/situacao-das-entregas": vendas.situacao_das_entregas,
     "/vendas/pedidos-recentes": vendas.pedidos_recentes,
     "/produtos/indicadores": produtos.indicadores,
+    "/produtos/notas": produtos.notas,
+    "/produtos/categorias": produtos.categorias,
     "/produtos/mal-avaliados": produtos.mal_avaliados,
 }
 
