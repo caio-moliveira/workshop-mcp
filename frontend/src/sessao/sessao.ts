@@ -7,6 +7,8 @@ import {
   TokenRecusado,
   type UsuarioAutenticado,
 } from "../api";
+import type { EventoDaResposta } from "../assistente/fluxo";
+import { perguntarAoAssistente, type CorpoDaPergunta } from "../assistente/rede";
 import { VigiaDeInatividade } from "./inatividade";
 
 export type EstadoDaSessao =
@@ -86,11 +88,38 @@ export class Sessao {
   }
 
   /**
-   * Pede uma rota de dados com o token atual e valida a resposta. Um token vencido é renovado
-   * antes; um 401 segue o fluxo de sessão (volta ao login) e chega a quem pediu como
-   * TokenRecusado.
+   * Pede uma rota de dados com o token atual e valida a resposta, pelas regras de `comToken`.
    */
-  async consultar<T>(caminho: string, validar: (valor: unknown) => valor is T): Promise<T> {
+  consultar<T>(caminho: string, validar: (valor: unknown) => valor is T): Promise<T> {
+    return this.comToken((token) => buscarDaApi(this.enderecoDaApi, token, caminho, validar));
+  }
+
+  /**
+   * Faz uma pergunta ao assistente com o token atual e devolve os eventos da resposta. O token
+   * segue as regras de `comToken`, inclusive no 401 antes do fluxo.
+   */
+  async *perguntar(corpo: CorpoDaPergunta, sinal?: AbortSignal): AsyncGenerator<EventoDaResposta> {
+    yield* await this.comToken((token) =>
+      perguntarAoAssistente(this.enderecoDaApi, token, corpo, sinal),
+    );
+  }
+
+  /**
+   * Chama a API com o token atual. Um token vencido é renovado antes; um 401 segue o fluxo de
+   * sessão (volta ao login) e chega a quem pediu como TokenRecusado.
+   */
+  private async comToken<T>(chamar: (token: string) => Promise<T>): Promise<T> {
+    const token = await this.tokenAtual();
+    try {
+      return await chamar(token);
+    } catch (erro) {
+      if (erro instanceof TokenRecusado) await this.aoRecusarToken();
+      throw erro;
+    }
+  }
+
+  /** O token em vigor, renovado antes se venceu. Sem token, vai ao login e lança TokenRecusado. */
+  private async tokenAtual(): Promise<string> {
     let usuario = await this.gerenciador.getUser();
     if (!usuario || usuario.expired) {
       await this.renovar();
@@ -100,12 +129,7 @@ export class Sessao {
       await this.irParaOLogin();
       throw new TokenRecusado();
     }
-    try {
-      return await buscarDaApi(this.enderecoDaApi, usuario.access_token, caminho, validar);
-    } catch (erro) {
-      if (erro instanceof TokenRecusado) await this.aoRecusarToken();
-      throw erro;
-    }
+    return usuario.access_token;
   }
 
   /** Encerra a sessão também no provedor e volta à tela de login. */

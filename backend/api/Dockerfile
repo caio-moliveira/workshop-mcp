@@ -11,6 +11,7 @@ RUN uv sync --locked --no-dev
 
 COPY acesso ./acesso
 COPY api ./api
+COPY assistente ./assistente
 COPY consultas ./consultas
 
 EXPOSE 8000

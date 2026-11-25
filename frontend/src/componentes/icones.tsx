@@ -43,6 +43,31 @@ export function IconeFechar() {
   );
 }
 
+export function IconeAssistente() {
+  return (
+    <Icone>
+      <path d="M20 12a8 8 0 0 1-11.6 7.1L4 20l.9-4.4A8 8 0 1 1 20 12Z" />
+      <path d="M12 8.5l.9 2.6 2.6.9-2.6.9-.9 2.6-.9-2.6-2.6-.9 2.6-.9.9-2.6Z" />
+    </Icone>
+  );
+}
+
+export function IconeEnviar() {
+  return (
+    <Icone>
+      <path d="M12 19V5M6 11l6-6 6 6" />
+    </Icone>
+  );
+}
+
+export function IconeParar() {
+  return (
+    <Icone>
+      <rect x="7" y="7" width="10" height="10" rx="1.5" />
+    </Icone>
+  );
+}
+
 export function IconeSair() {
   return (
     <Icone>

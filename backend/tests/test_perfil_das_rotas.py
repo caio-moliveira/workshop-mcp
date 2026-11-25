@@ -12,7 +12,9 @@ from api.aplicacao import ROTAS_SO_AUTENTICADAS, RotaDeConsulta
 from consultas import consulta
 
 # A lista explícita, repetida aqui de propósito: aumentá-la exige mudar também este teste.
-ROTAS_QUE_SO_EXIGEM_AUTENTICACAO = {"/eu"}
+# O assistente não tem regra de perfil própria: o que ele alcança é o que o servidor MCP lista e
+# permite para o token do usuário (RF-13).
+ROTAS_QUE_SO_EXIGEM_AUTENTICACAO = {"/eu", "/assistente"}
 
 
 def test_a_lista_de_rotas_so_autenticadas_e_a_esperada():

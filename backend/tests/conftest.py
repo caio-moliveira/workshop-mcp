@@ -17,6 +17,8 @@ from apoio import (
     limite_que_nao_barra,
     variavel,
 )
+from cliente_mcp import CAMINHO as CAMINHO_DO_MCP
+from cliente_mcp import MCP_DO_AMBIENTE
 from fastapi.testclient import TestClient
 from provedor import (
     DESTINATARIO_DA_API,
@@ -26,10 +28,12 @@ from provedor import (
     token_pelo_fluxo_de_codigo,
     url_das_chaves,
 )
+from pydantic_ai.models import Model
 from starlette.applications import Starlette
 
 from acesso import ChavesDoProvedor, ConfiguracaoDeAcesso, Perfil
 from api import criar_aplicacao
+from assistente import Limites
 from auditoria import PAPEL as PAPEL_DA_AUDITORIA
 from auditoria import Auditoria, AuditoriaNoBanco
 from consultas import Credencial, ExecutorDeConsultas, credenciais_do_ambiente
@@ -91,11 +95,20 @@ def criar_api(executor_de_consultas) -> Callable[..., TestClient]:
     """Cria a API pela fábrica, dentro do processo, validando tokens do provedor real.
 
     Cada parâmetro da configuração de acesso pode ser trocado: o relógio, as chaves, o emissor.
-    O executor de consultas também, com `consultas=`. A origem do frontend liberada pelo CORS é a
-    do ambiente.
+    O executor de consultas também, com `consultas=`, e o modelo de linguagem do assistente, com
+    `modelo=` (sem ele, a API fica sem modelo, como sem a chave do provedor), e o servidor MCP
+    que o assistente chama, com `endereco_do_mcp=` (sem ele, o serviço `mcp` do compose), e os
+    tetos da pergunta, com `limites=` (sem ele, os padrões). A
+    origem do frontend liberada pelo CORS é a do ambiente.
     """
 
-    def criar(consultas: ExecutorDeConsultas | None = None, **sobreposicoes) -> TestClient:
+    def criar(
+        consultas: ExecutorDeConsultas | None = None,
+        modelo: Model | None = None,
+        endereco_do_mcp: str = MCP_DO_AMBIENTE + CAMINHO_DO_MCP,
+        limites: Limites | None = None,
+        **sobreposicoes,
+    ) -> TestClient:
         configuracao = ConfiguracaoDeAcesso(
             emissor=emissor(),
             destinatario=DESTINATARIO_DA_API,
@@ -105,6 +118,9 @@ def criar_api(executor_de_consultas) -> Callable[..., TestClient]:
             replace(configuracao, **sobreposicoes),
             origem_do_frontend=variavel("ENDERECO_DO_FRONTEND"),
             consultas=consultas or executor_de_consultas,
+            modelo=modelo,
+            endereco_do_mcp=endereco_do_mcp,
+            limites=limites or Limites(),
         )
         return TestClient(aplicacao)
 

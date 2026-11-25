@@ -1,4 +1,8 @@
+/* Fica no topo ao rolar: o painel do assistente abre logo abaixo dela, e o botão segue à mão. */
 .topbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -57,7 +61,8 @@
   margin-left: calc(-1 * var(--espaco-2));
 }
 
-.sair {
+.sair,
+.assistente {
   display: inline-flex;
   align-items: center;
   gap: var(--espaco-2);
@@ -74,7 +79,8 @@
     border-color var(--transicao-rapida);
 }
 
-.sair:hover {
+.sair:hover,
+.assistente:hover {
   background: var(--surface-muted);
   border-color: var(--text-tertiary);
 }
@@ -90,7 +96,8 @@
     display: none;
   }
 
-  .sair span {
+  .sair span,
+  .assistente span {
     position: absolute;
     width: 1px;
     height: 1px;
@@ -98,7 +105,8 @@
     clip: rect(0 0 0 0);
   }
 
-  .sair {
+  .sair,
+  .assistente {
     padding: 0 var(--espaco-3);
   }
 }
