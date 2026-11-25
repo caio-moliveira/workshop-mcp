@@ -54,17 +54,18 @@ export interface CorpoDaPergunta {
 }
 
 /**
- * Faz a pergunta com o token no cabeçalho Authorization e devolve os eventos da resposta. O
- * `EventSource` não serve: não faz POST nem manda cabeçalho. Um 401 vira `TokenRecusado`, um 503
- * vira `AssistenteIndisponivel`; qualquer outra recusa antes do fluxo vira `ApiIndisponivel`.
+ * Faz a pergunta com o token no cabeçalho Authorization e, aceita a pergunta, devolve os eventos
+ * da resposta. O `EventSource` não serve: não faz POST nem manda cabeçalho. As recusas vêm antes do
+ * fluxo, na promessa: um 401 vira `TokenRecusado`, um 503 vira `AssistenteIndisponivel`; qualquer
+ * outra recusa vira `ApiIndisponivel`.
  * Abortar o `sinal` fecha a conexão, e a API cancela a resposta.
  */
-export async function* perguntarAoAssistente(
+export async function perguntarAoAssistente(
   enderecoDaApi: string,
   token: string,
   corpo: CorpoDaPergunta,
   sinal?: AbortSignal,
-): AsyncGenerator<EventoDaResposta> {
+): Promise<AsyncGenerator<EventoDaResposta>> {
   let resposta: Response;
   try {
     resposta = await fetch(`${enderecoDaApi}/assistente`, {
@@ -83,7 +84,7 @@ export async function* perguntarAoAssistente(
   if (!resposta.ok || !resposta.body) {
     throw new ApiIndisponivel(`a API respondeu ${resposta.status}`);
   }
-  yield* lerEventos(pedacosDe(resposta.body));
+  return lerEventos(pedacosDe(resposta.body));
 }
 
 async function* pedacosDe(corpo: ReadableStream<Uint8Array>): AsyncGenerator<Uint8Array> {
