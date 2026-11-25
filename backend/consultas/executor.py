@@ -3,6 +3,7 @@
 import logging
 import os
 import threading
+import time
 from collections.abc import Mapping
 from dataclasses import dataclass
 from types import TracebackType
@@ -11,6 +12,7 @@ import psycopg
 from psycopg_pool import ConnectionPool, PoolTimeout
 
 from acesso import Perfil, UsuarioAutenticado
+from consultas import trilha
 from consultas.registro import Consulta
 
 registro = logging.getLogger("consultas")
@@ -92,13 +94,25 @@ class ExecutorDeConsultas:
             raise AcessoNegado(f"perfil {consulta.perfil} sem credencial configurada")
 
     def executar[R](self, usuario: UsuarioAutenticado, consulta: Consulta[R], **parametros) -> R:
-        """Roda a consulta com o papel do perfil. Os parâmetros já chegam validados."""
+        """Roda a consulta com o papel do perfil. Os parâmetros já chegam validados.
+
+        Toda consulta executada deixa uma linha no log, com o nome, a duração e a pergunta do
+        assistente que a pediu, quando veio de uma (RNF-06). Sem os parâmetros nem o resultado.
+        """
         self.autorizar(usuario, consulta)
+        inicio = time.monotonic()
         try:
             with self._pool_de(consulta.perfil).connection() as conexao:
                 return consulta.ler(conexao, **parametros)
         except (psycopg.Error, PoolTimeout) as erro:
             raise ConsultaFalhou(f"{consulta.nome}: {erro}") from erro
+        finally:
+            registro.info(
+                "consulta %s executada: %d ms, %s",
+                consulta.nome,
+                round((time.monotonic() - inicio) * 1000),
+                trilha.no_log(),
+            )
 
     def fechar(self) -> None:
         with self._trava:

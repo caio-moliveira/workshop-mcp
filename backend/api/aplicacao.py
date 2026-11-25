@@ -340,7 +340,12 @@ def criar_aplicacao(
         desfecho: Evento | None = None
         try:
             async for evento in disponivel.responder(
-                pergunta.texto, usuario, token, conversa_para_o_modelo(pergunta.anteriores)
+                pergunta.texto,
+                usuario,
+                token,
+                conversa_para_o_modelo(pergunta.anteriores),
+                id_da_pergunta=pergunta.id_da_pergunta,
+                id_da_conversa=pergunta.id_da_conversa,
             ):
                 if evento.tipo == "texto":
                     trechos.append(evento.dados["texto"])

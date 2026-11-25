@@ -14,7 +14,7 @@ import anyio
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 from fastmcp.server.auth import AccessToken, RemoteAuthProvider, TokenVerifier
-from fastmcp.server.dependencies import get_access_token
+from fastmcp.server.dependencies import get_access_token, get_http_headers
 from fastmcp.server.middleware import Middleware, MiddlewareContext
 from fastmcp.tools import Tool, ToolResult
 from mcp.server.auth.handlers.metadata import ProtectedResourceMetadataHandler
@@ -37,7 +37,7 @@ from acesso import (
     mensagens,
 )
 from auditoria import Auditoria, AuditoriaIndisponivel, Chamada, Resultado
-from consultas import AcessoNegado, ConsultaFalhou, ExecutorDeConsultas, ParametroInvalido
+from consultas import AcessoNegado, ConsultaFalhou, ExecutorDeConsultas, ParametroInvalido, trilha
 from servidor_mcp.ferramentas import FERRAMENTAS, Ferramenta
 from servidor_mcp.limite import LimiteDeFrequencia
 
@@ -274,6 +274,20 @@ class LimiteDasChamadas(Middleware):
         return await call_next(context)
 
 
+class PerguntaDaChamada(Middleware):
+    """Guarda no contexto da chamada o identificador da pergunta que veio no cabeçalho da API.
+
+    Só um valor com formato de UUID é aceito: o cabeçalho vem de fora e vai para o log. Sem ele,
+    ou fora do formato, a chamada segue sem identificador, como a de um assistente externo. A
+    auditoria não o recebe: ela só guarda o que o token prova.
+    """
+
+    async def on_call_tool(self, context: MiddlewareContext, call_next) -> ToolResult:
+        valor = get_http_headers().get(trilha.CABECALHO.lower())
+        with trilha.pergunta(trilha.ler(valor)):
+            return await call_next(context)
+
+
 class AuditoriaDasChamadas(Middleware):
     """Grava cada chamada na auditoria, com o desfecho, antes de a resposta sair (RF-30).
 
@@ -301,6 +315,8 @@ class AuditoriaDasChamadas(Middleware):
     async def _registrar(
         self, context: MiddlewareContext, resultado: Resultado, chegada: datetime
     ) -> None:
+        # A linha da chamada no log, com a pergunta que a pediu, quando veio do assistente.
+        registro.info("chamada a %r: %s, %s", context.message.name, resultado, trilha.no_log())
         usuario = _usuario_do_token()
         if usuario is None:
             # O token é conferido na chegada: sem usuário, algo saiu do lugar. Sem ele não há
@@ -349,6 +365,7 @@ def criar_servidor(
         auth=RecursoProtegido(configuracao, endereco_publico),
         # O primeiro da lista é o mais externo.
         middleware=[
+            PerguntaDaChamada(),
             AuditoriaDasChamadas(auditoria),
             LimiteDasChamadas(limite),
             FerramentasDoPerfil(consultas),

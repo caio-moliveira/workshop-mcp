@@ -29,6 +29,7 @@ from pydantic_ai.models import Model
 
 from acesso import UsuarioAutenticado, mensagens
 from assistente.limites import PADRAO, Limites
+from consultas import trilha
 
 registro = logging.getLogger("assistente")
 
@@ -105,13 +106,15 @@ def erro(mensagem: str) -> Evento:
 
 @dataclass
 class Contexto:
-    """O que vale só para uma pergunta: o token que chegou com ela e quem perguntou.
+    """O que vale só para uma pergunta: o token que chegou com ela, quem perguntou e o
+    identificador dela, que segue para o log do servidor MCP.
 
     Anota também se o servidor MCP recusou o token no meio da pergunta.
     """
 
     token: str
     usuario: UsuarioAutenticado
+    id_da_pergunta: uuid.UUID
     token_recusado: bool = False
 
 
@@ -120,13 +123,19 @@ class SessaoExpirada(Exception):
 
 
 class TokenDaPergunta(httpx2.Auth):
-    """Envia o token da pergunta ao servidor MCP e anota no contexto quando ele responde 401."""
+    """Envia o token e o identificador da pergunta ao servidor MCP, em toda requisição daquela
+    pergunta, e anota no contexto quando ele responde 401.
+
+    O identificador vai aqui, e não nos cabeçalhos do conjunto de ferramentas, porque cada
+    requisição já passa por esta etapa com o contexto da pergunta em mãos.
+    """
 
     def __init__(self, contexto: Contexto) -> None:
         self._contexto = contexto
 
     def auth_flow(self, request: httpx2.Request) -> Generator[httpx2.Request, httpx2.Response]:
         request.headers["Authorization"] = f"Bearer {self._contexto.token}"
+        request.headers[trilha.CABECALHO] = str(self._contexto.id_da_pergunta)
         resposta = yield request
         if resposta.status_code == 401:
             self._contexto.token_recusado = True
@@ -189,13 +198,19 @@ class Assistente:
         usuario: UsuarioAutenticado,
         token: str,
         conversa: Iterable[ItemDaConversa] = (),
+        *,
+        id_da_pergunta: uuid.UUID,
+        id_da_conversa: uuid.UUID,
     ) -> AsyncIterator[Evento]:
         """Os eventos da resposta. Termina sempre com exatamente um `fim` ou um `erro`.
 
-        A conversa anterior, em ordem, chega ao modelo como contexto.
+        A conversa anterior, em ordem, chega ao modelo como contexto. Os identificadores da
+        pergunta e da conversa são só para o log: cada linha da pergunta os traz, com o usuário, e
+        nunca o texto da pergunta (RNF-06).
         """
-        registro.info("pergunta iniciada: usuário %s", usuario.id)
-        contexto = Contexto(token, usuario)
+        quem = f"pergunta {id_da_pergunta}, conversa {id_da_conversa}, usuário {usuario.id}"
+        registro.info("pergunta iniciada: %s", quem)
+        contexto = Contexto(token, usuario, id_da_pergunta)
         try:
             async with self._respondedor.run_stream_events(
                 pergunta,
@@ -215,30 +230,28 @@ class Assistente:
         except asyncio.CancelledError:
             # O navegador desconectou (parou a resposta ou saiu): a execução para aqui, sem novas
             # chamadas, e nada mais é emitido.
-            registro.info("pergunta cancelada: usuário %s", usuario.id)
+            registro.info("pergunta cancelada: %s", quem)
             raise
         except UsageLimitExceeded as falha:
             # O que já saiu fica; a resposta termina com o aviso, sem erro.
-            registro.warning("pergunta parou no teto: usuário %s: %s", usuario.id, falha)
+            registro.warning("pergunta parou no teto: %s: %s", quem, falha)
             yield fim(mensagens.CONSULTAS_DEMAIS)
             return
         except RunTimedOut:
-            registro.warning("pergunta passou do tempo máximo: usuário %s", usuario.id)
+            registro.warning("pergunta passou do tempo máximo: %s", quem)
             yield erro(mensagens.TEMPO_ESGOTADO)
             return
         except Exception as falha:
             # O 401 na abertura da conexão sai como falha genérica do cliente MCP; o que diz que
             # foi recusa do token é a anotação no contexto.
             if isinstance(falha, SessaoExpirada) or contexto.token_recusado:
-                registro.warning(
-                    "pergunta falhou: o servidor MCP recusou o token do usuário %s", usuario.id
-                )
+                registro.warning("pergunta falhou: o servidor MCP recusou o token: %s", quem)
                 yield erro(mensagens.SESSAO_EXPIRADA)
                 return
-            registro.error("pergunta falhou: usuário %s", usuario.id, exc_info=falha)
+            registro.error("pergunta falhou: %s", quem, exc_info=falha)
             yield erro(mensagens.ASSISTENTE_INDISPONIVEL)
             return
-        registro.info("pergunta terminada: usuário %s", usuario.id)
+        registro.info("pergunta terminada: %s", quem)
         yield fim()
 
 
