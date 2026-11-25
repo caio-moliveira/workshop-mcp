@@ -1,7 +1,7 @@
 """A matriz de isolamento: todos os perfis contra todas as rotas de dados e todas as ferramentas.
 
-Rotas e ferramentas são lidas dos registros (`ROTAS_DE_DADOS` da API e `FERRAMENTAS` do servidor
-MCP), e o dono de cada uma é o perfil da consulta que ela serve. Uma rota ou ferramenta nova entra
+Rotas e ferramentas são lidas dos registros (ver registros.py), e o dono de cada uma é o perfil
+da consulta que ela serve. Uma rota ou ferramenta nova entra
 na matriz sem ninguém acrescentá-la a este teste (RS-05, CA-02). Só o perfil dono lê; os demais
 recebem a mesma negação genérica (RF-11, RF-22, RS-08).
 """
@@ -18,15 +18,11 @@ from cliente_mcp import (
 )
 from provedor import conteudo
 from recusa import assert_negado, pedir
+from registros import DONO_DA_FERRAMENTA, DONO_DA_ROTA, argumentos_minimos, ferramentas_de
 
 from acesso import Perfil
-from api.aplicacao import ROTAS_DE_DADOS
-from servidor_mcp.ferramentas import FERRAMENTAS
 
 FERRAMENTA_QUE_NUNCA_EXISTIU = "vendas_margem_por_cliente"
-
-DONO_DA_ROTA = {rota: consulta.perfil for rota, consulta in ROTAS_DE_DADOS.items()}
-DONO_DA_FERRAMENTA = {nome: ferramenta.consulta.perfil for nome, ferramenta in FERRAMENTAS.items()}
 
 
 def _pares(donos: dict[str, Perfil], *, do_dono: bool) -> list:
@@ -37,15 +33,6 @@ def _pares(donos: dict[str, Perfil], *, do_dono: bool) -> list:
         for perfil in Perfil
         if (perfil is donos[item]) == do_dono
     ]
-
-
-def _argumentos_minimos(nome: str) -> dict[str, str]:
-    """Os argumentos obrigatórios da ferramenta, cada um com o primeiro valor da enumeração."""
-    return {
-        parametro.nome: next(iter(parametro.enumeracao)).value
-        for parametro in FERRAMENTAS[nome].parametros
-        if parametro.padrao is None
-    }
 
 
 # --- Rotas da API ---
@@ -98,8 +85,7 @@ def test_cada_perfil_lista_so_as_ferramentas_que_sao_dele(token_de, perfil):
 
     listadas = listar_ferramentas(MCP_DO_AMBIENTE, token)
 
-    do_perfil = sorted(nome for nome, dono in DONO_DA_FERRAMENTA.items() if dono is perfil)
-    assert sorted(f.name for f in listadas) == do_perfil
+    assert sorted(f.name for f in listadas) == ferramentas_de(perfil)
     # Listar não é chamada: não gera linha na auditoria.
     assert _id_da_ultima_linha(token) == antes
 
@@ -107,7 +93,7 @@ def test_cada_perfil_lista_so_as_ferramentas_que_sao_dele(token_de, perfil):
 @pytest.mark.parametrize(("ferramenta", "perfil"), _pares(DONO_DA_FERRAMENTA, do_dono=True))
 def test_o_dono_chama_a_ferramenta(token_de, ferramenta, perfil):
     token = token_de(perfil)
-    argumentos = _argumentos_minimos(ferramenta)
+    argumentos = argumentos_minimos(ferramenta)
 
     resultado = chamar(MCP_DO_AMBIENTE, token, ferramenta, argumentos)
 
@@ -121,7 +107,7 @@ def test_quem_nao_e_dono_recebe_a_resposta_de_ferramenta_inexistente(
 ):
     """Byte a byte: nada na resposta HTTP diz que a ferramenta existe para outro perfil."""
     token = token_de(perfil)
-    argumentos = _argumentos_minimos(ferramenta)
+    argumentos = argumentos_minimos(ferramenta)
 
     de_outro_perfil = chamar_pelo_protocolo(mcp_do_ambiente, token, ferramenta, argumentos)
     _assert_auditada(token, ferramenta, argumentos, "negada")

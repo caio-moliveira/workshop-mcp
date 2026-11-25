@@ -27,17 +27,17 @@ from cliente_mcp import (
     texto_do_erro,
 )
 from provedor import APLICACAO, DESTINATARIO_DA_API, DESTINATARIO_DO_MCP
+from registros import DONO_DA_FERRAMENTA, ferramentas_de
 from starlette.testclient import TestClient
 
 from acesso import Perfil, ProvedorIndisponivel
 from consultas import BancoDeDados, Credencial, ExecutorDeConsultas, credenciais_do_ambiente
-from servidor_mcp.ferramentas import FERRAMENTAS
 
 CHAVE = nova_chave()
 FERRAMENTA = "vendas_indicadores"
 FERRAMENTA_QUE_NUNCA_EXISTIU = "vendas_margem_por_cliente"
 # Os perfis que não são donos da ferramenta, lidos do registro.
-OUTROS_PERFIS = [p for p in Perfil if p is not FERRAMENTAS[FERRAMENTA].consulta.perfil]
+OUTROS_PERFIS = [perfil for perfil in Perfil if perfil is not DONO_DA_FERRAMENTA[FERRAMENTA]]
 
 
 def conteudo(**sobreposicoes) -> dict:
@@ -274,8 +274,7 @@ def test_perfil_enviado_por_quem_chama_nao_muda_o_perfil_do_token(http, perfil):
         corpo = {"jsonrpc": "2.0", "id": 1, "method": metodo, "params": parametros or {}}
         return http.post("/mcp?perfil=vendas", json=corpo, headers=cabecalhos).json()["result"]
 
-    do_perfil = sorted(n for n, f in FERRAMENTAS.items() if f.consulta.perfil is perfil)
-    assert sorted(f["name"] for f in pedir("tools/list")["tools"]) == do_perfil
+    assert sorted(f["name"] for f in pedir("tools/list")["tools"]) == ferramentas_de(perfil)
     chamada = pedir("tools/call", {"name": FERRAMENTA, "arguments": {"perfil": "vendas"}})
     assert chamada["content"][0]["text"] == FERRAMENTA_DESCONHECIDA
 

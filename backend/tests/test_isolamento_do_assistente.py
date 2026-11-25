@@ -10,12 +10,12 @@ import pytest
 from apoio import BANCO_DA_AUDITORIA, conectar_como_dono
 from provedor import conteudo
 from pydantic_ai.messages import ModelRequest, ToolReturnPart
+from registros import DONO_DA_FERRAMENTA, argumentos_minimos, ferramentas_de
 from roteiro import conversa_gravada, eventos, modelo_roteirizado, perguntar
 
 import assistente.resposta
 from acesso import Perfil, mensagens
 
-OUTROS_PERFIS = [Perfil.PRODUTOS, Perfil.COMERCIAL, Perfil.DIRETORIA]
 FERRAMENTA_DE_VENDAS = "vendas_indicadores"
 FERRAMENTA_INVENTADA = "exportar_tudo"
 
@@ -166,18 +166,27 @@ def test_perfil_como_parametro_chega_ao_servidor_e_e_recusado(criar_api, token_d
 
 
 @CONVERSAS
-@pytest.mark.parametrize("perfil", OUTROS_PERFIS, ids=str)
-def test_os_outros_perfis_nao_recebem_ferramenta_nenhuma(criar_api, token_de, perfil, conversa):
+@pytest.mark.parametrize("perfil", list(Perfil), ids=str)
+def test_cada_perfil_recebe_so_as_ferramentas_que_sao_dele(criar_api, token_de, perfil, conversa):
     lidos, vistos = _perguntar_com_roteiro(criar_api, token_de(perfil), conversa)
 
-    assert vistos["ferramentas"] == []
+    assert sorted(vistos["ferramentas"]) == ferramentas_de(perfil)
     assert lidos[-1][0] == "fim"
 
 
+# Cada perfil contra uma ferramenta de cada outro perfil que tem ferramentas, lidas do registro.
+FERRAMENTAS_DE_OUTRO_PERFIL = [
+    pytest.param(perfil, ferramentas_de(dono)[0], id=f"{perfil}-{ferramentas_de(dono)[0]}")
+    for perfil in Perfil
+    for dono in sorted(set(DONO_DA_FERRAMENTA.values()))
+    if dono is not perfil
+]
+
+
 @CONVERSAS
-@pytest.mark.parametrize("perfil", OUTROS_PERFIS, ids=str)
-def test_ferramenta_de_vendas_pelo_nome_nao_traz_dado_aos_outros_perfis(
-    criar_api, token_de, perfil, conversa
+@pytest.mark.parametrize(("perfil", "ferramenta"), FERRAMENTAS_DE_OUTRO_PERFIL)
+def test_ferramenta_de_outro_perfil_pelo_nome_nao_traz_dado(
+    criar_api, token_de, perfil, ferramenta, conversa
 ):
     token = token_de(perfil)
     antes = _ultimo_id()
@@ -186,11 +195,11 @@ def test_ferramenta_de_vendas_pelo_nome_nao_traz_dado_aos_outros_perfis(
         criar_api,
         token,
         conversa,
-        chamadas=[(FERRAMENTA_DE_VENDAS, {"periodo": "30d"})],
+        chamadas=[(ferramenta, {**argumentos_minimos(ferramenta), "periodo": "30d"})],
         pedacos=["Ok."],
     )
 
     _assert_sem_dado(vistos)
-    _assert_termina_sem_nome_interno(lidos, FERRAMENTA_DE_VENDAS)
+    _assert_termina_sem_nome_interno(lidos, ferramenta)
     novas = _chamadas_desde(conteudo(token)["sub"], antes)
     assert not [linha for linha in novas if linha["resultado"] == "permitida"]
