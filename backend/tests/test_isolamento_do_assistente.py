@@ -105,3 +105,34 @@ def test_ferramenta_inexistente_com_token_de_vendas_nao_traz_dado(criar_api, tok
     _assert_termina_sem_nome_interno(lidos, FERRAMENTA_INVENTADA)
     novas = _chamadas_desde(conteudo(token)["sub"], antes)
     assert not [linha for linha in novas if linha["resultado"] == "permitida"]
+
+
+@CONVERSAS
+@pytest.mark.parametrize("perfil", OUTROS_PERFIS, ids=str)
+def test_os_outros_perfis_nao_recebem_ferramenta_nenhuma(criar_api, token_de, perfil, conversa):
+    lidos, vistos = _perguntar_com_roteiro(criar_api, token_de(perfil), conversa)
+
+    assert vistos["ferramentas"] == []
+    assert lidos[-1][0] == "fim"
+
+
+@CONVERSAS
+@pytest.mark.parametrize("perfil", OUTROS_PERFIS, ids=str)
+def test_ferramenta_de_vendas_pelo_nome_nao_traz_dado_aos_outros_perfis(
+    criar_api, token_de, perfil, conversa
+):
+    token = token_de(perfil)
+    antes = _ultimo_id()
+
+    lidos, vistos = _perguntar_com_roteiro(
+        criar_api,
+        token,
+        conversa,
+        chamadas=[(FERRAMENTA_DE_VENDAS, {"periodo": "30d"})],
+        pedacos=["Ok."],
+    )
+
+    _assert_sem_dado(vistos)
+    _assert_termina_sem_nome_interno(lidos, FERRAMENTA_DE_VENDAS)
+    novas = _chamadas_desde(conteudo(token)["sub"], antes)
+    assert not [linha for linha in novas if linha["resultado"] == "permitida"]
