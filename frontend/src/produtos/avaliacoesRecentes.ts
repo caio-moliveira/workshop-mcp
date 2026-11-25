@@ -1,6 +1,12 @@
 /** O contrato de `GET /produtos/avaliacoes`: as avaliações mais recentes, com o comentário. */
 
-import { type DatasDoPeriodo, eDataIso, eDatasDoPeriodo, eObjeto } from "../painel/contrato";
+import {
+  type DatasDoPeriodo,
+  eDataIso,
+  eDatasDoPeriodo,
+  eObjeto,
+  eTexto,
+} from "../painel/contrato";
 
 export const LIMITE_DE_AVALIACOES_RECENTES = 20;
 
@@ -26,10 +32,6 @@ export interface AvaliacoesRecentes {
   aviso: string;
   /** Da mais recente para a mais antiga, no máximo 20. */
   avaliacoes: AvaliacaoRecente[];
-}
-
-function eTexto(valor: unknown): valor is string {
-  return typeof valor === "string" && valor !== "";
 }
 
 function eAvaliacaoRecente(valor: unknown): valor is AvaliacaoRecente {

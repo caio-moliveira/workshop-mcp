@@ -16,6 +16,11 @@ export function eNumero(valor: unknown): valor is number {
   return typeof valor === "number" && Number.isFinite(valor);
 }
 
+/** Um texto não vazio. */
+export function eTexto(valor: unknown): valor is string {
+  return typeof valor === "string" && valor !== "";
+}
+
 export function eDataIso(valor: unknown): valor is string {
   return typeof valor === "string" && DATA_ISO.test(valor);
 }

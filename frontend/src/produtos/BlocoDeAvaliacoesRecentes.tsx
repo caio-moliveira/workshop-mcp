@@ -1,10 +1,9 @@
-import { useId, type ReactNode } from "react";
-
 import { DataTable, type Coluna } from "../componentes/DataTable";
 import { EmptyState } from "../componentes/EmptyState";
 import { AnuncioDeCarregamento, EstadosDoBloco } from "../componentes/EstadosDoBloco";
 import { LoadingSkeleton } from "../componentes/LoadingSkeleton";
 import { formatarData } from "../formatacao";
+import { MolduraDeTabela } from "../painel/MolduraDeTabela";
 import type { Periodo } from "../painel/periodo";
 import { useBloco, type FonteDeDados } from "../useBloco";
 import {
@@ -66,24 +65,12 @@ export function TabelaDeAvaliacoesRecentes({ avaliacoes }: { avaliacoes: Avaliac
   );
 }
 
-/** A moldura do bloco: título e descrição sobre a tabela (FE §6). */
-function Moldura({ children, ocupado }: { children: ReactNode; ocupado?: boolean }) {
-  const idDoTitulo = useId();
-  return (
-    <section className={estilos.moldura} aria-labelledby={idDoTitulo} aria-busy={ocupado}>
-      <header className={estilos.cabecalho}>
-        <h2 id={idDoTitulo} className={estilos.titulo}>
-          Avaliações recentes
-        </h2>
-        <p className={estilos.descricao}>
-          As {LIMITE_DE_AVALIACOES_RECENTES} avaliações mais recentes do período, da mais nova
-          para a mais antiga, com o comentário escrito pelo cliente.
-        </p>
-      </header>
-      {children}
-    </section>
-  );
-}
+const MOLDURA = {
+  titulo: "Avaliações recentes",
+  descricao:
+    `As ${LIMITE_DE_AVALIACOES_RECENTES} avaliações mais recentes do período, da mais nova ` +
+    "para a mais antiga, com o comentário escrito pelo cliente.",
+};
 
 /** A tabela das avaliações mais recentes do período, com estados próprios (FE §6, §7, §10). */
 export function BlocoDeAvaliacoesRecentes({ fonte, periodo }: Propriedades) {
@@ -99,11 +86,11 @@ export function BlocoDeAvaliacoesRecentes({ fonte, periodo }: Propriedades) {
       tentarDeNovo={tentarDeNovo}
       nome="as avaliações recentes"
       carregando={
-        <Moldura ocupado>
+        <MolduraDeTabela {...MOLDURA} ocupado>
           <AnuncioDeCarregamento texto="Carregando as avaliações recentes…">
             <LoadingSkeleton forma="tabela" linhas={8} />
           </AnuncioDeCarregamento>
-        </Moldura>
+        </MolduraDeTabela>
       }
     >
       {(dados) =>
@@ -113,9 +100,9 @@ export function BlocoDeAvaliacoesRecentes({ fonte, periodo }: Propriedades) {
             descricao="Não há avaliações nestes dias. Escolha um período maior para ver as avaliações recentes."
           />
         ) : (
-          <Moldura>
+          <MolduraDeTabela {...MOLDURA}>
             <TabelaDeAvaliacoesRecentes avaliacoes={dados.avaliacoes} />
-          </Moldura>
+          </MolduraDeTabela>
         )
       }
     </EstadosDoBloco>

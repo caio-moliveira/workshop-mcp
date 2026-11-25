@@ -1,6 +1,6 @@
 /** O contrato de `GET /produtos/mal-avaliados`: números crus e datas ISO. */
 
-import { type DatasDoPeriodo, eDatasDoPeriodo, eNumero, eObjeto } from "../painel/contrato";
+import { type DatasDoPeriodo, eDatasDoPeriodo, eNumero, eObjeto, eTexto } from "../painel/contrato";
 
 export const LIMITE_DE_MAL_AVALIADOS = 50;
 
@@ -20,10 +20,6 @@ export interface MalAvaliados {
   periodo: DatasDoPeriodo;
   /** Da pior nota média para a melhor, no máximo 50. */
   produtos: ProdutoMalAvaliado[];
-}
-
-function eTexto(valor: unknown): valor is string {
-  return typeof valor === "string" && valor !== "";
 }
 
 function eProdutoMalAvaliado(valor: unknown): valor is ProdutoMalAvaliado {
