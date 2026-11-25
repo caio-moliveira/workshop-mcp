@@ -7,7 +7,7 @@ import {
   eNumero,
   eObjeto,
   eUmDe,
-} from "./contrato";
+} from "../painel/contrato";
 
 /** Dia em 30 dias, semana (começando na segunda) em 90 dias, mês em 12 e 24 meses. */
 export const AGRUPAMENTOS = ["dia", "semana", "mes"] as const;

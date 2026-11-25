@@ -1,6 +1,6 @@
 /** O contrato de `GET /vendas/pedidos-recentes`: números crus e datas ISO, sem dado de cliente. */
 
-import { type DatasDoPeriodo, eDatasDoPeriodo, eNumero, eObjeto, eUmDe } from "./contrato";
+import { type DatasDoPeriodo, eDatasDoPeriodo, eNumero, eObjeto, eUmDe } from "../painel/contrato";
 
 export const LIMITE_DE_PEDIDOS_RECENTES = 20;
 

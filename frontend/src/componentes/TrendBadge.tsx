@@ -1,4 +1,4 @@
-import type { Tom } from "../vendas/variacao";
+import type { Sentido, Tom } from "../painel/variacao";
 import { IconeTendencia } from "./icones";
 import estilos from "./TrendBadge.module.css";
 
@@ -6,7 +6,7 @@ interface Propriedades {
   /** A variação já formatada, com sinal: "+8,5%" ou "-1,2 p.p.". */
   texto: string;
   /** Para onde a variação foi: a seta. */
-  sentido: "sobe" | "desce" | "estavel";
+  sentido: Sentido;
   /** Se a variação é boa ou ruim para o negócio: a cor, nunca sozinha (a seta e o texto bastam). */
   tom: Tom;
   /** Contra o que se compara, para leitores de tela e na dica. */
