@@ -273,7 +273,7 @@ Com o ambiente no ar e o limite alto no `mcp` (seção Testes do README), dentro
 | `test_isolamento_do_historico.py` | Listar, ler, continuar e apagar a conversa de outro usuário, do mesmo perfil (`ana.vendas` e `vitor.vendas`) e de outro, com a mesma recusa da inexistente; o mesmo `sub` com outro perfil não alcança as conversas do perfil antigo; sem token, token vencido e de outra aplicação recusados nas rotas do histórico; o CORS do `DELETE` só da origem do frontend (RF-18) |
 | `test_lista_de_conversas.py` | A lista em ordem de última atividade, com título, e no teto de 50; vazia para quem nunca perguntou; apagar tira da lista e da leitura sem mexer na auditoria; apagar a inexistente ou duas vezes dá 404 |
 | `test_rastreio.py` | O evento `chamada` com ferramenta, desfecho e duração; a chamada negada como `nao_concluida`, com o nome pedido; nenhum evento com parâmetro ou texto de erro; o rastreio de volta na leitura da conversa |
-| `test_trilha_nos_logs.py` | O mesmo identificador na linha da pergunta, na da chamada e na da consulta, sem o texto da pergunta; a consulta de uma rota das telas com linha sem identificador; o servidor MCP ignora um identificador fora do formato de UUID e atende sem ele (RNF-06) |
+| `test_pergunta_nos_logs.py` | O mesmo identificador na linha da pergunta, na da chamada e na da consulta, sem o texto da pergunta; a consulta de uma rota das telas com linha sem identificador; o servidor MCP ignora um identificador fora do formato de UUID e atende sem ele (RNF-06) |
 | `test_banco_do_historico.py` | A recarga preserva a conversa gravada; o papel do histórico não se conecta aos outros bancos; os papéis de perfil e o da auditoria não se conectam ao `historico` (ADR 0009) |
 
 Do frontend, no Vitest: o estado da conversa (eventos `conversa` e `chamada`, carregar uma conversa do histórico, começar uma nova, o identificador enviado na pergunta seguinte), a lista de conversas (`listaDeConversas.test.ts`: carregando, carregada, vazia, erro, apagar, atualizar sem sumir), a leitura dos dois eventos novos (`fluxo.test.ts`), a tabela e o subtítulo em Markdown com HTML desligado (`TextoEmMarkdown.test.tsx`) e o painel (`PainelDoAssistente.test.tsx`: expandir só em tela larga, a lista ao lado no modo expandido, o bloco de rastreio, a sugestão em linha, o indicador de estado).
@@ -283,7 +283,7 @@ Requisitos cobertos:
 | Requisito | Onde |
 | --- | --- |
 | RF-18 Histórico isolado por usuário | `test_isolamento_do_historico.py`, `test_lista_de_conversas.py`; passos 4 a 6 |
-| RNF-06 Rastreio nos logs | `test_trilha_nos_logs.py`; passo 7 |
+| RNF-06 Rastreio nos logs | `test_pergunta_nos_logs.py`; passo 7 |
 | FE §8 Bloco de rastreio | `test_rastreio.py`, `PainelDoAssistente.test.tsx`; passo 2 (manual) |
 | FE §8 Chat expandido | `PainelDoAssistente.test.tsx`, `TextoEmMarkdown.test.tsx`; passo 3 (manual) |
 | ADR 0009 Histórico em banco próprio | `test_banco_do_historico.py`; passo 8 |

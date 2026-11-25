@@ -37,7 +37,13 @@ from acesso import (
     mensagens,
 )
 from auditoria import Auditoria, AuditoriaIndisponivel, Chamada, Resultado
-from consultas import AcessoNegado, ConsultaFalhou, ExecutorDeConsultas, ParametroInvalido, trilha
+from consultas import (
+    AcessoNegado,
+    ConsultaFalhou,
+    ExecutorDeConsultas,
+    ParametroInvalido,
+    pergunta_no_log,
+)
 from servidor_mcp.ferramentas import FERRAMENTAS, Ferramenta
 from servidor_mcp.limite import LimiteDeFrequencia
 
@@ -283,8 +289,8 @@ class PerguntaDaChamada(Middleware):
     """
 
     async def on_call_tool(self, context: MiddlewareContext, call_next) -> ToolResult:
-        valor = get_http_headers().get(trilha.CABECALHO.lower())
-        with trilha.pergunta(trilha.ler(valor)):
+        valor = get_http_headers().get(pergunta_no_log.CABECALHO.lower())
+        with pergunta_no_log.durante(pergunta_no_log.ler(valor)):
             return await call_next(context)
 
 
@@ -316,7 +322,9 @@ class AuditoriaDasChamadas(Middleware):
         self, context: MiddlewareContext, resultado: Resultado, chegada: datetime
     ) -> None:
         # A linha da chamada no log, com a pergunta que a pediu, quando veio do assistente.
-        registro.info("chamada a %r: %s, %s", context.message.name, resultado, trilha.no_log())
+        registro.info(
+            "chamada a %r: %s, %s", context.message.name, resultado, pergunta_no_log.atual()
+        )
         usuario = _usuario_do_token()
         if usuario is None:
             # O token é conferido na chegada: sem usuário, algo saiu do lugar. Sem ele não há

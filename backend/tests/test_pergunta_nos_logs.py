@@ -22,7 +22,7 @@ from recusa import pedir
 from roteiro import eventos, modelo_roteirizado, perguntar
 
 from acesso import Perfil
-from consultas.trilha import CABECALHO
+from consultas.pergunta_no_log import CABECALHO
 
 PERGUNTA = "Pergunta que não pode ir para o log"
 FERRAMENTA = "vendas_indicadores"

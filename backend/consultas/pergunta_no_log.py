@@ -30,7 +30,7 @@ def ler(valor: str | None) -> uuid.UUID | None:
 
 
 @contextmanager
-def pergunta(identificador: uuid.UUID | None) -> Iterator[None]:
+def durante(identificador: uuid.UUID | None) -> Iterator[None]:
     """Dentro do bloco, o que for feito pertence à pergunta dada (ou a nenhuma)."""
     marca = _atual.set(identificador)
     try:
@@ -39,7 +39,7 @@ def pergunta(identificador: uuid.UUID | None) -> Iterator[None]:
         _atual.reset(marca)
 
 
-def no_log() -> str:
+def atual() -> str:
     """A pergunta em curso como vai para o log."""
     identificador = _atual.get()
     return f"pergunta {identificador}" if identificador else SEM_PERGUNTA

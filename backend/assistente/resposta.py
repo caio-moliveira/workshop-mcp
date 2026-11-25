@@ -29,7 +29,7 @@ from pydantic_ai.models import Model
 
 from acesso import UsuarioAutenticado, mensagens
 from assistente.limites import PADRAO, Limites
-from consultas import trilha
+from consultas import pergunta_no_log
 
 registro = logging.getLogger("assistente")
 
@@ -137,7 +137,7 @@ class TokenDaPergunta(httpx2.Auth):
 
     def auth_flow(self, request: httpx2.Request) -> Generator[httpx2.Request, httpx2.Response]:
         request.headers["Authorization"] = f"Bearer {self._contexto.token}"
-        request.headers[trilha.CABECALHO] = str(self._contexto.id_da_pergunta)
+        request.headers[pergunta_no_log.CABECALHO] = str(self._contexto.id_da_pergunta)
         resposta = yield request
         if resposta.status_code == 401:
             self._contexto.token_recusado = True

@@ -12,7 +12,7 @@ import psycopg
 from psycopg_pool import ConnectionPool, PoolTimeout
 
 from acesso import Perfil, UsuarioAutenticado
-from consultas import trilha
+from consultas import pergunta_no_log
 from consultas.registro import Consulta
 
 registro = logging.getLogger("consultas")
@@ -111,7 +111,7 @@ class ExecutorDeConsultas:
                 "consulta %s executada: %d ms, %s",
                 consulta.nome,
                 round((time.monotonic() - inicio) * 1000),
-                trilha.no_log(),
+                pergunta_no_log.atual(),
             )
 
     def fechar(self) -> None:
