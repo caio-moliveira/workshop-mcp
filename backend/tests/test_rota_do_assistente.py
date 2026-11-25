@@ -8,8 +8,8 @@ import logging
 
 import pytest
 from apoio import ultima_chamada_de, variavel
-from pydantic_ai.models.function import FunctionModel
 from provedor import OUTRA_APLICACAO, conteudo, token_pelo_fluxo_de_codigo, usuario_de
+from pydantic_ai.models.function import FunctionModel
 from recusa import RESPOSTA_DE_PARAMETRO_INVALIDO, assert_recusado, pedir_eu
 from roteiro import (
     ASSISTENTE_INDISPONIVEL,

@@ -72,6 +72,7 @@ class Pergunta(BaseModel):
 class AssistenteIndisponivel(Exception):
     """Não há modelo de linguagem configurado, ou falta a chave do provedor."""
 
+
 # Cada rota de dados e a consulta que ela serve. Todas recebem só o período.
 ROTAS_DE_DADOS: dict[str, Consulta] = {
     "/vendas/indicadores": vendas.indicadores,
