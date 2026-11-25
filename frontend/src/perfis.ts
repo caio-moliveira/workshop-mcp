@@ -12,6 +12,8 @@ interface DescricaoDoPerfil {
   cor: string;
   /** Rótulo do painel do perfil, na sidebar e no cabeçalho. */
   rotuloDoPainel: string;
+  /** A pergunta sugerida no painel do assistente (FE §6); só Vendas tem uma nesta entrega. */
+  perguntaSugerida?: string;
 }
 
 export const DESCRICAO_DOS_PERFIS: Record<Perfil, DescricaoDoPerfil> = {
@@ -19,6 +21,7 @@ export const DESCRICAO_DOS_PERFIS: Record<Perfil, DescricaoDoPerfil> = {
     nome: "Vendas",
     cor: "var(--perfil-vendas)",
     rotuloDoPainel: "Painel de Vendas",
+    perguntaSugerida: "O que está causando os atrasos?",
   },
   produtos: {
     nome: "Produtos",
