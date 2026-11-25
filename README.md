@@ -63,11 +63,12 @@ O Keycloak não guarda estado: a cada subida, importa `keycloak/realm/pulso.json
 
 A tela de login usa o tema `pulso`, em `keycloak/temas/pulso/login/`: herda os templates do tema `base` do Keycloak e troca a moldura (`template.ftl`), o estilo (`resources/css/pulso.css`, com os mesmos tokens de `frontend/src/estilos/tokens.css`) e os textos. Em modo de desenvolvimento o Keycloak não guarda temas em cache: uma mudança no tema aparece ao recarregar a tela.
 
-Usuários de demonstração, um por perfil, com as senhas em `backend/.env`:
+Usuários de demonstração, um por perfil e dois em Vendas (para mostrar que um não vê o histórico do outro), com as senhas em `backend/.env`:
 
 | Usuário | Nome | Perfil | Senha |
 | --- | --- | --- | --- |
 | `ana.vendas` | Ana Ribeiro | Vendas | `SENHA_DO_USUARIO_VENDAS` |
+| `vitor.vendas` | Vitor Nunes | Vendas | `SENHA_DO_USUARIO_VENDAS_VITOR` |
 | `bruno.produtos` | Bruno Costa | Produtos | `SENHA_DO_USUARIO_PRODUTOS` |
 | `carla.comercial` | Carla Mendes | Comercial | `SENHA_DO_USUARIO_COMERCIAL` |
 | `diego.diretoria` | Diego Almeida | Diretoria | `SENHA_DO_USUARIO_DIRETORIA` |
