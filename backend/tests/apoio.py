@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 
 import auditoria
 import historico
+from acesso import Perfil
 from consultas import BancoDeDados
 from servidor_mcp import LimiteDeFrequencia
 
@@ -58,9 +59,35 @@ def conectar_como_dono(banco: str | None = None) -> psycopg.Connection:
     return _conectar(variavel("POSTGRES_USER"), variavel("POSTGRES_PASSWORD"), banco)
 
 
-def conectar_como_vendas(banco: str | None = None) -> psycopg.Connection:
-    """Abre uma conexão usando a credencial do papel de Vendas (por padrão, no banco carregado)."""
-    return _conectar("vendas", variavel("SENHA_DO_PAPEL_VENDAS"), banco)
+def conectar_como_perfil(perfil: Perfil, banco: str | None = None) -> psycopg.Connection:
+    """Abre uma conexão com a credencial do papel do perfil (por padrão, no banco carregado).
+
+    O papel tem o nome do perfil e a senha vem de SENHA_DO_PAPEL_<PERFIL>, como a carga o cria.
+    """
+    return _conectar(perfil.value, variavel(f"SENHA_DO_PAPEL_{perfil.name}"), banco)
+
+
+def papeis_de_perfil(conexao_dono: psycopg.Connection) -> list[Perfil]:
+    """Os perfis cujo papel existe no servidor, lidos com o papel dono."""
+    existentes = {
+        linha[0]
+        for linha in conexao_dono.execute(
+            "select rolname from pg_roles where rolname = any(%s)", ([p.value for p in Perfil],)
+        )
+    }
+    return [perfil for perfil in Perfil if perfil.value in existentes]
+
+
+def camadas_de_leitura(conexao_dono: psycopg.Connection) -> dict[Perfil, list[str]]:
+    """As views da camada de leitura de cada perfil que tem uma: o esquema com o nome do perfil."""
+    camadas: dict[Perfil, list[str]] = {}
+    for esquema, view in conexao_dono.execute(
+        "select table_schema, table_name from information_schema.views"
+        " where table_schema = any(%s) order by 1, 2",
+        ([p.value for p in Perfil],),
+    ):
+        camadas.setdefault(Perfil(esquema), []).append(view)
+    return camadas
 
 
 # O banco próprio da auditoria, fora da recarga (ADR 0008).
