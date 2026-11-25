@@ -9,7 +9,8 @@ import asyncio
 import pytest
 from pydantic_ai.models.function import FunctionModel
 from recusa import RESPOSTA_DE_PARAMETRO_INVALIDO
-from roteiro import eventos, modelo_roteirizado, perguntar
+from provedor import OUTRA_APLICACAO, token_pelo_fluxo_de_codigo, usuario_de
+from roteiro import ASSISTENTE_INDISPONIVEL, eventos, modelo_roteirizado, perguntar
 
 from acesso import Perfil
 from assistente import Limites
@@ -66,6 +67,37 @@ def test_modelo_lento_termina_com_erro_de_tempo_esgotado_sem_desfazer_o_texto(cr
     lidos = eventos(perguntar(api, token_de(Perfil.VENDAS)))
 
     assert lidos == [("texto", {"texto": "Os atrasos "}), ("erro", {"erro": TEMPO_ESGOTADO})]
+
+
+def test_modelo_que_falha_no_meio_termina_com_erro_generico_sem_desfazer_o_texto(
+    criar_api, token_de
+):
+    async def falhar():
+        raise RuntimeError("anthropic claude-haiku-5-5 vendas_indicadores: 529 overloaded")
+
+    api = criar_api(modelo=_modelo_que_escreve_e_depois(falhar))
+
+    lidos = eventos(perguntar(api, token_de(Perfil.VENDAS)))
+
+    assert lidos == [
+        ("texto", {"texto": "Os atrasos "}),
+        ("erro", {"erro": ASSISTENTE_INDISPONIVEL}),
+    ]
+
+
+def test_token_que_o_servidor_mcp_recusa_termina_com_erro_de_sessao_expirada(criar_api):
+    # A API aceita o token da outra aplicação, que não traz o servidor MCP entre os
+    # destinatários: o servidor MCP o recusa com 401, como um token vencido no meio da conversa.
+    vendas = usuario_de(Perfil.VENDAS)
+    token = token_pelo_fluxo_de_codigo(vendas.nome_de_usuario, vendas.senha(), OUTRA_APLICACAO)
+    api = criar_api(
+        modelo=modelo_roteirizado(chamadas=[("vendas_indicadores", {"periodo": "30d"})]),
+        destinatario=OUTRA_APLICACAO,
+    )
+
+    lidos = eventos(perguntar(api, token))
+
+    assert lidos == [("erro", {"erro": SESSAO_EXPIRADA})]
 
 
 def test_pedido_no_limite_dos_tetos_e_aceito(criar_api, token_de):

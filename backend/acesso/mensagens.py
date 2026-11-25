@@ -25,6 +25,8 @@ ERRO_INTERNO = "Erro interno."
 # A pergunta ao assistente não pôde ser respondida: sem modelo configurado, ou o modelo ou o
 # servidor MCP falharam no meio da resposta. Não cita provedor, modelo nem ferramenta.
 ASSISTENTE_INDISPONIVEL = "O assistente está indisponível no momento. Tente de novo mais tarde."
+# O servidor MCP recusou o token no meio da pergunta: o usuário precisa entrar de novo.
+SESSAO_EXPIRADA = "Sua sessão expirou. Entre de novo para continuar."
 # A pergunta passou do tempo máximo. Não diz qual é o tempo nem o que demorou.
 TEMPO_ESGOTADO = "O assistente demorou demais para responder. Tente de novo."
 # A pergunta precisou de mais chamadas de ferramenta do que o teto: a resposta para no que já
