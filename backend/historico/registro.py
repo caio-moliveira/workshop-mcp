@@ -9,6 +9,7 @@ import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass, replace
+from datetime import datetime
 from enum import StrEnum
 from types import TracebackType
 from typing import Literal, Protocol
@@ -28,6 +29,8 @@ ESPERA_POR_CONEXAO_EM_SEGUNDOS = 5
 CONEXOES = 4
 # O título da conversa é o começo da primeira pergunta, cortado aqui.
 TAMANHO_DO_TITULO = 80
+# A lista traz só as conversas mais recentes, para não ficar pesada.
+CONVERSAS_NA_LISTA = 50
 
 
 class Situacao(StrEnum):
@@ -74,6 +77,15 @@ class ConversaGravada:
 
 
 @dataclass(frozen=True)
+class ResumoDaConversa:
+    """Uma conversa como aparece na lista: sem os itens."""
+
+    id: uuid.UUID
+    titulo: str
+    ultima_atividade: datetime
+
+
+@dataclass(frozen=True)
 class RespostaParaGravar:
     """A resposta ao fim do fluxo: o texto emitido até ali, a situação, o aviso ou o erro e as
     chamadas terminadas até ali."""
@@ -115,6 +127,13 @@ class Historico(Protocol):
     ) -> ConversaGravada:
         """A conversa com os itens em ordem, ou ConversaInexistente."""
 
+    def listar_conversas(self, usuario: UsuarioAutenticado) -> tuple[ResumoDaConversa, ...]:
+        """As conversas do usuário, da última atividade mais recente para a mais antiga, até o
+        teto da lista."""
+
+    def apagar_conversa(self, usuario: UsuarioAutenticado, id_da_conversa: uuid.UUID) -> None:
+        """Apaga a conversa e os itens dela, de modo definitivo, ou levanta ConversaInexistente."""
+
 
 # A conversa só é tocada quando é do usuário: o mesmo `sub` e o mesmo perfil.
 DO_USUARIO = "id = %(conversa)s and id_do_usuario = %(usuario)s and perfil = %(perfil)s"
@@ -137,6 +156,14 @@ LEITURA_DOS_ITENS = """
 select autor, texto, situacao, aviso, erro, id_da_pergunta, rastreio from historico.item
 where id_da_conversa = %(conversa)s order by ordem
 """
+LISTA = """
+select id, titulo, ultima_atividade from historico.conversa
+where id_do_usuario = %(usuario)s and perfil = %(perfil)s
+order by ultima_atividade desc, id
+limit %(teto)s
+"""
+# Os itens vão junto, pela chave estrangeira com `on delete cascade`.
+EXCLUSAO = f"delete from historico.conversa where {DO_USUARIO}"
 
 
 class HistoricoNoBanco:
@@ -222,6 +249,17 @@ class HistoricoNoBanco:
                 for autor, texto, situacao, aviso, erro, id_da_pergunta, rastreio in itens
             ),
         )
+
+    def listar_conversas(self, usuario: UsuarioAutenticado) -> tuple[ResumoDaConversa, ...]:
+        parametros = {"usuario": usuario.id, "perfil": usuario.perfil.value}
+        with self._conexao() as conexao:
+            linhas = conexao.execute(LISTA, {**parametros, "teto": CONVERSAS_NA_LISTA}).fetchall()
+        return tuple(ResumoDaConversa(*linha) for linha in linhas)
+
+    def apagar_conversa(self, usuario: UsuarioAutenticado, id_da_conversa: uuid.UUID) -> None:
+        with self._conexao() as conexao:
+            if conexao.execute(EXCLUSAO, _parametros(usuario, id_da_conversa)).rowcount == 0:
+                raise ConversaInexistente()
 
     def _gravar_item(
         self, usuario: UsuarioAutenticado, id_da_conversa: uuid.UUID, item: ItemGravado

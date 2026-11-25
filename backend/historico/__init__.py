@@ -15,6 +15,7 @@ from historico.registro import (
     HistoricoNoBanco,
     ItemGravado,
     RespostaParaGravar,
+    ResumoDaConversa,
     Situacao,
     historico_do_ambiente,
 )
@@ -30,6 +31,7 @@ __all__ = [
     "HistoricoNoBanco",
     "ItemGravado",
     "RespostaParaGravar",
+    "ResumoDaConversa",
     "Situacao",
     "historico_do_ambiente",
 ]

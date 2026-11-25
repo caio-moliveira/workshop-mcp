@@ -10,7 +10,7 @@ import anyio
 from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from fastapi.routing import APIRoute
 from fastapi.sse import EventSourceResponse, ServerSentEvent
 from pydantic import BaseModel, ConfigDict, StringConstraints
@@ -67,7 +67,9 @@ CONVERSA_INEXISTENTE = {"erro": mensagens.CONVERSA_INEXISTENTE}
 # que ele alcança é o que o servidor MCP lista e permite para o token do usuário (RF-13).
 # O histórico também não: cada usuário só alcança as próprias conversas, com o perfil que tinha
 # ao criá-las (RF-18).
-ROTAS_SO_AUTENTICADAS = frozenset({"/eu", "/assistente", "/conversas/{id_da_conversa}"})
+ROTAS_SO_AUTENTICADAS = frozenset(
+    {"/eu", "/assistente", "/conversas", "/conversas/{id_da_conversa}"}
+)
 
 
 class Pergunta(BaseModel):
@@ -164,6 +166,15 @@ def resposta_para_gravar(
     )
 
 
+def identificador_da_conversa(caminho: str) -> uuid.UUID:
+    """O identificador da conversa no caminho. Fora do formato, é uma conversa que não existe:
+    o mesmo 404, sem dizer que o formato estava errado."""
+    try:
+        return uuid.UUID(caminho)
+    except ValueError as erro:
+        raise ConversaInexistente() from erro
+
+
 def conversa_como_resposta(conversa: ConversaGravada) -> dict:
     """A conversa lida, como a rota a devolve: só os campos que o item tem."""
     itens = []
@@ -209,7 +220,8 @@ def criar_aplicacao(
     aplicacao.add_middleware(
         CORSMiddleware,
         allow_origins=[origem_do_frontend],
-        allow_methods=["GET", "POST"],
+        # DELETE só para apagar uma conversa do histórico.
+        allow_methods=["GET", "POST", "DELETE"],
         allow_headers=["Authorization", "Content-Type"],
     )
 
@@ -361,14 +373,29 @@ def criar_aplicacao(
             with anyio.CancelScope(shield=True):
                 await anyio.to_thread.run_sync(gravar_resposta, usuario, pergunta, resposta)
 
+    @aplicacao.get("/conversas")
+    def listar_conversas(usuario: Autenticado) -> dict:
+        return {
+            "conversas": [
+                {
+                    "id": str(resumo.id),
+                    "titulo": resumo.titulo,
+                    "ultima_atividade": resumo.ultima_atividade.isoformat(),
+                }
+                for resumo in historico.listar_conversas(usuario)
+            ]
+        }
+
     @aplicacao.get("/conversas/{id_da_conversa}")
     def ler_conversa(id_da_conversa: str, usuario: Autenticado) -> dict:
-        # Um identificador fora do formato também é uma conversa que não existe.
-        try:
-            identificador = uuid.UUID(id_da_conversa)
-        except ValueError as erro:
-            raise ConversaInexistente() from erro
+        identificador = identificador_da_conversa(id_da_conversa)
         return conversa_como_resposta(historico.ler_conversa(usuario, identificador))
+
+    # Definitivo, e só no histórico: a auditoria das chamadas da conversa fica (ADR 0009).
+    @aplicacao.delete("/conversas/{id_da_conversa}", status_code=204)
+    def apagar_conversa(id_da_conversa: str, usuario: Autenticado) -> Response:
+        historico.apagar_conversa(usuario, identificador_da_conversa(id_da_conversa))
+        return Response(status_code=204)
 
     def servir(consulta: Consulta) -> Callable:
         # Ordem fixa: token (na dependência), perfil, parâmetros e só então a consulta.
