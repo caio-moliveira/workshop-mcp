@@ -62,6 +62,30 @@ export async function buscarDaApi<T>(
   return corpo;
 }
 
+/**
+ * Apaga um recurso da API com o token no cabeçalho Authorization. O 404 conta como apagado: o que
+ * se queria tirar já não está lá, apagado em outra aba, por exemplo.
+ */
+export async function apagarNaApi(
+  enderecoDaApi: string,
+  token: string,
+  caminho: string,
+): Promise<void> {
+  let resposta: Response;
+  try {
+    resposta = await fetch(`${enderecoDaApi}${caminho}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  } catch (erro) {
+    throw new ApiIndisponivel(`sem resposta da API: ${String(erro)}`);
+  }
+  if (resposta.status === 401) throw new TokenRecusado();
+  if (!resposta.ok && resposta.status !== 404) {
+    throw new ApiIndisponivel(`a API respondeu ${resposta.status}`);
+  }
+}
+
 function eUsuarioAutenticado(valor: unknown): valor is UsuarioAutenticado {
   if (typeof valor !== "object" || valor === null) return false;
   const { nome, perfil } = valor as Record<string, unknown>;

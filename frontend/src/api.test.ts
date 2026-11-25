@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { AcessoNegado, ApiIndisponivel, buscarDaApi, TokenRecusado } from "./api";
+import { AcessoNegado, ApiIndisponivel, apagarNaApi, buscarDaApi, TokenRecusado } from "./api";
 
 const eNumero = (valor: unknown): valor is number => typeof valor === "number";
 
@@ -55,5 +55,35 @@ describe("pedido a uma rota de dados", () => {
     await expect(buscarDaApi("http://api", "abc", "/x", eNumero)).rejects.toBeInstanceOf(
       ApiIndisponivel,
     );
+  });
+});
+
+describe("pedido para apagar", () => {
+  it("manda DELETE com o token", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(null, { status: 204 })),
+    );
+
+    await expect(apagarNaApi("http://api", "abc", "/conversas/c1")).resolves.toBeUndefined();
+    expect(fetch).toHaveBeenCalledWith("http://api/conversas/c1", {
+      method: "DELETE",
+      headers: { Authorization: "Bearer abc" },
+    });
+  });
+
+  it("o 404 também é sucesso: o que se queria apagar já não está lá (outra aba)", async () => {
+    responderCom(404, { erro: "Conversa não encontrada." });
+
+    await expect(apagarNaApi("http://api", "abc", "/conversas/c1")).resolves.toBeUndefined();
+  });
+
+  it.each([
+    [401, TokenRecusado],
+    [503, ApiIndisponivel],
+  ])("a resposta %i vira %o", async (status, erro) => {
+    responderCom(status, { erro: "..." });
+
+    await expect(apagarNaApi("http://api", "abc", "/conversas/c1")).rejects.toBeInstanceOf(erro);
   });
 });
