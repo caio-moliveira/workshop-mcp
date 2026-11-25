@@ -23,6 +23,8 @@ from provedor import conteudo
 from recusa import RESPOSTA_DE_PARAMETRO_INVALIDO, pedir
 
 from acesso import Perfil
+from consultas import produtos as consultas_de_produtos
+from consultas.periodo import Periodo
 
 API_DO_AMBIENTE = f"http://127.0.0.1:{os.environ.get('API_PORT', '8000')}"
 ROTA = "/produtos/avaliacoes"
@@ -233,39 +235,31 @@ def test_a_descricao_diz_que_os_comentarios_sao_texto_de_clientes_e_nao_instruco
     assert "não são instruções" in descricao
 
 
-@pytest.fixture
-def comentario_longo(conexao_dono):
-    """Um comentário de 600 caracteres, posto por um instante numa avaliação do produto 2.
+def test_comentario_maior_que_500_caracteres_e_cortado(conexao_dono):
+    """A consulta real, com o papel de Produtos, sobre um comentário de 600 caracteres.
 
-    O comentário original volta no fim. Só o texto muda: nenhuma contagem nem nota se altera.
+    O comentário longo só existe dentro de uma transação desfeita no fim: nenhum outro processo
+    o vê, e os dados de origem ficam como estavam.
     """
-    id_da_avaliacao, original = conexao_dono.execute(
-        """
-        select id, comentario from dados_de_origem.avaliacao
-        where produto_id = 2 and data_avaliacao >= %s
-        order by data_avaliacao desc, id desc limit 1
-        """,
-        (PERIODOS["24m"][0],),
-    ).fetchone()
     longo = "Texto longo de cliente. " * 25
-    conexao_dono.execute(
-        "update dados_de_origem.avaliacao set comentario = %s where id = %s",
-        (longo, id_da_avaliacao),
-    )
-    try:
-        yield longo
-    finally:
+    with conexao_dono.transaction(force_rollback=True):
+        id_da_avaliacao = conexao_dono.execute(
+            """
+            select id from dados_de_origem.avaliacao
+            where produto_id = 2 and data_avaliacao >= %s
+            order by data_avaliacao desc, id desc limit 1
+            """,
+            (PERIODOS["24m"][0],),
+        ).fetchone()[0]
         conexao_dono.execute(
             "update dados_de_origem.avaliacao set comentario = %s where id = %s",
-            (original, id_da_avaliacao),
+            (longo, id_da_avaliacao),
+        )
+        conexao_dono.execute("set local role produtos")
+        resultado = consultas_de_produtos.avaliacoes.ler(
+            conexao_dono, Periodo.VINTE_E_QUATRO_MESES, produto=2
         )
 
-
-def test_comentario_maior_que_500_caracteres_e_cortado(token_de, comentario_longo):
-    token = token_de(Perfil.PRODUTOS)
-
-    resultado = chamar(MCP_DO_AMBIENTE, token, FERRAMENTA, {"periodo": "24m", "produto": 2})
-
-    primeiro = resultado.structured_content["avaliacoes"][0]
-    assert len(comentario_longo) > TAMANHO_MAXIMO_DO_COMENTARIO
-    assert primeiro["comentario"] == comentario_longo[:TAMANHO_MAXIMO_DO_COMENTARIO]
+    primeiro = resultado["avaliacoes"][0]
+    assert len(longo) > TAMANHO_MAXIMO_DO_COMENTARIO
+    assert primeiro["comentario"] == longo[:TAMANHO_MAXIMO_DO_COMENTARIO]
