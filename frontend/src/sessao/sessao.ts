@@ -106,10 +106,10 @@ export class Sessao {
    * Faz uma pergunta ao assistente com o token atual e devolve os eventos da resposta. O token
    * segue as mesmas regras de `consultar`, inclusive o 401 antes do fluxo.
    */
-  async *perguntar(corpo: CorpoDaPergunta): AsyncGenerator<EventoDaResposta> {
+  async *perguntar(corpo: CorpoDaPergunta, sinal?: AbortSignal): AsyncGenerator<EventoDaResposta> {
     const token = await this.tokenAtual();
     try {
-      yield* perguntarAoAssistente(this.enderecoDaApi, token, corpo);
+      yield* perguntarAoAssistente(this.enderecoDaApi, token, corpo, sinal);
     } catch (erro) {
       if (erro instanceof TokenRecusado) await this.aoRecusarToken();
       throw erro;

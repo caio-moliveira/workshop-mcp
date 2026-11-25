@@ -8,22 +8,35 @@ import {
 } from "react";
 
 import type { UsuarioAutenticado } from "../api";
-import { IconeAssistente, IconeAviso, IconeEnviar, IconeFechar } from "../componentes/icones";
+import {
+  IconeAssistente,
+  IconeAviso,
+  IconeEnviar,
+  IconeFechar,
+  IconeParar,
+} from "../componentes/icones";
 import { DESCRICAO_DOS_PERFIS } from "../perfis";
-import { podeEnviar, type Conversa, type RespostaDoAssistente } from "./conversa";
+import { podeEnviar, respondendo, type Conversa, type RespostaDoAssistente } from "./conversa";
 import estilos from "./PainelDoAssistente.module.css";
 
 interface Propriedades {
   usuario: UsuarioAutenticado;
   conversa: Conversa;
   aoPerguntar: (pergunta: string) => void;
+  aoParar: () => void;
   aoFechar: () => void;
 }
 
 const LINHAS_DO_CAMPO = 5;
 
 /** O chat lateral do assistente, à direita e por cima do conteúdo (FE §8). */
-export function PainelDoAssistente({ usuario, conversa, aoPerguntar, aoFechar }: Propriedades) {
+export function PainelDoAssistente({
+  usuario,
+  conversa,
+  aoPerguntar,
+  aoParar,
+  aoFechar,
+}: Propriedades) {
   const perfil = DESCRICAO_DOS_PERFIS[usuario.perfil];
   const [pergunta, setPergunta] = useState("");
   const campo = useRef<HTMLTextAreaElement>(null);
@@ -130,14 +143,26 @@ export function PainelDoAssistente({ usuario, conversa, aoPerguntar, aoFechar }:
           onChange={(evento) => setPergunta(evento.target.value)}
           onKeyDown={aoTeclar}
         />
-        <button
-          type="submit"
-          className={estilos.enviar}
-          disabled={!envioLiberado}
-          aria-label="Enviar pergunta"
-        >
-          <IconeEnviar />
-        </button>
+        {/* Enquanto a resposta chega, o botão de enviar dá lugar ao de parar. */}
+        {respondendo(conversa) ? (
+          <button
+            type="button"
+            className={estilos.enviar}
+            onClick={aoParar}
+            aria-label="Parar a resposta"
+          >
+            <IconeParar />
+          </button>
+        ) : (
+          <button
+            type="submit"
+            className={estilos.enviar}
+            disabled={!envioLiberado}
+            aria-label="Enviar pergunta"
+          >
+            <IconeEnviar />
+          </button>
+        )}
       </form>
     </aside>
   );
@@ -152,6 +177,9 @@ function Resposta({ resposta }: { resposta: RespostaDoAssistente }) {
           <span className={estilos.atividade} aria-hidden="true" />
           Consultando os dados…
         </p>
+      )}
+      {resposta.situacao === "interrompida" && (
+        <p className={estilos.status}>Resposta interrompida.</p>
       )}
       {resposta.situacao === "erro" && (
         <p className={estilos.erro}>

@@ -22,7 +22,7 @@ interface Propriedades {
 export function AppShell({ usuario, assistente, aoSair, children }: Propriedades) {
   const [navegacaoAberta, setNavegacaoAberta] = useState(false);
   const [assistenteAberto, setAssistenteAberto] = useState(false);
-  const { conversa, perguntar } = useConversa(assistente);
+  const { conversa, perguntar, parar } = useConversa(assistente);
 
   useEffect(() => {
     if (!navegacaoAberta && !assistenteAberto) return;
@@ -65,6 +65,7 @@ export function AppShell({ usuario, assistente, aoSair, children }: Propriedades
           usuario={usuario}
           conversa={conversa}
           aoPerguntar={perguntar}
+          aoParar={parar}
           aoFechar={() => setAssistenteAberto(false)}
         />
       )}

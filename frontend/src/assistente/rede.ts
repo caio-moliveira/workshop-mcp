@@ -16,12 +16,14 @@ export interface CorpoDaPergunta {
 /**
  * Faz a pergunta com o token no cabeçalho Authorization e devolve os eventos da resposta. O
  * `EventSource` não serve: não faz POST nem manda cabeçalho. Um 401 vira `TokenRecusado`; qualquer
- * outra recusa antes do fluxo vira `ApiIndisponivel`.
+ * outra recusa antes do fluxo vira `ApiIndisponivel`. Abortar o `sinal` fecha a conexão, e a API
+ * cancela a resposta.
  */
 export async function* perguntarAoAssistente(
   enderecoDaApi: string,
   token: string,
   corpo: CorpoDaPergunta,
+  sinal?: AbortSignal,
 ): AsyncGenerator<EventoDaResposta> {
   let resposta: Response;
   try {
@@ -29,6 +31,7 @@ export async function* perguntarAoAssistente(
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify(corpo),
+      signal: sinal,
     });
   } catch (erro) {
     throw new ApiIndisponivel(`sem resposta da API: ${String(erro)}`);

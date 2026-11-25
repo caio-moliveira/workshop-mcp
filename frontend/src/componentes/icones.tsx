@@ -60,6 +60,14 @@ export function IconeEnviar() {
   );
 }
 
+export function IconeParar() {
+  return (
+    <Icone>
+      <rect x="7" y="7" width="10" height="10" rx="1.5" />
+    </Icone>
+  );
+}
+
 export function IconeSair() {
   return (
     <Icone>
