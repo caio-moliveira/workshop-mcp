@@ -9,6 +9,7 @@ import {
   type UsuarioAutenticado,
 } from "../api";
 import { eConversaLida, type ConversaLida } from "../assistente/conversa";
+import { eListaLida, type ListaLida } from "../assistente/listaDeConversas";
 import type { EventoDaResposta } from "../assistente/fluxo";
 import { perguntarAoAssistente, type CorpoDaPergunta } from "../assistente/rede";
 import { VigiaDeInatividade } from "./inatividade";
@@ -106,12 +107,9 @@ export class Sessao {
     );
   }
 
-  /** As conversas do usuário, como a API as devolve; quem confere o contrato é `listaRecebida`. */
-  listarConversas(): Promise<object> {
-    return this.consultar(
-      "/conversas",
-      (valor): valor is object => typeof valor === "object" && valor !== null,
-    );
+  /** As conversas do usuário, no contrato. Fora dele, é ApiIndisponivel. */
+  listarConversas(): Promise<ListaLida> {
+    return this.consultar("/conversas", eListaLida);
   }
 
   /** Uma conversa do histórico, no contrato. A de outro usuário não vem: é ApiIndisponivel. */

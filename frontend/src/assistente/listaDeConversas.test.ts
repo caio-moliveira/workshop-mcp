@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  eListaLida,
   LISTA_CARREGANDO,
   listaAtualizada,
   listaComErro,
@@ -30,6 +31,11 @@ describe("lista de conversas", () => {
   it("começa carregando, sem conversas e sem estar vazia", () => {
     expect(LISTA_CARREGANDO).toEqual({ situacao: "carregando" });
     expect(vazia(LISTA_CARREGANDO)).toBe(false);
+  });
+
+  it("a resposta da API está no contrato", () => {
+    expect(eListaLida(DA_API)).toBe(true);
+    expect(eListaLida({ conversas: [] })).toBe(true);
   });
 
   it("carregada, mantém a ordem da API, com título e última atividade", () => {
@@ -71,8 +77,8 @@ describe("lista de conversas", () => {
     ["lista que não é lista", { conversas: "muitas" }],
     ["conversa sem título", { conversas: [{ id: "c", ultima_atividade: "2026-11-25" }] }],
     ["identificador que não é texto", { conversas: [{ id: 1, titulo: "t", ultima_atividade: "x" }] }],
-  ])("uma resposta fora do contrato vira erro: %s", (_, valor) => {
-    expect(listaRecebida(valor)).toEqual({ situacao: "erro" });
+  ])("uma resposta fora do contrato não é lista: %s", (_, valor) => {
+    expect(eListaLida(valor)).toBe(false);
   });
 
   it("apagar tira só a conversa apagada", () => {

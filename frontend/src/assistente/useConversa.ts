@@ -13,14 +13,14 @@ import {
   type ConversaLida,
 } from "./conversa";
 import type { EventoDaResposta } from "./fluxo";
+import type { ListaLida } from "./listaDeConversas";
 import { mensagemDaFalha, type CorpoDaPergunta } from "./rede";
 
 /** Quem leva a pergunta e os pedidos do histórico à API: a Sessao, que põe o token e cuida do 401. */
 export interface FonteDoAssistente {
   /** Abortar o `sinal` fecha a conexão da resposta. */
   perguntar(corpo: CorpoDaPergunta, sinal?: AbortSignal): AsyncIterable<EventoDaResposta>;
-  /** A resposta crua de `GET /conversas`; quem confere o contrato é `listaRecebida`. */
-  listarConversas(): Promise<unknown>;
+  listarConversas(): Promise<ListaLida>;
   lerConversa(id: string): Promise<ConversaLida>;
   apagarConversa(id: string): Promise<void>;
 }

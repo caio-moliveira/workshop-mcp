@@ -27,25 +27,34 @@ export function listaComErro(): ListaDeConversas {
   return { situacao: "erro" };
 }
 
-/** A resposta de `GET /conversas` como lista. Fora do contrato, vira erro, nunca lista. */
-export function listaRecebida(valor: unknown): ListaDeConversas {
-  if (typeof valor !== "object" || valor === null) return listaComErro();
+/** A resposta de `GET /conversas`, como a API a manda. */
+export interface ListaLida {
+  conversas: readonly { id: string; titulo: string; ultima_atividade: string }[];
+}
+
+/** A resposta de `GET /conversas` está no contrato. Fora dele, não vira lista na tela. */
+export function eListaLida(valor: unknown): valor is ListaLida {
+  if (typeof valor !== "object" || valor === null) return false;
   const { conversas } = valor as Record<string, unknown>;
-  if (!Array.isArray(conversas)) return listaComErro();
-  const resumos: ResumoDaConversa[] = [];
-  for (const conversa of conversas) {
-    if (typeof conversa !== "object" || conversa === null) return listaComErro();
-    const { id, titulo, ultima_atividade } = conversa as Record<string, unknown>;
-    if (
-      typeof id !== "string" ||
-      typeof titulo !== "string" ||
-      typeof ultima_atividade !== "string"
-    ) {
-      return listaComErro();
-    }
-    resumos.push({ id, titulo, ultimaAtividade: ultima_atividade });
-  }
-  return { situacao: "carregada", conversas: resumos };
+  return Array.isArray(conversas) && conversas.every(eConversaNaLista);
+}
+
+function eConversaNaLista(valor: unknown): boolean {
+  if (typeof valor !== "object" || valor === null) return false;
+  const { id, titulo, ultima_atividade } = valor as Record<string, unknown>;
+  return (
+    typeof id === "string" && typeof titulo === "string" && typeof ultima_atividade === "string"
+  );
+}
+
+/** A resposta de `GET /conversas`, já conferida, como lista carregada. */
+export function listaRecebida(lida: ListaLida): ListaDeConversas {
+  const conversas = lida.conversas.map(({ id, titulo, ultima_atividade }) => ({
+    id,
+    titulo,
+    ultimaAtividade: ultima_atividade,
+  }));
+  return { situacao: "carregada", conversas };
 }
 
 /** Carregada e sem nenhuma conversa: o usuário ainda não perguntou nada, ou apagou todas. */
