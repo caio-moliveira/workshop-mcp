@@ -1,0 +1,98 @@
+"""As consultas de Produtos. Leem só a camada de leitura de Produtos (ADR 0002).
+
+O período filtra pela data da avaliação; o catálogo não depende dele (glossário). As respostas
+trazem números crus e datas ISO; a formatação é do frontend.
+"""
+
+from dataclasses import dataclass
+
+import psycopg
+
+from acesso import Perfil
+from consultas.periodo import DatasDoPeriodo, Periodo, inicio_dos_dados, terminado_em
+from consultas.registro import consulta
+
+# Reclamação: avaliação com nota 1 ou 2 (glossário).
+NOTA_MAXIMA_DA_RECLAMACAO = 2
+# Produto mal avaliado: nota média abaixo disto nas avaliações do período...
+NOTA_MEDIA_DO_MAL_AVALIADO = 3
+# ...com pelo menos estas avaliações no período (glossário).
+MINIMO_DE_AVALIACOES_DO_MAL_AVALIADO = 3
+
+
+@dataclass(frozen=True)
+class _Resumo:
+    produtos_avaliados: int
+    nota_media: float | None
+    avaliacoes: int
+    reclamacoes: int
+    produtos_mal_avaliados: int
+
+
+def _datas_do(periodo: Periodo, conexao: psycopg.Connection) -> DatasDoPeriodo:
+    """As datas do período que termina na data de referência dos dados."""
+    referencia = conexao.execute("select data_referencia from produtos.referencia").fetchone()[0]
+    return terminado_em(periodo, referencia)
+
+
+def _resumo(conexao: psycopg.Connection, datas: DatasDoPeriodo) -> _Resumo:
+    linha = conexao.execute(
+        """
+        with do_periodo as (
+            select produto_id, nota from produtos.avaliacao
+            where data_avaliacao between %(inicio)s and %(fim)s
+        ),
+        por_produto as (
+            select avg(nota) as media, count(*) as quantas from do_periodo group by produto_id
+        )
+        select
+            (select count(distinct produto_id) from do_periodo),
+            (select avg(nota)::float from do_periodo),
+            (select count(*) from do_periodo),
+            (select count(*) from do_periodo where nota <= %(reclamacao)s),
+            (select count(*) from por_produto where media < %(media)s and quantas >= %(minimo)s)
+        """,
+        {
+            "inicio": datas.inicio,
+            "fim": datas.fim,
+            "reclamacao": NOTA_MAXIMA_DA_RECLAMACAO,
+            "media": NOTA_MEDIA_DO_MAL_AVALIADO,
+            "minimo": MINIMO_DE_AVALIACOES_DO_MAL_AVALIADO,
+        },
+    ).fetchone()
+    return _Resumo(*linha)
+
+
+@consulta(Perfil.PRODUTOS)
+def indicadores(conexao: psycopg.Connection, periodo: Periodo) -> dict:
+    """O tamanho do catálogo e, do período e do anterior: produtos avaliados, nota média,
+    avaliações, reclamações e produtos mal avaliados.
+
+    O anterior tem o mesmo tamanho e termina na véspera do início; é `None` quando começaria antes
+    do início dos dados, como em Vendas. A nota média é `None` num período sem avaliações.
+    """
+    atual = _datas_do(periodo, conexao)
+    datas_anteriores = atual.anterior(periodo)
+    agora = _resumo(conexao, atual)
+    antes = (
+        _resumo(conexao, datas_anteriores)
+        if datas_anteriores.inicio >= inicio_dos_dados(atual.fim)
+        else None
+    )
+    catalogo = conexao.execute("select count(*) from produtos.produto").fetchone()[0]
+
+    def par(indicador: str) -> dict:
+        return {
+            "atual": getattr(agora, indicador),
+            "anterior": None if antes is None else getattr(antes, indicador),
+        }
+
+    return {
+        "periodo": atual.como_json(),
+        "catalogo": catalogo,
+        "produtos_avaliados": par("produtos_avaliados"),
+        "nota_media": par("nota_media"),
+        "avaliacoes": par("avaliacoes"),
+        "reclamacoes": par("reclamacoes"),
+        "produtos_mal_avaliados": par("produtos_mal_avaliados"),
+    }
