@@ -41,17 +41,7 @@ export async function buscarDaApi<T>(
   caminho: string,
   validar: (valor: unknown) => valor is T,
 ): Promise<T> {
-  let resposta: Response;
-  try {
-    resposta = await fetch(`${enderecoDaApi}${caminho}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-  } catch (erro) {
-    throw new ApiIndisponivel(`sem resposta da API: ${String(erro)}`);
-  }
-  if (resposta.status === 401) throw new TokenRecusado();
-  if (resposta.status === 403) throw new AcessoNegado();
-  if (!resposta.ok) throw new ApiIndisponivel(`a API respondeu ${resposta.status}`);
+  const resposta = await pedirDaApi(enderecoDaApi, token, caminho);
   let corpo: unknown;
   try {
     corpo = await resposta.json();
@@ -71,19 +61,36 @@ export async function apagarNaApi(
   token: string,
   caminho: string,
 ): Promise<void> {
+  await pedirDaApi(enderecoDaApi, token, caminho, { method: "DELETE" }, [404]);
+}
+
+/**
+ * O pedido à API com o token no cabeçalho Authorization, e a resposta como erro quando não é de
+ * sucesso: 401 é TokenRecusado, 403 é AcessoNegado e o resto, ApiIndisponivel. Os `aceitos` contam
+ * como sucesso.
+ */
+async function pedirDaApi(
+  enderecoDaApi: string,
+  token: string,
+  caminho: string,
+  pedido: RequestInit = {},
+  aceitos: readonly number[] = [],
+): Promise<Response> {
   let resposta: Response;
   try {
     resposta = await fetch(`${enderecoDaApi}${caminho}`, {
-      method: "DELETE",
+      ...pedido,
       headers: { Authorization: `Bearer ${token}` },
     });
   } catch (erro) {
     throw new ApiIndisponivel(`sem resposta da API: ${String(erro)}`);
   }
   if (resposta.status === 401) throw new TokenRecusado();
-  if (!resposta.ok && resposta.status !== 404) {
+  if (resposta.status === 403) throw new AcessoNegado();
+  if (!resposta.ok && !aceitos.includes(resposta.status)) {
     throw new ApiIndisponivel(`a API respondeu ${resposta.status}`);
   }
+  return resposta;
 }
 
 function eUsuarioAutenticado(valor: unknown): valor is UsuarioAutenticado {
