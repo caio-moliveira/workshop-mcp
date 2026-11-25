@@ -11,7 +11,9 @@ import type { UsuarioAutenticado } from "../api";
 import { IconeAssistente, IconeAviso, IconeEnviar, IconeFechar } from "../componentes/icones";
 import { DESCRICAO_DOS_PERFIS } from "../perfis";
 import { podeEnviar, type Conversa, type RespostaDoAssistente } from "./conversa";
+import { caracteresDaPergunta, LIMITE_DE_CARACTERES_DA_PERGUNTA, passouDoLimite } from "./limites";
 import estilos from "./PainelDoAssistente.module.css";
+import { TextoEmMarkdown } from "./TextoEmMarkdown";
 
 interface Propriedades {
   usuario: UsuarioAutenticado;
@@ -29,9 +31,15 @@ export function PainelDoAssistente({ usuario, conversa, aoPerguntar, aoFechar }:
   const campo = useRef<HTMLTextAreaElement>(null);
   const fim = useRef<HTMLDivElement>(null);
   const envioLiberado = podeEnviar(conversa, pergunta);
+  const longaDemais = passouDoLimite(pergunta);
 
+  // Ao abrir, o foco vai ao campo; ao fechar (botão ou Esc), volta a quem abriu o painel.
   useEffect(() => {
+    const anterior = document.activeElement;
     campo.current?.focus();
+    return () => {
+      if (anterior instanceof HTMLElement && anterior.isConnected) anterior.focus();
+    };
   }, []);
 
   // O campo cresce com o texto, de 1 a 5 linhas; depois disso rola.
@@ -129,6 +137,8 @@ export function PainelDoAssistente({ usuario, conversa, aoPerguntar, aoFechar }:
           placeholder="Escreva sua pergunta"
           onChange={(evento) => setPergunta(evento.target.value)}
           onKeyDown={aoTeclar}
+          aria-invalid={longaDemais}
+          aria-describedby={longaDemais ? "pergunta-longa-demais" : undefined}
         />
         <button
           type="submit"
@@ -138,6 +148,20 @@ export function PainelDoAssistente({ usuario, conversa, aoPerguntar, aoFechar }:
         >
           <IconeEnviar />
         </button>
+        {longaDemais && (
+          <p className={estilos.limite}>
+            {/* Texto fixo no alerta, para o leitor de tela anunciar uma vez, não a cada tecla. */}
+            <span id="pergunta-longa-demais" role="alert">
+              A pergunta passou do limite de{" "}
+              {LIMITE_DE_CARACTERES_DA_PERGUNTA.toLocaleString("pt-BR")} caracteres. Encurte
+              para enviar.
+            </span>
+            <span className={estilos.contagem} aria-hidden="true">
+              {caracteresDaPergunta(pergunta).toLocaleString("pt-BR")}/
+              {LIMITE_DE_CARACTERES_DA_PERGUNTA.toLocaleString("pt-BR")}
+            </span>
+          </p>
+        )}
       </form>
     </aside>
   );
@@ -146,7 +170,7 @@ export function PainelDoAssistente({ usuario, conversa, aoPerguntar, aoFechar }:
 function Resposta({ resposta }: { resposta: RespostaDoAssistente }) {
   return (
     <div className={estilos.resposta} aria-busy={resposta.situacao === "chegando"}>
-      {resposta.texto && <p className={estilos.textoDaResposta}>{resposta.texto}</p>}
+      {resposta.texto && <TextoEmMarkdown texto={resposta.texto} />}
       {resposta.consultando && (
         <p className={estilos.status}>
           <span className={estilos.atividade} aria-hidden="true" />
@@ -157,6 +181,12 @@ function Resposta({ resposta }: { resposta: RespostaDoAssistente }) {
         <p className={estilos.erro}>
           <IconeAviso />
           {resposta.erro}
+        </p>
+      )}
+      {resposta.aviso && (
+        <p className={estilos.aviso}>
+          <IconeAviso />
+          {resposta.aviso}
         </p>
       )}
     </div>
