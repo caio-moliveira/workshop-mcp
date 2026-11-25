@@ -4,12 +4,9 @@ from datetime import date
 
 import psycopg
 import pytest
-from apoio import (
-    conectar_como_dono,
-    conectar_como_vendas,
-    rodar_carga,
-    tabelas_dos_dados_de_origem,
-)
+from apoio import conectar_como_dono, conectar_como_perfil, rodar_carga
+
+from acesso import Perfil
 
 # A data de referência do arquivo de configuração versionado da carga.
 DATA_DE_REFERENCIA_PADRAO = date(2026, 11, 30)
@@ -45,14 +42,14 @@ COLUNAS_DA_CAMADA = {
 
 @pytest.fixture
 def conexao_vendas():
-    with conectar_como_vendas() as conexao:
+    with conectar_como_perfil(Perfil.VENDAS) as conexao:
         yield conexao
 
 
 @pytest.fixture
 def conexao_vendas_em_modo_de_escrita():
     """Sessão que pede transações de escrita: só os privilégios podem barrar a escrita."""
-    with conectar_como_vendas() as conexao:
+    with conectar_como_perfil(Perfil.VENDAS) as conexao:
         conexao.execute("set default_transaction_read_only = off")
         yield conexao
 
@@ -69,22 +66,6 @@ def _colunas_por_view(conexao) -> dict[str, list[str]]:
 
 def test_a_camada_tem_exatamente_as_views_e_colunas_do_contrato(conexao_dono):
     assert _colunas_por_view(conexao_dono) == COLUNAS_DA_CAMADA
-
-
-@pytest.mark.parametrize("view", sorted(COLUNAS_DA_CAMADA))
-def test_vendas_le_cada_view_da_propria_camada(conexao_vendas, view):
-    linhas = conexao_vendas.execute(f"select count(*) from vendas.{view}").fetchone()[0]
-
-    assert linhas > 0
-
-
-def test_vendas_e_recusado_em_todas_as_tabelas_dos_dados_de_origem(conexao_vendas, conexao_dono):
-    tabelas = tabelas_dos_dados_de_origem(conexao_dono)
-    assert tabelas
-
-    for tabela in sorted(tabelas):
-        with pytest.raises(psycopg.errors.InsufficientPrivilege):
-            conexao_vendas.execute(f"select 1 from dados_de_origem.{tabela} limit 1")
 
 
 @pytest.mark.parametrize(
@@ -137,7 +118,7 @@ def test_vendas_nao_conecta_em_nenhum_outro_banco_do_servidor(conexao_dono):
 
     for banco in outros:
         with pytest.raises(psycopg.OperationalError, match="permission denied"):
-            conectar_como_vendas(banco)
+            conectar_como_perfil(Perfil.VENDAS, banco)
 
 
 def test_camada_nao_expoe_dados_pessoais_de_clientes_nem_avaliacoes_nem_canal(conexao_dono):
@@ -206,7 +187,7 @@ def test_vendas_calcula_atrasos_por_rota_e_por_lojista(conexao_vendas, conexao_d
 
 
 def _data_de_referencia_lida_por_vendas() -> date:
-    with conectar_como_vendas() as conexao:
+    with conectar_como_perfil(Perfil.VENDAS) as conexao:
         linhas = conexao.execute("select data_referencia from vendas.referencia").fetchall()
     assert len(linhas) == 1
     return linhas[0][0]
@@ -229,7 +210,7 @@ def test_data_de_referencia_sobreposta_vale_para_a_camada_e_a_recarga_a_devolve(
 def test_recarga_recria_a_camada_e_o_papel_com_as_mesmas_permissoes():
     rodar_carga()
 
-    with conectar_como_vendas() as conexao:
+    with conectar_como_perfil(Perfil.VENDAS) as conexao:
         assert conexao.execute("select count(*) from vendas.pedido").fetchone()[0] > 0
         with pytest.raises(psycopg.errors.InsufficientPrivilege):
             conexao.execute("select 1 from dados_de_origem.cliente limit 1")

@@ -11,7 +11,8 @@ from apoio import (
     conectar_como_auditoria,
     conectar_como_dono,
     conectar_como_historico,
-    conectar_como_vendas,
+    conectar_como_perfil,
+    papeis_de_perfil,
     variavel,
 )
 
@@ -57,7 +58,15 @@ def test_o_papel_do_historico_nao_se_conecta_aos_outros_bancos(banco):
         conectar_como_historico(banco).close()
 
 
-@pytest.mark.parametrize("conectar", [conectar_como_vendas, conectar_como_auditoria])
-def test_os_outros_papeis_nao_se_conectam_ao_banco_do_historico(conectar):
+def test_o_papel_auditoria_nao_se_conecta_ao_banco_do_historico():
     with pytest.raises(psycopg.OperationalError, match="permission denied"):
-        conectar(BANCO_DO_HISTORICO).close()
+        conectar_como_auditoria(BANCO_DO_HISTORICO).close()
+
+
+def test_nenhum_papel_de_perfil_se_conecta_ao_banco_do_historico(conexao_dono):
+    papeis = papeis_de_perfil(conexao_dono)
+    assert papeis
+
+    for perfil in papeis:
+        with pytest.raises(psycopg.OperationalError, match="permission denied"):
+            conectar_como_perfil(perfil, BANCO_DO_HISTORICO).close()
