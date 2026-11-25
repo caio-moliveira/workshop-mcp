@@ -28,11 +28,13 @@ class Limites:
         return self.chamadas + 2
 
 
+PADRAO = Limites()
+
+
 def limites_do_ambiente() -> Limites:
     """Os tetos das variáveis de ambiente; o padrão de cada um quando a variável falta."""
-    padrao = Limites()
     return Limites(
-        chamadas=int(os.environ.get("LIMITE_DE_CHAMADAS_POR_PERGUNTA") or padrao.chamadas),
-        caracteres=int(os.environ.get("LIMITE_DE_CARACTERES_DA_PERGUNTA") or padrao.caracteres),
-        segundos=float(os.environ.get("TEMPO_MAXIMO_DA_PERGUNTA_EM_SEGUNDOS") or padrao.segundos),
+        chamadas=int(os.environ.get("LIMITE_DE_CHAMADAS_POR_PERGUNTA") or PADRAO.chamadas),
+        caracteres=int(os.environ.get("LIMITE_DE_CARACTERES_DA_PERGUNTA") or PADRAO.caracteres),
+        segundos=float(os.environ.get("TEMPO_MAXIMO_DA_PERGUNTA_EM_SEGUNDOS") or PADRAO.segundos),
     )

@@ -23,6 +23,7 @@ from acesso import (
     mensagens,
 )
 from assistente import Assistente, Limites
+from assistente.limites import PADRAO as LIMITES_PADRAO
 from consultas import (
     PERIODO_PADRAO,
     AcessoNegado,
@@ -103,7 +104,7 @@ def criar_aplicacao(
     consultas: ExecutorDeConsultas,
     modelo: Model | None,
     endereco_do_mcp: str,
-    limites: Limites = Limites(),
+    limites: Limites = LIMITES_PADRAO,
 ) -> FastAPI:
     """A API valida tokens pela configuração dada, lê o banco só pelo executor de consultas e só
     aceita o navegador vindo do frontend.

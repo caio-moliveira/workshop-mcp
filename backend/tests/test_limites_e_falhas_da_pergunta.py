@@ -4,7 +4,6 @@ Como na rota do assistente: a API é criada dentro do processo, com um modelo ro
 tetos montados pela fábrica, o token do provedor do compose e o serviço `mcp` do compose.
 """
 
-import pytest
 from roteiro import eventos, modelo_roteirizado, perguntar
 
 from acesso import Perfil

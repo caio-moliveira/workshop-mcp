@@ -20,7 +20,7 @@ from pydantic_ai.mcp import MCPToolset
 from pydantic_ai.models import Model
 
 from acesso import UsuarioAutenticado, mensagens
-from assistente.limites import Limites
+from assistente.limites import PADRAO, Limites
 
 registro = logging.getLogger("assistente")
 
@@ -78,7 +78,7 @@ class Assistente:
     """
 
     def __init__(
-        self, modelo: Model | None, endereco_do_mcp: str, limites: Limites = Limites()
+        self, modelo: Model | None, endereco_do_mcp: str, limites: Limites = PADRAO
     ) -> None:
         self.modelo = modelo
         self.limites = limites
