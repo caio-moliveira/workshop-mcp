@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   CONVERSA_VAZIA,
   enviar,
+  itensParaEnviar,
+  parar,
   podeEnviar,
   receber,
   respondendo,
@@ -104,6 +106,55 @@ describe("conversa", () => {
     const concluida = aplicar(perguntada, { tipo: "fim" });
     expect(receber(concluida, { tipo: "texto", texto: "atrasado" })).toBe(concluida);
     expect(receber(CONVERSA_VAZIA, { tipo: "estado" })).toBe(CONVERSA_VAZIA);
+  });
+
+  it("parar mantém o texto recebido, marca a resposta como interrompida e libera o envio", () => {
+    const chegando = aplicar(
+      perguntada,
+      { tipo: "texto", texto: "Os atrasos " },
+      { tipo: "estado" },
+    );
+    const parada = parar(chegando);
+    expect(resposta(parada)).toEqual({
+      autor: "assistente",
+      texto: "Os atrasos ",
+      situacao: "interrompida",
+      consultando: false,
+    });
+    expect(respondendo(parada)).toBe(false);
+    expect(podeEnviar(parada, "e por lojista?")).toBe(true);
+    // O que ainda chegar daquela resposta não muda mais nada.
+    expect(receber(parada, { tipo: "texto", texto: "vêm de" })).toBe(parada);
+  });
+
+  it("parar sem resposta em andamento não muda nada", () => {
+    const concluida = aplicar(perguntada, { tipo: "fim" });
+    expect(parar(concluida)).toBe(concluida);
+  });
+
+  it("a pergunta seguinte leva só as perguntas com resposta concluída, em ordem", () => {
+    const comErro = "O assistente está indisponível no momento. Tente de novo mais tarde.";
+    let conversa = aplicar(perguntada, { tipo: "texto", texto: "Três lojistas." }, { tipo: "fim" });
+    conversa = aplicar(
+      enviar(conversa, "Desde quando?"),
+      { tipo: "texto", texto: "Desde" },
+      { tipo: "erro", mensagem: comErro },
+    );
+    conversa = parar(receber(enviar(conversa, "Quais?"), { tipo: "texto", texto: "A Loja" }));
+    conversa = aplicar(enviar(conversa, "Por estado?"), { tipo: "texto", texto: "SP." }, {
+      tipo: "fim",
+    });
+
+    expect(itensParaEnviar(conversa)).toEqual([
+      { autor: "usuario", texto: "O que está causando os atrasos?" },
+      { autor: "assistente", texto: "Três lojistas." },
+      { autor: "usuario", texto: "Por estado?" },
+      { autor: "assistente", texto: "SP." },
+    ]);
+  });
+
+  it("sem conversa anterior, a pergunta vai sozinha", () => {
+    expect(itensParaEnviar(CONVERSA_VAZIA)).toEqual([]);
   });
 
   it("a pergunta seguinte entra depois da resposta anterior", () => {
