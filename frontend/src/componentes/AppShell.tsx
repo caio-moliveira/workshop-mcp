@@ -28,7 +28,7 @@ export function AppShell({ usuario, assistente, aoSair, children }: Propriedades
   // Estreitar a tela com o modo expandido aberto volta ao painel em tela cheia, sem fechá-lo.
   const podeExpandir = usePodeExpandir();
   const expandido = assistenteAberto && expansaoPedida && podeExpandir;
-  const { conversa, abertura, perguntar, parar, abrir, comecarNovaConversa } =
+  const { conversa, abertura, perguntar, parar, abrir, comecarNovaConversa, aoTerminarResposta } =
     useConversa(assistente);
 
   useEffect(() => {
@@ -96,6 +96,7 @@ export function AppShell({ usuario, assistente, aoSair, children }: Propriedades
           aoAbrir={abrir}
           aoComecarNova={comecarNovaConversa}
           aoFechar={fecharAssistente}
+          aoTerminarResposta={aoTerminarResposta}
         />
       )}
     </div>

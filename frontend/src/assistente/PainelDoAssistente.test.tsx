@@ -49,6 +49,7 @@ function desenhar(modo: { expandido: boolean; podeExpandir: boolean }, conversa 
       aoAbrir={SEM_ACAO}
       aoComecarNova={SEM_ACAO}
       aoFechar={SEM_ACAO}
+      aoTerminarResposta={() => SEM_ACAO}
     />,
   );
 }

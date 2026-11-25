@@ -28,7 +28,7 @@ import { VisaoDasConversas } from "./VisaoDasConversas";
 import estilos from "./PainelDoAssistente.module.css";
 import { RastreioDaResposta } from "./RastreioDaResposta";
 import { TextoEmMarkdown } from "./TextoEmMarkdown";
-import type { Abertura, FonteDoAssistente } from "./useConversa";
+import type { Abertura, FonteDoAssistente, InscricaoNoFimDaResposta } from "./useConversa";
 
 interface Propriedades {
   usuario: UsuarioAutenticado;
@@ -45,6 +45,8 @@ interface Propriedades {
   aoAbrir: (id: string) => void;
   aoComecarNova: () => void;
   aoFechar: () => void;
+  /** Avisa ao fim de cada resposta, para a lista de conversas se atualizar. */
+  aoTerminarResposta: InscricaoNoFimDaResposta;
 }
 
 const LINHAS_DO_CAMPO = 5;
@@ -68,6 +70,7 @@ export function PainelDoAssistente({
   aoAbrir,
   aoComecarNova,
   aoFechar,
+  aoTerminarResposta,
 }: Propriedades) {
   const perfil = DESCRICAO_DOS_PERFIS[usuario.perfil];
   const [visao, setVisao] = useState<"conversa" | "conversas">("conversa");
@@ -141,7 +144,7 @@ export function PainelDoAssistente({
     <VisaoDasConversas
       fonte={fonte}
       idAtual={conversa.id}
-      respondendo={respondendo(conversa)}
+      aoTerminarResposta={aoTerminarResposta}
       aoAbrir={abrir}
       aoApagarAAtual={aoComecarNova}
     />

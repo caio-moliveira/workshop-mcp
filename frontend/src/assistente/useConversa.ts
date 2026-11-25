@@ -31,6 +31,12 @@ export type Abertura = { situacao: "pronta" } | { situacao: "abrindo" } | { situ
 const PRONTA: Abertura = { situacao: "pronta" };
 
 /**
+ * Inscreve quem quer ser avisado ao fim de cada resposta, terminada, parada ou abandonada, e
+ * devolve como cancelar a inscrição.
+ */
+export type InscricaoNoFimDaResposta = (ouvinte: () => void) => () => void;
+
+/**
  * A conversa com o assistente, o envio de perguntas e a parada da resposta, mais reabrir uma
  * conversa do histórico e começar outra. Fica no estado de quem chama: enquanto ele estiver
  * montado, a conversa sobrevive a fechar o painel e a trocar de página. A conversa fica gravada na
@@ -44,6 +50,7 @@ export function useConversa(fonte: FonteDoAssistente): {
   parar: () => void;
   abrir: (id: string) => void;
   comecarNovaConversa: () => void;
+  aoTerminarResposta: InscricaoNoFimDaResposta;
 } {
   const [conversa, setConversa] = useState<Conversa>(CONVERSA_VAZIA);
   const [abertura, setAbertura] = useState<Abertura>(PRONTA);
@@ -51,6 +58,16 @@ export function useConversa(fonte: FonteDoAssistente): {
   const emAndamento = useRef<AbortController | null>(null);
   // A última conversa pedida: uma leitura que chega depois de outro pedido não toma a tela.
   const pedida = useRef<string | null>(null);
+  // Quem quer saber quando cada resposta termina.
+  const ouvintesDoFim = useRef(new Set<() => void>());
+
+  const aoTerminarResposta = useCallback((ouvinte: () => void) => {
+    const ouvintes = ouvintesDoFim.current;
+    ouvintes.add(ouvinte);
+    return () => {
+      ouvintes.delete(ouvinte);
+    };
+  }, []);
 
   const perguntar = useCallback(
     (pergunta: string) => {
@@ -72,6 +89,9 @@ export function useConversa(fonte: FonteDoAssistente): {
           setConversa((atual) => receber(atual, { tipo: "erro", mensagem }));
         } finally {
           if (emAndamento.current === controle) emAndamento.current = null;
+          // Terminada, parada ou abandonada: a API já gravou a pergunta, e quem lista as
+          // conversas fica sabendo.
+          ouvintesDoFim.current.forEach((ouvinte) => ouvinte());
         }
       })();
     },
@@ -120,5 +140,5 @@ export function useConversa(fonte: FonteDoAssistente): {
   // Sair da sessão desmonta quem chama: a resposta em andamento é abandonada.
   useEffect(() => () => emAndamento.current?.abort(), []);
 
-  return { conversa, abertura, perguntar, parar, abrir, comecarNovaConversa };
+  return { conversa, abertura, perguntar, parar, abrir, comecarNovaConversa, aoTerminarResposta };
 }
