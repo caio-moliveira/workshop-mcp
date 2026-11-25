@@ -32,7 +32,7 @@ PERIODOS = {
 MAL_AVALIADOS_CONHECIDOS = {"30d": 4, "90d": 26, "12m": 20, "24m": 7}
 LIMITE = 50
 
-CAMPOS = {"produto", "nome", "categoria", "preco", "nota_media", "avaliacoes"}
+CAMPOS = {"produto", "nome_do_produto", "categoria", "preco", "nota_media", "avaliacoes"}
 
 _NA_ORIGEM = """
 select p.id, p.nome, c.nome, p.preco, avg(a.nota), count(*)
@@ -56,7 +56,7 @@ def respostas(criar_api, token_de):
 def _como_linha(produto: dict) -> tuple:
     return (
         produto["produto"],
-        produto["nome"],
+        produto["nome_do_produto"],
         produto["categoria"],
         Decimal(str(produto["preco"])),
         produto["nota_media"],

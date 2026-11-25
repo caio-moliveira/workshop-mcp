@@ -324,9 +324,9 @@ FERRAMENTAS: dict[str, Ferramenta] = {
             "os clientes avaliam pior. A lista vem da pior nota média para a melhor (na mesma "
             "nota, primeiro o produto com mais avaliações) e é limitada a 50 produtos. Cada item "
             "de 'produtos' traz 'produto' (identificador do produto, para pedir as avaliações "
-            "dele), 'nome', 'categoria', 'preco' (em reais), 'nota_media' (de 1 a 5, só das "
-            "avaliações do período) e 'avaliacoes' (quantas avaliações o produto recebeu no "
-            "período). 'periodo' traz as datas de início e fim usadas, em formato ISO."
+            "dele), 'nome_do_produto', 'categoria', 'preco' (em reais), 'nota_media' (de 1 a 5, "
+            "só das avaliações do período) e 'avaliacoes' (quantas avaliações o produto recebeu "
+            "no período). 'periodo' traz as datas de início e fim usadas, em formato ISO."
         ),
         parametros=(PERIODO,),
     ),

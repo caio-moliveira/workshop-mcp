@@ -134,7 +134,7 @@ def mal_avaliados(conexao: psycopg.Connection, periodo: Periodo) -> dict:
         "produtos": [
             {
                 "produto": produto,
-                "nome": nome,
+                "nome_do_produto": nome,
                 "categoria": categoria,
                 "preco": float(preco),
                 "nota_media": nota_media,

@@ -16,7 +16,7 @@ interface Propriedades {
 }
 
 const COLUNAS: Coluna<ProdutoMalAvaliado>[] = [
-  { titulo: "Produto", celula: (p) => p.nome },
+  { titulo: "Produto", celula: (p) => p.nome_do_produto },
   { titulo: "Categoria", celula: (p) => <span className={estilos.secundario}>{p.categoria}</span> },
   { titulo: "Preço", alinhamento: "fim", celula: (p) => formatarMoeda(p.preco) },
   {

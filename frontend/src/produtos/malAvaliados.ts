@@ -7,7 +7,7 @@ export const LIMITE_DE_MAL_AVALIADOS = 50;
 export interface ProdutoMalAvaliado {
   /** O identificador do produto. */
   produto: number;
-  nome: string;
+  nome_do_produto: string;
   categoria: string;
   preco: number;
   /** De 1 a 5, só das avaliações do período; abaixo de 3,0. */
@@ -30,7 +30,7 @@ function eProdutoMalAvaliado(valor: unknown): valor is ProdutoMalAvaliado {
   return (
     eObjeto(valor) &&
     Number.isInteger(valor.produto) &&
-    eTexto(valor.nome) &&
+    eTexto(valor.nome_do_produto) &&
     eTexto(valor.categoria) &&
     eNumero(valor.preco) &&
     eNumero(valor.nota_media) &&
