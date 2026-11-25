@@ -108,6 +108,29 @@ def test_ferramenta_inexistente_com_token_de_vendas_nao_traz_dado(criar_api, tok
 
 
 @CONVERSAS
+def test_perfil_como_parametro_chega_ao_servidor_e_e_recusado(criar_api, token_de, conversa):
+    token = token_de(Perfil.VENDAS)
+    do_token = conteudo(token)
+    antes = _ultimo_id()
+    argumentos = {"periodo": "30d", "perfil": "diretoria"}
+
+    lidos, vistos = _perguntar_com_roteiro(
+        criar_api, token, conversa, chamadas=[(FERRAMENTA_DE_VENDAS, argumentos)], pedacos=["Ok."]
+    )
+
+    [retorno] = _retornos(vistos)
+    assert retorno.outcome == "failed"
+    assert retorno.content == mensagens.PARAMETRO_INVALIDO
+    _assert_termina_sem_nome_interno(lidos, FERRAMENTA_DE_VENDAS)
+    [linha] = _chamadas_desde(do_token["sub"], antes)
+    assert linha["resultado"] == "parametro_invalido"
+    assert linha["ferramenta"] == FERRAMENTA_DE_VENDAS
+    assert linha["parametros"] == argumentos
+    assert linha["nome_do_usuario"] == do_token["name"]
+    assert linha["perfil"] == "vendas"
+
+
+@CONVERSAS
 @pytest.mark.parametrize("perfil", OUTROS_PERFIS, ids=str)
 def test_os_outros_perfis_nao_recebem_ferramenta_nenhuma(criar_api, token_de, perfil, conversa):
     lidos, vistos = _perguntar_com_roteiro(criar_api, token_de(perfil), conversa)
