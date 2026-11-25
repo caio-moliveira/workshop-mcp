@@ -1,4 +1,4 @@
-"""Pedidos à API do ambiente para os roteiros das entregas 2 e 3 (docs/demonstracao/).
+"""Pedidos à API do ambiente para os roteiros das entregas 2, 3 e 8 (docs/demonstracao/).
 
 Dentro de `backend/`, com o ambiente no ar:
 
@@ -7,7 +7,7 @@ Dentro de `backend/`, com o ambiente no ar:
     uv run python tests/demonstracao.py outro-servico ana.vendas
     uv run python tests/demonstracao.py vencido
     uv run python tests/demonstracao.py vendas ana.vendas [periodo]
-    uv run python tests/demonstracao.py tempos [periodo]
+    uv run python tests/demonstracao.py tempos [periodo] [perfil]
 
 Os tokens vêm dos mesmos auxiliares dos testes: o fluxo de código com PKCE, como o navegador, e o
 `admin-cli` para o token de outro serviço. Os pedidos vão à API que roda no compose, por HTTP.
@@ -34,6 +34,7 @@ from provedor import (  # noqa: E402
     usuario_de,
 )
 from recusa import ROTAS_DE_VENDAS, pedir, pedir_eu  # noqa: E402
+from registros import DONO_DA_ROTA  # noqa: E402
 
 from acesso import Perfil  # noqa: E402
 from acesso.validacao import FOLGA_DE_RELOGIO_EM_SEGUNDOS  # noqa: E402
@@ -160,17 +161,20 @@ def vendas(nome_de_usuario: str, periodo: str = "12m") -> None:
 MEDICOES_POR_ROTA = 5
 
 
-def tempos(periodo: str = "24m") -> None:
-    """O tempo de cada rota de Vendas na API do ambiente, como usuário de Vendas (RNF-05).
+def tempos(periodo: str = "24m", perfil: str = "vendas") -> None:
+    """O tempo de cada rota do perfil na API do ambiente, como usuário desse perfil (RNF-05).
 
-    Um pedido de aquecimento por rota (pool de conexões e chaves do provedor), depois
-    `MEDICOES_POR_ROTA` pedidos medidos do lado de quem chama, com a rede local incluída.
+    As rotas vêm do registro da API: as do perfil pedido (Vendas, por padrão). Um pedido de
+    aquecimento por rota (pool de conexões e chaves do provedor), depois `MEDICOES_POR_ROTA`
+    pedidos medidos do lado de quem chama, com a rede local incluída.
     """
-    usuario = usuario_de(Perfil.VENDAS)
+    dono = Perfil(perfil)
+    rotas = [rota for rota, perfil_da_rota in DONO_DA_ROTA.items() if perfil_da_rota is dono]
+    usuario = usuario_de(dono)
     token = token_pelo_fluxo_de_codigo(usuario.nome_de_usuario, usuario.senha())
     print(f"{MEDICOES_POR_ROTA} pedidos por rota, periodo={periodo}, meta 3 s (RNF-05)")
     with httpx.Client(base_url=API, timeout=30) as api:
-        for rota in ROTAS_DE_VENDAS:
+        for rota in rotas:
             pedir(api, rota, token, periodo=periodo).raise_for_status()
             duracoes = []
             for _ in range(MEDICOES_POR_ROTA):

@@ -124,7 +124,7 @@ Manter a mesma arquitetura de página para todos, mas trocar os nomes e tipos de
 - Pergunta sugerida no chat: **“O que está causando os atrasos?”**
 
 ### Produtos
-- KPIs: produtos ativos, nota média, produtos mal avaliados, avaliações recebidas.
+- KPIs: Produtos no catálogo, nota média, produtos mal avaliados, avaliações recebidas.
 - Gráfico principal: distribuição de avaliações por faixa de nota.
 - Gráfico secundário: categorias com maior volume de reclamações.
 - Tabela: produtos e suas avaliações.

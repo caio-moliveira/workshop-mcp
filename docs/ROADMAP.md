@@ -28,7 +28,7 @@ Fontes dos requisitos:
 | 4b | Auditoria e limite de frequência | 4a | Concluída |
 | 5a | Chat de Vendas no painel lateral | 4b | Concluída |
 | 5b | Chat expandido, rastreio e histórico | 5a | Concluída |
-| 8 | Perfil Produtos | 5b | Livre |
+| 8 | Perfil Produtos | 5b | Implementada; roteiro escrito, não executado |
 | 9 | Perfil Comercial | 8 | Livre |
 | 10 | Perfil Diretoria | 9 | Livre |
 | 6 | Ambiente público | 4a | Bloqueada: nuvem e domínio |
@@ -159,6 +159,7 @@ As entregas 6 e 7 mantêm seus números, mas ficam para depois: a decisão de nu
   - A pergunta sugerida de Produtos é respondida.
 - **Depende de:** 5b.
 - **Cobre:** RF-02, RF-05, RF-10, RF-20, RS-04 (Produtos), RS-07, CA-05, CA-01 e CA-02 (ampliados); FE §6 (Produtos).
+- **Resultado (25/11/2026):** implementada, com a suíte automatizada passando, mas **o roteiro de demonstração não foi executado**. O roteiro `docs/demonstracao/entrega-8.md` está escrito, com os comandos e o que se espera de cada passo, e sem resultado observado: a execução foi interrompida a pedido, antes de o ambiente ser subido do zero. O que existe: o papel `produtos` e a camada de leitura de Produtos (produto, avaliação e data de referência, sem cliente, pedido, entrega, receita nem lojista), cinco rotas e cinco ferramentas de Produtos, o painel de Produtos (quatro cartões, com "Produtos no catálogo" no lugar de "produtos ativos", dois gráficos e duas tabelas), a pergunta sugerida "Quais categorias concentram as piores notas?" e o comentário das avaliações marcado como texto de clientes na descrição de `produtos_avaliacoes` e no campo `aviso` do resultado, sem filtro (ADR 0010). A suíte completa do backend, a partir do código da branch, com `api`, `mcp` (limite alto) e `frontend` reconstruídos dele: 952 testes passando, nenhuma falha, em 21 min 43 s; `ruff check` e `ruff format --check` limpos. No frontend: Vitest com 287 testes em 22 arquivos passando, e tipos, lint e build limpos. Na suíte, as matrizes de isolamento cruzam todos os perfis contra todas as rotas, ferramentas e papéis, lidos dos registros, e o CA-05 é provado com o modelo roteirizado. Lacunas: (1) o roteiro não foi executado: nem a pergunta sugerida com o modelo real e os números conferidos contra as rotas, nem a pergunta sobre as avaliações do produto 1 em 24 meses, que traz a avaliação maliciosa ao modelo real (o comportamento do modelo real diante dela continua sem conferência: o texto da resposta, o rastreio e as linhas da auditoria), nem os pedidos de dados do outro perfil (RF-17), nem a matriz entre `ana.vendas` e `bruno.produtos` executada à mão. (2) O tempo das rotas de Produtos contra os 3 segundos do RNF-05 não foi medido; o comando (`tests/demonstracao.py tempos 24m produtos`) está pronto, e não há teste automatizado de tempo para as rotas de Produtos, como há para as de Vendas. (3) A parte visual (cartões, gráficos, tabelas, troca de período, pergunta sugerida e troca para `ana.vendas`) não foi conferida, nem no Chrome nem manualmente; os passos estão no roteiro. (4) Continuam abertas as lacunas da 5b que a spec deixou de fora: o modelo não recebe do histórico as chamadas anteriores, e a chamada negada com o modelo real.
 
 ### 9. Perfil Comercial
 
