@@ -27,4 +27,29 @@ describe("texto da resposta em Markdown", () => {
     expect(html).not.toContain("<a");
     expect(html).toContain("clique");
   });
+
+  it("desenha uma tabela de comparação, dentro de uma área que rola na horizontal", () => {
+    const html = desenhar(
+      ["| Rota | Atraso |", "| --- | ---: |", "| SP → RJ | 12% |", "| SP → BH | 8% |"].join("\n"),
+    );
+    expect(html).toMatch(/<div[^>]*class="[^"]*rolagem[^"]*"[^>]*><table>/);
+    expect(html).toContain("<th>Rota</th>");
+    expect(html).toContain('<th style="text-align:right">Atraso</th>');
+    expect(html).toContain("<td>SP → RJ</td>");
+    expect(html).toContain('<td style="text-align:right">12%</td>');
+  });
+
+  it("um subtítulo vira um título de nível baixo, abaixo do título do painel", () => {
+    const html = desenhar("# Resumo\n\n## Por rota\n\nTexto.");
+    expect(html).toContain("<h4>Resumo</h4>");
+    expect(html).toContain("<h4>Por rota</h4>");
+    expect(html).not.toMatch(/<h[1-3]/);
+  });
+
+  it("o HTML dentro de uma célula da tabela continua como texto", () => {
+    const html = desenhar(["| A |", "| --- |", "| <img src=x onerror=alert(1)> |"].join("\n"));
+    expect(html).toContain("<td>");
+    expect(html).not.toContain("<img");
+    expect(html).toContain("&lt;img");
+  });
 });
