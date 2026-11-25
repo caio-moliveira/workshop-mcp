@@ -8,7 +8,7 @@
  * Para estender: uma situação nova em `RespostaDoAssistente` e o caso dela em `receber` ou numa
  * função irmã de `enviar`.
  */
-import type { EventoDaResposta } from "./fluxo";
+import type { ChamadaDoRastreio, EventoDaResposta } from "./fluxo";
 import { passouDoLimite } from "./limites";
 import type { CorpoDaPergunta } from "./rede";
 
@@ -30,6 +30,8 @@ export interface RespostaDoAssistente {
   aviso?: string;
   /** O identificador da pergunta que a API deu, quando o fluxo chegou a começar. */
   idDaPergunta?: string;
+  /** As chamadas terminadas que produziram a resposta, em ordem; vazio se nada foi consultado. */
+  rastreio: readonly ChamadaDoRastreio[];
 }
 
 export type PerguntaOuResposta = PerguntaDoUsuario | RespostaDoAssistente;
@@ -65,7 +67,7 @@ export function enviar(conversa: Conversa, pergunta: string): Conversa {
     perguntasERespostas: [
       ...conversa.perguntasERespostas,
       { autor: "usuario", texto: pergunta },
-      { autor: "assistente", texto: "", situacao: "chegando", consultando: false },
+      { autor: "assistente", texto: "", situacao: "chegando", consultando: false, rastreio: [] },
     ],
   };
 }
@@ -87,6 +89,11 @@ export function receber(conversa: Conversa, evento: EventoDaResposta): Conversa 
     case "estado":
       nova = { ...atual, consultando: true };
       break;
+    case "chamada": {
+      const { ferramenta, desfecho, milissegundos } = evento;
+      nova = { ...atual, rastreio: [...atual.rastreio, { ferramenta, desfecho, milissegundos }] };
+      break;
+    }
     case "fim":
       nova = { ...atual, situacao: "concluida", consultando: false };
       if (evento.aviso) nova.aviso = evento.aviso;

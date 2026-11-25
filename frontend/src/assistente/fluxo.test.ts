@@ -139,6 +139,42 @@ describe("lerEventos", () => {
     expect(eventos).toEqual([{ tipo: "erro", mensagem: RESPOSTA_INTERROMPIDA }]);
   });
 
+  it("entrega cada chamada terminada com a ferramenta, o desfecho e a duração", async () => {
+    const eventos = await todos(
+      lerEventos(
+        pedacos(
+          'event: chamada\ndata: {"ferramenta": "vendas_atrasos", "desfecho": "concluida", "milissegundos": 182}\n\n',
+          'event: chamada\ndata: {"ferramenta": "exportar_tudo", "desfecho": "nao_concluida", "milissegundos": 3}\n\n',
+          "event: fim\ndata: {}\n\n",
+        ),
+      ),
+    );
+    expect(eventos).toEqual([
+      {
+        tipo: "chamada",
+        ferramenta: "vendas_atrasos",
+        desfecho: "concluida",
+        milissegundos: 182,
+      },
+      {
+        tipo: "chamada",
+        ferramenta: "exportar_tudo",
+        desfecho: "nao_concluida",
+        milissegundos: 3,
+      },
+      { tipo: "fim" },
+    ]);
+  });
+
+  it.each([
+    ['{"desfecho": "concluida", "milissegundos": 1}', "sem ferramenta"],
+    ['{"ferramenta": "x", "desfecho": "negada", "milissegundos": 1}', "desfecho desconhecido"],
+    ['{"ferramenta": "x", "desfecho": "concluida", "milissegundos": "1"}', "duração em texto"],
+  ])("termina em erro quando a chamada vem fora do contrato (%s: %s)", async (dados) => {
+    const eventos = await todos(lerEventos(pedacos(`event: chamada\ndata: ${dados}\n\n`)));
+    expect(eventos).toEqual([{ tipo: "erro", mensagem: RESPOSTA_INTERROMPIDA }]);
+  });
+
   it("termina em erro quando um evento traz dados fora do contrato", async () => {
     const eventos = await todos(
       lerEventos(pedacos("event: texto\ndata: não é JSON\n\n", "event: fim\ndata: {}\n\n")),

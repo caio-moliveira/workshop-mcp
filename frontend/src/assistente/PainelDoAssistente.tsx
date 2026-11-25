@@ -19,6 +19,7 @@ import { DESCRICAO_DOS_PERFIS } from "../perfis";
 import { podeEnviar, respondendo, type Conversa, type RespostaDoAssistente } from "./conversa";
 import { caracteresDaPergunta, LIMITE_DE_CARACTERES_DA_PERGUNTA, passouDoLimite } from "./limites";
 import estilos from "./PainelDoAssistente.module.css";
+import { RastreioDaResposta } from "./RastreioDaResposta";
 import { TextoEmMarkdown } from "./TextoEmMarkdown";
 
 interface Propriedades {
@@ -216,6 +217,10 @@ function Resposta({ resposta }: { resposta: RespostaDoAssistente }) {
           <IconeAviso />
           {resposta.aviso}
         </p>
+      )}
+      {/* Só depois de terminada: antes disso o rastreio ainda está incompleto. */}
+      {resposta.situacao !== "chegando" && (
+        <RastreioDaResposta rastreio={resposta.rastreio} idDaPergunta={resposta.idDaPergunta} />
       )}
     </div>
   );
