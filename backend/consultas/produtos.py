@@ -18,6 +18,18 @@ NOTA_MAXIMA_DA_RECLAMACAO = 2
 NOTA_MEDIA_DO_MAL_AVALIADO = 3
 # ...com pelo menos estas avaliações no período (glossário).
 MINIMO_DE_AVALIACOES_DO_MAL_AVALIADO = 3
+# Teto de linhas da lista de produtos mal avaliados (RF-25).
+LIMITE_DE_MAL_AVALIADOS = 50
+
+# A regra do produto mal avaliado, a mesma no indicador e na lista: um produto por linha, com a
+# nota média e o número de avaliações no período.
+_MAL_AVALIADOS = """
+    select produto_id, avg(nota) as media, count(*) as quantas
+    from produtos.avaliacao
+    where data_avaliacao between %(inicio)s and %(fim)s
+    group by produto_id
+    having avg(nota) < %(media)s and count(*) >= %(minimo)s
+"""
 
 
 @dataclass(frozen=True)
@@ -35,30 +47,31 @@ def _datas_do(periodo: Periodo, conexao: psycopg.Connection) -> DatasDoPeriodo:
     return terminado_em(periodo, referencia)
 
 
+def _parametros(datas: DatasDoPeriodo) -> dict:
+    return {
+        "inicio": datas.inicio,
+        "fim": datas.fim,
+        "reclamacao": NOTA_MAXIMA_DA_RECLAMACAO,
+        "media": NOTA_MEDIA_DO_MAL_AVALIADO,
+        "minimo": MINIMO_DE_AVALIACOES_DO_MAL_AVALIADO,
+    }
+
+
 def _resumo(conexao: psycopg.Connection, datas: DatasDoPeriodo) -> _Resumo:
     linha = conexao.execute(
-        """
+        f"""
         with do_periodo as (
             select produto_id, nota from produtos.avaliacao
             where data_avaliacao between %(inicio)s and %(fim)s
-        ),
-        por_produto as (
-            select avg(nota) as media, count(*) as quantas from do_periodo group by produto_id
         )
         select
             (select count(distinct produto_id) from do_periodo),
             (select avg(nota)::float from do_periodo),
             (select count(*) from do_periodo),
             (select count(*) from do_periodo where nota <= %(reclamacao)s),
-            (select count(*) from por_produto where media < %(media)s and quantas >= %(minimo)s)
+            (select count(*) from ({_MAL_AVALIADOS}) mal_avaliados)
         """,
-        {
-            "inicio": datas.inicio,
-            "fim": datas.fim,
-            "reclamacao": NOTA_MAXIMA_DA_RECLAMACAO,
-            "media": NOTA_MEDIA_DO_MAL_AVALIADO,
-            "minimo": MINIMO_DE_AVALIACOES_DO_MAL_AVALIADO,
-        },
+        _parametros(datas),
     ).fetchone()
     return _Resumo(*linha)
 
@@ -95,4 +108,38 @@ def indicadores(conexao: psycopg.Connection, periodo: Periodo) -> dict:
         "avaliacoes": par("avaliacoes"),
         "reclamacoes": par("reclamacoes"),
         "produtos_mal_avaliados": par("produtos_mal_avaliados"),
+    }
+
+
+@consulta(Perfil.PRODUTOS)
+def mal_avaliados(conexao: psycopg.Connection, periodo: Periodo) -> dict:
+    """Os produtos mal avaliados do período, da pior nota média para a melhor, no máximo 50.
+
+    Na mesma nota média, vem antes o produto com mais avaliações. O identificador do produto vem
+    no resultado para pedir as avaliações dele.
+    """
+    datas = _datas_do(periodo, conexao)
+    linhas = conexao.execute(
+        f"""
+        select p.id, p.nome, p.categoria, p.preco, m.media::float, m.quantas
+        from ({_MAL_AVALIADOS}) m
+        join produtos.produto p on p.id = m.produto_id
+        order by m.media, m.quantas desc, p.id
+        limit %(limite)s
+        """,
+        {**_parametros(datas), "limite": LIMITE_DE_MAL_AVALIADOS},
+    ).fetchall()
+    return {
+        "periodo": datas.como_json(),
+        "produtos": [
+            {
+                "produto": produto,
+                "nome": nome,
+                "categoria": categoria,
+                "preco": float(preco),
+                "nota_media": nota_media,
+                "avaliacoes": avaliacoes,
+            }
+            for produto, nome, categoria, preco, nota_media, avaliacoes in linhas
+        ],
     }
