@@ -3,12 +3,14 @@
 Desde a entrega 3, a API também lê o banco, pelo mecanismo de consultas, com o papel de cada perfil.
 """
 
+import threading
 import time
 from collections.abc import Callable, Iterator
 from dataclasses import replace
 
 import psycopg
 import pytest
+import uvicorn
 from apoio import (
     BANCO_DA_AUDITORIA,
     BANCO_DO_HISTORICO,
@@ -173,6 +175,28 @@ def criar_mcp(executor_de_consultas, auditoria_local) -> Callable[..., Starlette
         )
 
     return criar
+
+
+@pytest.fixture(scope="module")
+def mcp_no_processo(criar_mcp) -> Iterator[str]:
+    """O endereço do servidor MCP criado pela fábrica, servido num uvicorn numa thread deste
+    processo, numa porta livre: a API o chama pela rede, como chama o serviço `mcp` do compose,
+    mas com as ferramentas deste código."""
+    # Sem `log_config`, o uvicorn não reconfigura o log do processo e o `caplog` continua valendo.
+    configuracao = uvicorn.Config(
+        criar_mcp(), host="127.0.0.1", port=0, log_config=None, log_level="warning"
+    )
+    servidor = uvicorn.Server(configuracao)
+    fio = threading.Thread(target=servidor.run, daemon=True)
+    fio.start()
+    limite = time.monotonic() + 30
+    while not servidor.started:
+        assert time.monotonic() < limite, "o servidor MCP não subiu"
+        time.sleep(0.05)
+    porta = servidor.servers[0].sockets[0].getsockname()[1]
+    yield f"http://127.0.0.1:{porta}"
+    servidor.should_exit = True
+    fio.join(timeout=10)
 
 
 @pytest.fixture

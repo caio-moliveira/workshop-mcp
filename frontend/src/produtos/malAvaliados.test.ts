@@ -6,7 +6,7 @@ import { eMalAvaliados } from "./malAvaliados";
 function produto(): Record<string, unknown> {
   return {
     produto: 1417,
-    nome: "Fone de ouvido Bluetooth Max",
+    nome_do_produto: "Fone de ouvido Bluetooth Max",
     categoria: "Eletrônicos",
     preco: 189.9,
     nota_media: 1.6666666666666667,
@@ -46,7 +46,7 @@ describe("validação da resposta de produtos mal avaliados", () => {
   it.each([
     ["identificador decimal", { produto: 1.5 }],
     ["identificador como texto", { produto: "1417" }],
-    ["sem nome", { nome: "" }],
+    ["sem nome", { nome_do_produto: "" }],
     ["sem categoria", { categoria: undefined }],
     ["preço como texto", { preco: "189,90" }],
     ["nota média nula", { nota_media: null }],

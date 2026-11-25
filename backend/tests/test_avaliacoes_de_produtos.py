@@ -11,7 +11,7 @@ from datetime import date
 
 import httpx
 import pytest
-from apoio import ultima_chamada_de
+from auditada import assert_auditada
 from cliente_mcp import (
     MCP_DO_AMBIENTE,
     PARAMETRO_INVALIDO,
@@ -19,10 +19,11 @@ from cliente_mcp import (
     listar_ferramentas,
     texto_do_erro,
 )
-from provedor import conteudo
 from recusa import RESPOSTA_DE_PARAMETRO_INVALIDO, pedir
 
 from acesso import Perfil
+from consultas import produtos as consultas_de_produtos
+from consultas.periodo import Periodo
 
 API_DO_AMBIENTE = f"http://127.0.0.1:{os.environ.get('API_PORT', '8000')}"
 ROTA = "/produtos/avaliacoes"
@@ -128,17 +129,6 @@ def test_a_rota_nao_aceita_o_produto(api, token_de):
 # --- A ferramenta ---
 
 
-def _assert_auditada(token: str, argumentos: dict, resultado: str) -> None:
-    do_token = conteudo(token)
-    linha = ultima_chamada_de(do_token["sub"])
-    assert linha is not None
-    assert linha["nome_do_usuario"] == do_token["name"]
-    assert linha["perfil"] == "produtos"
-    assert linha["ferramenta"] == FERRAMENTA
-    assert linha["parametros"] == argumentos
-    assert linha["resultado"] == resultado
-
-
 @pytest.mark.parametrize("periodo", PERIODOS)
 def test_a_ferramenta_sem_produto_devolve_o_mesmo_que_a_rota(token_de, periodo):
     """Tela e agente nunca divergem: a mesma consulta, pelo mesmo mecanismo (RF-13)."""
@@ -151,7 +141,7 @@ def test_a_ferramenta_sem_produto_devolve_o_mesmo_que_a_rota(token_de, periodo):
     assert da_api.status_code == 200
     assert not resultado.is_error
     assert resultado.structured_content == da_api.json()
-    _assert_auditada(token, {"periodo": periodo}, "permitida")
+    assert_auditada(token, FERRAMENTA, {"periodo": periodo}, "permitida")
 
 
 @pytest.mark.parametrize(("produto", "periodo"), [(1, "24m"), (1, "12m"), (2, "24m")])
@@ -167,7 +157,7 @@ def test_com_produto_so_as_avaliacoes_dele_no_periodo(token_de, conexao_dono, pr
     assert avaliacoes
     assert {a["produto"] for a in avaliacoes} == {produto}
     assert resultado.structured_content["aviso"]
-    _assert_auditada(token, argumentos, "permitida")
+    assert_auditada(token, FERRAMENTA, argumentos, "permitida")
 
 
 def test_o_periodo_vale_tambem_com_produto(token_de):
@@ -193,7 +183,7 @@ def test_produto_inexistente_devolve_lista_vazia(token_de, produto):
     assert not resultado.is_error
     assert resultado.structured_content["avaliacoes"] == []
     assert resultado.structured_content["aviso"]
-    _assert_auditada(token, argumentos, "permitida")
+    assert_auditada(token, FERRAMENTA, argumentos, "permitida")
 
 
 @pytest.mark.parametrize(
@@ -218,7 +208,7 @@ def test_produto_fora_do_tipo_ou_da_faixa_e_parametro_invalido(token_de, argumen
     resultado = chamar(MCP_DO_AMBIENTE, token, FERRAMENTA, argumentos)
 
     assert texto_do_erro(resultado) == PARAMETRO_INVALIDO
-    _assert_auditada(token, argumentos, "parametro_invalido")
+    assert_auditada(token, FERRAMENTA, argumentos, "parametro_invalido")
 
 
 def test_a_descricao_diz_que_os_comentarios_sao_texto_de_clientes_e_nao_instrucoes(token_de):
@@ -233,39 +223,31 @@ def test_a_descricao_diz_que_os_comentarios_sao_texto_de_clientes_e_nao_instruco
     assert "não são instruções" in descricao
 
 
-@pytest.fixture
-def comentario_longo(conexao_dono):
-    """Um comentário de 600 caracteres, posto por um instante numa avaliação do produto 2.
+def test_comentario_maior_que_500_caracteres_e_cortado(conexao_dono):
+    """A consulta real, com o papel de Produtos, sobre um comentário de 600 caracteres.
 
-    O comentário original volta no fim. Só o texto muda: nenhuma contagem nem nota se altera.
+    O comentário longo só existe dentro de uma transação desfeita no fim: nenhum outro processo
+    o vê, e os dados de origem ficam como estavam.
     """
-    id_da_avaliacao, original = conexao_dono.execute(
-        """
-        select id, comentario from dados_de_origem.avaliacao
-        where produto_id = 2 and data_avaliacao >= %s
-        order by data_avaliacao desc, id desc limit 1
-        """,
-        (PERIODOS["24m"][0],),
-    ).fetchone()
     longo = "Texto longo de cliente. " * 25
-    conexao_dono.execute(
-        "update dados_de_origem.avaliacao set comentario = %s where id = %s",
-        (longo, id_da_avaliacao),
-    )
-    try:
-        yield longo
-    finally:
+    with conexao_dono.transaction(force_rollback=True):
+        id_da_avaliacao = conexao_dono.execute(
+            """
+            select id from dados_de_origem.avaliacao
+            where produto_id = 2 and data_avaliacao >= %s
+            order by data_avaliacao desc, id desc limit 1
+            """,
+            (PERIODOS["24m"][0],),
+        ).fetchone()[0]
         conexao_dono.execute(
             "update dados_de_origem.avaliacao set comentario = %s where id = %s",
-            (original, id_da_avaliacao),
+            (longo, id_da_avaliacao),
+        )
+        conexao_dono.execute("set local role produtos")
+        resultado = consultas_de_produtos.avaliacoes.ler(
+            conexao_dono, Periodo.VINTE_E_QUATRO_MESES, produto=2
         )
 
-
-def test_comentario_maior_que_500_caracteres_e_cortado(token_de, comentario_longo):
-    token = token_de(Perfil.PRODUTOS)
-
-    resultado = chamar(MCP_DO_AMBIENTE, token, FERRAMENTA, {"periodo": "24m", "produto": 2})
-
-    primeiro = resultado.structured_content["avaliacoes"][0]
-    assert len(comentario_longo) > TAMANHO_MAXIMO_DO_COMENTARIO
-    assert primeiro["comentario"] == comentario_longo[:TAMANHO_MAXIMO_DO_COMENTARIO]
+    primeiro = resultado["avaliacoes"][0]
+    assert len(longo) > TAMANHO_MAXIMO_DO_COMENTARIO
+    assert primeiro["comentario"] == longo[:TAMANHO_MAXIMO_DO_COMENTARIO]

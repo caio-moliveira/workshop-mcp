@@ -1,6 +1,13 @@
 /** O contrato de `GET /vendas/pedidos-recentes`: números crus e datas ISO, sem dado de cliente. */
 
-import { type DatasDoPeriodo, eDatasDoPeriodo, eNumero, eObjeto, eUmDe } from "../painel/contrato";
+import {
+  type DatasDoPeriodo,
+  eDatasDoPeriodo,
+  eNumero,
+  eObjeto,
+  eTexto,
+  eUmDe,
+} from "../painel/contrato";
 
 export const LIMITE_DE_PEDIDOS_RECENTES = 20;
 
@@ -39,10 +46,6 @@ export interface PedidosRecentes {
 // Data, hora e fuso obrigatórios: sem fuso, o navegador leria o instante no fuso dele.
 const INSTANTE_ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/;
 const UF = /^[A-Z]{2}$/;
-
-function eTexto(valor: unknown): valor is string {
-  return typeof valor === "string" && valor !== "";
-}
 
 function ePedidoRecente(valor: unknown): valor is PedidoRecente {
   if (!eObjeto(valor)) return false;

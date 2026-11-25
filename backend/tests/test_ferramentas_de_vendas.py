@@ -14,6 +14,7 @@ import os
 import httpx
 import pytest
 from apoio import BANCO_DA_AUDITORIA, conectar_como_dono, ultima_chamada_de
+from auditada import assert_auditada
 from cliente_mcp import (
     MCP_DO_AMBIENTE,
     PARAMETRO_INVALIDO,
@@ -46,19 +47,6 @@ FERRAMENTA_QUE_NUNCA_EXISTIU = "vendas_margem_por_cliente"
 # O que não pode aparecer em resposta nenhuma: o cliente, identificadores e nomes internos do banco
 # (esquemas, tabelas e colunas de chave).
 PROIBIDOS = ("cliente", "_id", "dados_de_origem", "vendas.")
-
-
-def assert_auditada(token: str, ferramenta: str, argumentos: dict | None, resultado: str) -> None:
-    """A última linha da auditoria do usuário do token é a chamada que o teste acabou de fazer."""
-    do_token = conteudo(token)
-    linha = ultima_chamada_de(do_token["sub"])
-    assert linha is not None
-    assert linha["nome_do_usuario"] == do_token["name"]
-    assert linha["perfil"] == do_token["perfil"]
-    assert linha["ferramenta"] == ferramenta
-    assert linha["parametros"] == (argumentos or {})
-    assert linha["parametros_cortados"] is False
-    assert linha["resultado"] == resultado
 
 
 def id_da_ultima_linha(token: str) -> int | None:

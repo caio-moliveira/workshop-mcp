@@ -1,11 +1,10 @@
-import { useId, type ReactNode } from "react";
-
 import { DataTable, type Coluna } from "../componentes/DataTable";
 import { EmptyState } from "../componentes/EmptyState";
 import { AnuncioDeCarregamento, EstadosDoBloco } from "../componentes/EstadosDoBloco";
 import { LoadingSkeleton } from "../componentes/LoadingSkeleton";
 import { StatusChip, type TomDaSituacao } from "../componentes/StatusChip";
 import { formatarDataHora, formatarMoeda } from "../formatacao";
+import { MolduraDeTabela } from "../painel/MolduraDeTabela";
 import type { Periodo } from "../painel/periodo";
 import { useBloco, type FonteDeDados } from "../useBloco";
 import estilos from "./BlocoDePedidosRecentes.module.css";
@@ -68,24 +67,12 @@ const COLUNAS: Coluna<PedidoRecente>[] = [
   },
 ];
 
-/** A moldura do bloco: título e descrição sobre a tabela (FE §6, item 4). */
-function Moldura({ children, ocupado }: { children: ReactNode; ocupado?: boolean }) {
-  const idDoTitulo = useId();
-  return (
-    <section className={estilos.moldura} aria-labelledby={idDoTitulo} aria-busy={ocupado}>
-      <header className={estilos.cabecalho}>
-        <h2 id={idDoTitulo} className={estilos.titulo}>
-          Pedidos recentes
-        </h2>
-        <p className={estilos.descricao}>
-          Os {LIMITE_DE_PEDIDOS_RECENTES} pedidos mais recentes do período, do mais novo para o
-          mais antigo. Horários de Brasília.
-        </p>
-      </header>
-      {children}
-    </section>
-  );
-}
+const MOLDURA = {
+  titulo: "Pedidos recentes",
+  descricao:
+    `Os ${LIMITE_DE_PEDIDOS_RECENTES} pedidos mais recentes do período, do mais novo para o ` +
+    "mais antigo. Horários de Brasília.",
+};
 
 /** A tabela dos pedidos mais recentes do período, com estados próprios (FE §6, §7, §10). */
 export function BlocoDePedidosRecentes({ fonte, periodo }: Propriedades) {
@@ -101,11 +88,11 @@ export function BlocoDePedidosRecentes({ fonte, periodo }: Propriedades) {
       tentarDeNovo={tentarDeNovo}
       nome="os pedidos recentes"
       carregando={
-        <Moldura ocupado>
+        <MolduraDeTabela {...MOLDURA} ocupado>
           <AnuncioDeCarregamento texto="Carregando os pedidos recentes…">
             <LoadingSkeleton forma="tabela" linhas={8} />
           </AnuncioDeCarregamento>
-        </Moldura>
+        </MolduraDeTabela>
       }
     >
       {(dados) =>
@@ -115,14 +102,14 @@ export function BlocoDePedidosRecentes({ fonte, periodo }: Propriedades) {
             descricao="Não há pedidos realizados nestes dias. Escolha um período maior para ver os pedidos recentes."
           />
         ) : (
-          <Moldura>
+          <MolduraDeTabela {...MOLDURA}>
             <DataTable
               rotulo="Pedidos recentes do período"
               colunas={COLUNAS}
               linhas={dados.pedidos}
               chave={(p) => p.numero}
             />
-          </Moldura>
+          </MolduraDeTabela>
         )
       }
     </EstadosDoBloco>

@@ -1,4 +1,3 @@
-import { EmptyState } from "../componentes/EmptyState";
 import { AnuncioDeCarregamento, EstadosDoBloco } from "../componentes/EstadosDoBloco";
 import { KpiCard } from "../componentes/KpiCard";
 import { LoadingSkeleton } from "../componentes/LoadingSkeleton";
@@ -19,8 +18,17 @@ function contagem(valor: number, singular: string, plural: string): string {
   return valor === 1 ? `1 ${singular}` : `${formatarNumero(valor)} ${plural}`;
 }
 
-function Indicadores({ dados, periodo }: { dados: IndicadoresDeProdutos; periodo: Periodo }) {
-  const { nota_media: nota, produtos_mal_avaliados: malAvaliados, avaliacoes } = dados;
+const SEM_AVALIACOES = "Sem avaliações no período";
+
+/** Os quatro cartões. O do catálogo não depende do período e aparece sempre; num período sem
+ * avaliações, os outros três dizem só isso, sem valor nem variação. */
+export function CartoesDeIndicadores({
+  dados,
+  periodo,
+}: {
+  dados: IndicadoresDeProdutos;
+  periodo: Periodo;
+}) {
   const avaliados = dados.produtos_avaliados.atual;
   return (
     <div className={estilos.grade}>
@@ -30,6 +38,23 @@ function Indicadores({ dados, periodo }: { dados: IndicadoresDeProdutos; periodo
         valor={formatarNumero(dados.catalogo)}
         legenda={`${contagem(avaliados, "avaliado", "avaliados")} no período`}
       />
+      {dados.avaliacoes.atual === 0 ? (
+        <>
+          <KpiCard rotulo="Nota média" valor="—" legenda={SEM_AVALIACOES} />
+          <KpiCard rotulo="Produtos mal avaliados" valor="—" legenda={SEM_AVALIACOES} />
+          <KpiCard rotulo="Avaliações recebidas" valor="0" legenda={SEM_AVALIACOES} />
+        </>
+      ) : (
+        <CartoesDoPeriodo dados={dados} periodo={periodo} />
+      )}
+    </div>
+  );
+}
+
+function CartoesDoPeriodo({ dados, periodo }: { dados: IndicadoresDeProdutos; periodo: Periodo }) {
+  const { nota_media: nota, produtos_mal_avaliados: malAvaliados, avaliacoes } = dados;
+  return (
+    <>
       <KpiCard
         rotulo="Nota média"
         valor={nota.atual === null ? "—" : formatarNota(nota.atual)}
@@ -68,7 +93,7 @@ function Indicadores({ dados, periodo }: { dados: IndicadoresDeProdutos; periodo
           />
         }
       />
-    </div>
+    </>
   );
 }
 
@@ -94,16 +119,7 @@ export function BlocoDeIndicadores({ fonte, periodo }: Propriedades) {
         </AnuncioDeCarregamento>
       }
     >
-      {(dados) =>
-        dados.avaliacoes.atual === 0 ? (
-          <EmptyState
-            titulo="Nenhuma avaliação no período"
-            descricao="Não há avaliações nestes dias. Escolha um período maior para ver os indicadores."
-          />
-        ) : (
-          <Indicadores dados={dados} periodo={periodo} />
-        )
-      }
+      {(dados) => <CartoesDeIndicadores dados={dados} periodo={periodo} />}
     </EstadosDoBloco>
   );
 }

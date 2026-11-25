@@ -57,7 +57,8 @@ MAIOR_IDENTIFICADOR = 2_147_483_647
 
 @dataclass(frozen=True)
 class ParametroInteiro:
-    """Um parâmetro de ferramenta inteiro, numa faixa fechada, sempre opcional e sem padrão.
+    """Um parâmetro de ferramenta que é um identificador do banco: um inteiro de 1 a
+    `MAIOR_IDENTIFICADOR`, sempre opcional e sem padrão.
 
     Ausente, vale `None`. Qualquer valor que não seja um inteiro JSON dentro da faixa (texto,
     número com casa decimal, booleano, nulo) é `ParametroInvalido` (RF-23).
@@ -65,15 +66,13 @@ class ParametroInteiro:
 
     nome: str
     descricao: str
-    minimo: int = 1
-    maximo: int = MAIOR_IDENTIFICADOR
     obrigatorio = False
 
     def esquema(self) -> dict[str, Any]:
         return {
             "type": "integer",
-            "minimum": self.minimo,
-            "maximum": self.maximo,
+            "minimum": 1,
+            "maximum": MAIOR_IDENTIFICADOR,
             "description": self.descricao,
         }
 
@@ -84,7 +83,7 @@ class ParametroInteiro:
         # bool é subclasse de int em Python, mas `true` não é um identificador.
         if not isinstance(valor, int) or isinstance(valor, bool):
             raise ParametroInvalido("parâmetro que não é inteiro")
-        if not self.minimo <= valor <= self.maximo:
+        if not 1 <= valor <= MAIOR_IDENTIFICADOR:
             raise ParametroInvalido("parâmetro fora da faixa")
         return valor
 
@@ -324,9 +323,9 @@ FERRAMENTAS: dict[str, Ferramenta] = {
             "os clientes avaliam pior. A lista vem da pior nota média para a melhor (na mesma "
             "nota, primeiro o produto com mais avaliações) e é limitada a 50 produtos. Cada item "
             "de 'produtos' traz 'produto' (identificador do produto, para pedir as avaliações "
-            "dele), 'nome', 'categoria', 'preco' (em reais), 'nota_media' (de 1 a 5, só das "
-            "avaliações do período) e 'avaliacoes' (quantas avaliações o produto recebeu no "
-            "período). 'periodo' traz as datas de início e fim usadas, em formato ISO."
+            "dele), 'nome_do_produto', 'categoria', 'preco' (em reais), 'nota_media' (de 1 a 5, "
+            "só das avaliações do período) e 'avaliacoes' (quantas avaliações o produto recebeu "
+            "no período). 'periodo' traz as datas de início e fim usadas, em formato ISO."
         ),
         parametros=(PERIODO,),
     ),

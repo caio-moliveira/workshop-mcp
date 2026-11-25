@@ -9,6 +9,7 @@ recebem a mesma negação genérica (RF-11, RF-22, RS-08).
 import httpx
 import pytest
 from apoio import ultima_chamada_de
+from auditada import assert_auditada
 from cliente_mcp import (
     FERRAMENTA_DESCONHECIDA,
     MCP_DO_AMBIENTE,
@@ -68,16 +69,6 @@ def _id_da_ultima_linha(token: str) -> int | None:
     return linha["id"] if linha else None
 
 
-def _assert_auditada(token: str, ferramenta: str, argumentos: dict, resultado: str) -> None:
-    """A última linha da auditoria do usuário do token é a chamada que o teste acabou de fazer."""
-    linha = ultima_chamada_de(conteudo(token)["sub"])
-    assert linha is not None
-    assert linha["perfil"] == conteudo(token)["perfil"]
-    assert linha["ferramenta"] == ferramenta
-    assert linha["parametros"] == argumentos
-    assert linha["resultado"] == resultado
-
-
 @pytest.mark.parametrize("perfil", list(Perfil), ids=str)
 def test_cada_perfil_lista_so_as_ferramentas_que_sao_dele(token_de, perfil):
     token = token_de(perfil)
@@ -98,7 +89,7 @@ def test_o_dono_chama_a_ferramenta(token_de, ferramenta, perfil):
     resultado = chamar(MCP_DO_AMBIENTE, token, ferramenta, argumentos)
 
     assert not resultado.is_error
-    _assert_auditada(token, ferramenta, argumentos, "permitida")
+    assert_auditada(token, ferramenta, argumentos, "permitida")
 
 
 @pytest.mark.parametrize(("ferramenta", "perfil"), _pares(DONO_DA_FERRAMENTA, do_dono=False))
@@ -110,12 +101,12 @@ def test_quem_nao_e_dono_recebe_a_resposta_de_ferramenta_inexistente(
     argumentos = argumentos_minimos(ferramenta)
 
     de_outro_perfil = chamar_pelo_protocolo(mcp_do_ambiente, token, ferramenta, argumentos)
-    _assert_auditada(token, ferramenta, argumentos, "negada")
+    assert_auditada(token, ferramenta, argumentos, "negada")
     inexistente = chamar_pelo_protocolo(
         mcp_do_ambiente, token, FERRAMENTA_QUE_NUNCA_EXISTIU, argumentos
     )
     # O mesmo resultado na auditoria, com o nome como foi pedido; o motivo fica só no log.
-    _assert_auditada(token, FERRAMENTA_QUE_NUNCA_EXISTIU, argumentos, "negada")
+    assert_auditada(token, FERRAMENTA_QUE_NUNCA_EXISTIU, argumentos, "negada")
 
     assert de_outro_perfil.status_code == inexistente.status_code == 200
     assert de_outro_perfil.content == inexistente.content

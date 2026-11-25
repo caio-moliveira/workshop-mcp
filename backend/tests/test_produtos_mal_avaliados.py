@@ -10,7 +10,7 @@ from datetime import date
 from decimal import Decimal
 
 import pytest
-from apoio import ultima_chamada_de
+from auditada import assert_auditada
 from chaves_locais import ChavesLocais, assinar, conteudo_valido, nova_chave
 from cliente_mcp import chamar
 from provedor import DESTINATARIO_DO_MCP
@@ -32,7 +32,7 @@ PERIODOS = {
 MAL_AVALIADOS_CONHECIDOS = {"30d": 4, "90d": 26, "12m": 20, "24m": 7}
 LIMITE = 50
 
-CAMPOS = {"produto", "nome", "categoria", "preco", "nota_media", "avaliacoes"}
+CAMPOS = {"produto", "nome_do_produto", "categoria", "preco", "nota_media", "avaliacoes"}
 
 _NA_ORIGEM = """
 select p.id, p.nome, c.nome, p.preco, avg(a.nota), count(*)
@@ -56,7 +56,7 @@ def respostas(criar_api, token_de):
 def _como_linha(produto: dict) -> tuple:
     return (
         produto["produto"],
-        produto["nome"],
+        produto["nome_do_produto"],
         produto["categoria"],
         Decimal(str(produto["preco"])),
         produto["nota_media"],
@@ -162,9 +162,4 @@ def test_a_ferramenta_devolve_o_mesmo_que_a_rota_e_fica_na_auditoria(mcp, respos
 
     assert not resultado.is_error
     assert resultado.structured_content == respostas[periodo].json()
-    linha = ultima_chamada_de(sub)
-    assert linha is not None
-    assert linha["perfil"] == "produtos"
-    assert linha["ferramenta"] == FERRAMENTA
-    assert linha["parametros"] == {"periodo": periodo}
-    assert linha["resultado"] == "permitida"
+    assert_auditada(token, FERRAMENTA, {"periodo": periodo}, "permitida")

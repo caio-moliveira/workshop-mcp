@@ -7,13 +7,9 @@ depende do período (glossário). A ferramenta `produtos_categorias` devolve o m
 chamada no servidor MCP criado dentro do processo.
 """
 
-import threading
-import time
-from collections.abc import Iterator
 from datetime import date
 
 import pytest
-import uvicorn
 from cliente_mcp import CAMINHO, chamar
 from pydantic_ai.messages import ModelRequest, ToolReturnPart
 from recusa import pedir
@@ -157,25 +153,6 @@ def test_a_ferramenta_devolve_o_mesmo_conteudo_da_rota(mcp, respostas, token_de,
 
     assert not resultado.is_error
     assert resultado.structured_content == respostas[periodo].json()
-
-
-@pytest.fixture(scope="module")
-def mcp_no_processo(criar_mcp) -> Iterator[str]:
-    """O servidor MCP criado pela fábrica, servido numa thread: o assistente o chama pela rede,
-    como chama o serviço `mcp` do compose, mas com as ferramentas deste código."""
-    servidor = uvicorn.Server(
-        uvicorn.Config(criar_mcp(), host="127.0.0.1", port=0, log_config=None, log_level="warning")
-    )
-    fio = threading.Thread(target=servidor.run, daemon=True)
-    fio.start()
-    limite = time.monotonic() + 30
-    while not servidor.started:
-        assert time.monotonic() < limite, "o servidor MCP não subiu"
-        time.sleep(0.05)
-    porta = servidor.servers[0].sockets[0].getsockname()[1]
-    yield f"http://127.0.0.1:{porta}"
-    servidor.should_exit = True
-    fio.join(timeout=10)
 
 
 def test_a_pergunta_sugerida_leva_as_categorias_ao_modelo(
