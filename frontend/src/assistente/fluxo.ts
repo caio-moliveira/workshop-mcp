@@ -32,7 +32,10 @@ export async function* lerEventos(
       resto += decodificador.decode(pedaco, { stream: true });
       // Um "\r" no fim pode ser metade de um "\r\n" que termina no próximo pedaço.
       const pendente = resto.endsWith("\r") ? "\r" : "";
-      const blocos = resto.slice(0, resto.length - pendente.length).replace(/\r\n?/g, "\n").split("\n\n");
+      const blocos = resto
+        .slice(0, resto.length - pendente.length)
+        .replace(/\r\n?/g, "\n")
+        .split("\n\n");
       resto = (blocos.pop() ?? "") + pendente;
       for (const bloco of blocos) {
         const evento = lerBloco(bloco);

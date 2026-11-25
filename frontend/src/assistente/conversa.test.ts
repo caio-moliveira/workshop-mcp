@@ -43,7 +43,11 @@ describe("conversa", () => {
   });
 
   it("marca a consulta aos dados até o próximo trecho", () => {
-    const consultando = aplicar(perguntada, { tipo: "texto", texto: "Vou ver. " }, { tipo: "estado" });
+    const consultando = aplicar(
+      perguntada,
+      { tipo: "texto", texto: "Vou ver. " },
+      { tipo: "estado" },
+    );
     expect(resposta(consultando)).toMatchObject({ texto: "Vou ver. ", consultando: true });
 
     const depois = receber(consultando, { tipo: "texto", texto: "Achei." });
@@ -103,7 +107,10 @@ describe("conversa", () => {
   });
 
   it("a pergunta seguinte entra depois da resposta anterior", () => {
-    const conversa = enviar(aplicar(perguntada, { tipo: "texto", texto: "Três lojistas." }, { tipo: "fim" }), "e por estado?");
+    const conversa = enviar(
+      aplicar(perguntada, { tipo: "texto", texto: "Três lojistas." }, { tipo: "fim" }),
+      "e por estado?",
+    );
     expect(conversa.falas.map((fala) => [fala.autor, fala.texto])).toEqual([
       ["usuario", "O que está causando os atrasos?"],
       ["assistente", "Três lojistas."],

@@ -17,7 +17,9 @@ async function todos(fluxo: AsyncIterable<EventoDaResposta>): Promise<EventoDaRe
 describe("lerEventos", () => {
   it("lê um evento inteiro num pedaço", async () => {
     const eventos = await todos(
-      lerEventos(pedacos('event: texto\ndata: {"texto": "Os atrasos"}\n\n', "event: fim\ndata: {}\n\n")),
+      lerEventos(
+        pedacos('event: texto\ndata: {"texto": "Os atrasos"}\n\n', "event: fim\ndata: {}\n\n"),
+      ),
     );
     expect(eventos).toEqual([{ tipo: "texto", texto: "Os atrasos" }, { tipo: "fim" }]);
   });
@@ -26,7 +28,15 @@ describe("lerEventos", () => {
     const bytes = codificador.encode('event: texto\ndata: {"texto": "concentração"}\n\n');
     const meioDoCa = bytes.indexOf(0xc3) + 1; // entre os dois bytes do "ç"
     const eventos = await todos(
-      lerEventos(pedacos("eve", bytes.slice(3, meioDoCa), bytes.slice(meioDoCa), "event: fim\n", "data: {}\n\n")),
+      lerEventos(
+        pedacos(
+          "eve",
+          bytes.slice(3, meioDoCa),
+          bytes.slice(meioDoCa),
+          "event: fim\n",
+          "data: {}\n\n",
+        ),
+      ),
     );
     expect(eventos).toEqual([{ tipo: "texto", texto: "concentração" }, { tipo: "fim" }]);
   });
@@ -52,7 +62,11 @@ describe("lerEventos", () => {
   });
 
   it("aceita linhas terminadas em CRLF", async () => {
-    const eventos = await todos(lerEventos(pedacos('event: texto\r\ndata: {"texto": "a"}\r\n\r\nevent: fim\r\ndata: {}\r\n\r\n')));
+    const eventos = await todos(
+      lerEventos(
+        pedacos('event: texto\r\ndata: {"texto": "a"}\r\n\r\nevent: fim\r\ndata: {}\r\n\r\n'),
+      ),
+    );
     expect(eventos).toEqual([{ tipo: "texto", texto: "a" }, { tipo: "fim" }]);
   });
 
@@ -75,7 +89,9 @@ describe("lerEventos", () => {
 
   it("termina em erro quando o fluxo acaba sem fim", async () => {
     const eventos = await todos(
-      lerEventos(pedacos('event: texto\ndata: {"texto": "Os atrasos"}\n\n', 'event: texto\ndata: {"tex')),
+      lerEventos(
+        pedacos('event: texto\ndata: {"texto": "Os atrasos"}\n\n', 'event: texto\ndata: {"tex'),
+      ),
     );
     expect(eventos).toEqual([
       { tipo: "texto", texto: "Os atrasos" },
