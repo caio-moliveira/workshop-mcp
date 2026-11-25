@@ -38,6 +38,22 @@ _Avoid_: Visão, data mart, camada de consumo
 Uma consulta oferecida pelo servidor MCP, que pertence a um único perfil e só aparece para ele.
 _Avoid_: Tool (sozinho), endpoint, função
 
+**Assistente**:
+O assistente de IA da própria aplicação, com quem o usuário conversa em linguagem natural. Só consulta dados pelas ferramentas, com a identidade do usuário.
+_Avoid_: Agente, chat (que é a tela), bot, IA (sozinho)
+
+**Pergunta**:
+O que o usuário escreve ao assistente.
+_Avoid_: Mensagem, prompt, consulta
+
+**Resposta**:
+O que o assistente devolve a uma pergunta.
+_Avoid_: Mensagem, saída, retorno
+
+**Conversa**:
+A sequência de perguntas e respostas de um usuário com o assistente.
+_Avoid_: Histórico (que é a conversa gravada), sessão, thread
+
 **Assistente externo**:
 Um assistente de IA de terceiros, como o Claude ou o ChatGPT, conectado ao servidor MCP com o login do usuário.
 _Avoid_: Cliente externo, cliente MCP (Cliente é quem compra)
