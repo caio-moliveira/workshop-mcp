@@ -79,14 +79,21 @@ O perfil vem do grupo do usuário no realm e viaja no token como a claim `perfil
 
 - `GET /eu`: o nome e o perfil do usuário do token. Qualquer problema com o token (ausente, vencido, de outro serviço, assinatura, emissor, perfil) recebe `401` com a mesma resposta; o motivo fica só no log da API.
 - `GET /vendas/indicadores`, `/vendas/evolucao`, `/vendas/situacao-das-entregas` e `/vendas/pedidos-recentes`: os blocos do painel de Vendas, com `?periodo=` (`30d`, `90d`, `12m` ou `24m`; padrão `12m`).
+- `GET /produtos/indicadores`, `/produtos/notas`, `/produtos/categorias`, `/produtos/mal-avaliados` e `/produtos/avaliacoes`: os blocos do painel de Produtos, com o mesmo `?periodo=` e nenhum outro parâmetro. O catálogo não depende do período; o período filtra pela data da avaliação. A rota das avaliações devolve as 20 mais recentes, com o comentário e o `aviso` de que ele é texto de clientes (ADR 0010).
+- Cada rota de dados só responde ao perfil dono; os outros perfis recebem `403 {"erro": "Acesso negado."}`, a mesma negação em toda rota, antes de o parâmetro ser validado (RF-11).
 - `POST /assistente`: uma pergunta ao assistente. Veja a seção Assistente.
 - `GET /conversas`, `GET /conversas/{id}` e `DELETE /conversas/{id}`: o histórico do assistente, só do próprio usuário. Veja a seção Assistente.
 
 ## Servidor MCP
 
-O serviço `mcp` do compose expõe as consultas de Vendas como ferramentas MCP, somente leitura, em `http://127.0.0.1:8001/mcp` (transporte streamable HTTP, sem sessão). Ele usa o mesmo módulo de acesso e o mesmo mecanismo de consultas da API (`backend/acesso` e `backend/consultas`), sem chamar a API.
+O serviço `mcp` do compose expõe as consultas de Vendas e de Produtos como ferramentas MCP, somente leitura, em `http://127.0.0.1:8001/mcp` (transporte streamable HTTP, sem sessão). Ele usa o mesmo módulo de acesso e o mesmo mecanismo de consultas da API (`backend/acesso` e `backend/consultas`), sem chamar a API.
 
-- **Ferramentas:** `vendas_indicadores`, `vendas_evolucao`, `vendas_situacao_das_entregas`, `vendas_pedidos_recentes` e `vendas_atrasos`, todas do perfil Vendas, declaradas em `backend/servidor_mcp/ferramentas.py`. Os outros perfis recebem a lista vazia, e uma chamada a uma ferramenta de outro perfil recebe o mesmo erro de uma ferramenta inexistente.
+- **Ferramentas**, declaradas em `backend/servidor_mcp/ferramentas.py`:
+  - do perfil Vendas: `vendas_indicadores`, `vendas_evolucao`, `vendas_situacao_das_entregas`, `vendas_pedidos_recentes` e `vendas_atrasos`;
+  - do perfil Produtos: `produtos_indicadores`, `produtos_notas`, `produtos_categorias`, `produtos_mal_avaliados` e `produtos_avaliacoes`. Todas recebem `periodo`; `produtos_avaliacoes` recebe também `produto`, opcional, o identificador do produto (inteiro positivo; um produto que não existe dá lista vazia).
+
+  Cada perfil só lista as próprias ferramentas; Comercial e Diretoria recebem a lista vazia. Uma chamada a uma ferramenta de outro perfil recebe o mesmo erro de uma ferramenta inexistente.
+- **Conteúdo não confiável:** o comentário das avaliações é texto escrito por clientes. A descrição de `produtos_avaliacoes` e o campo `aviso` do resultado dizem que ele é dado, não instrução; o texto vai inteiro, cortado só em 500 caracteres, sem filtro nem detecção de texto suspeito (ADR 0010).
 - **Token:** só aceita tokens do realm cujo destinatário inclui `pulso-mcp`. O token da aplicação (`pulso-web`) traz `pulso-api` e `pulso-mcp` (ADR 0006); o do cliente `pulso-inspector`, só `pulso-mcp`. Sem token ou com token recusado: `401`, com o `WWW-Authenticate` apontando os metadados de recurso protegido em `/.well-known/oauth-protected-resource/mcp`.
 - **Endereço público:** `ENDERECO_PUBLICO_DO_MCP` no `backend/.env` (sem o `/mcp`), o recurso anunciado nos metadados. Precisa ser o endereço digitado no cliente do protocolo MCP (o Inspector, um assistente externo).
 - **Auditoria:** toda chamada de ferramenta vira uma linha na tabela `auditoria.chamada`, no banco `auditoria`, com usuário, perfil, ferramenta, parâmetros, resultado e horário. A recarga não a apaga, e só o papel dono a lê (ADR 0008).
@@ -108,7 +115,7 @@ O botão **Assistente**, na barra superior do frontend, abre um painel lateral e
 - **Rota:** `POST /assistente`, com o token da aplicação (destinatário `pulso-api`). Corpo: `{"pergunta": "...", "id_da_conversa": "..."}`, com o identificador opcional: sem ele, nasce uma conversa nova, com o começo da pergunta como título; campos fora do previsto são recusados, entre eles a `conversa` reenviada da 5a. Antes da resposta, erros JSON no formato da API: `401` para token recusado, `400` para pergunta vazia ou acima dos tetos, `404` para conversa inexistente, de outro usuário ou com identificador fora do formato, `503` sem modelo, sem chave ou com o histórico fora do ar. Depois, um fluxo de eventos (SSE): `conversa` (o primeiro, com `id_da_conversa` e `id_da_pergunta`), `texto` (um trecho), `estado` (consultando os dados, sem nome de ferramenta), `chamada` (uma por chamada de ferramenta terminada, com `ferramenta`, `desfecho`, `concluida` ou `nao_concluida`, e `milissegundos`) e, no fim, exatamente um `fim` (com `aviso` quando o teto de chamadas foi atingido) ou um `erro` (sessão expirada, assistente indisponível ou tempo esgotado, sem nome interno). Se o cliente desconecta, a execução é cancelada.
 - **Conversa:** gravada no banco `historico` (ADR 0009): a pergunta antes de o modelo ser chamado e a resposta ao terminar, em qualquer desfecho, com o texto emitido e a situação. A continuação lê do banco os pares de pergunta e resposta com texto, cada resposta junto da pergunta dela pelo identificador da pergunta, e entrega ao modelo os 20 itens mais recentes desses pares; o navegador não envia mais a conversa. `GET /conversas` lista as 50 conversas mais recentes do usuário, com título e última atividade; `GET /conversas/{id}` lê uma, com perguntas, respostas, situações e rastreio; `DELETE /conversas/{id}` a apaga de vez, sem tocar na auditoria. A conversa de outro usuário, do mesmo perfil ou de outro, recebe o mesmo `404` da inexistente (RF-18). O painel abre numa conversa nova a cada carga da página, e o navegador não guarda nada do histórico.
 - **Rastreio:** cada resposta tem o bloco retrátil "Como esta resposta foi obtida", fechado por padrão: por chamada, a ferramenta pedida, se foi concluída e a duração, e o identificador da pergunta. Sem parâmetros nem texto de erro; uma chamada negada aparece como não concluída, com o nome pedido. O rastreio fica gravado com a resposta.
-- **Pergunta sugerida:** só Vendas tem uma ("O que está causando os atrasos?").
+- **Pergunta sugerida:** Vendas, "O que está causando os atrasos?"; Produtos, "Quais categorias concentram as piores notas?". Comercial e Diretoria não têm ferramentas nem pergunta sugerida.
 - **Log:** cada pergunta tem um identificador (UUID), que a API repassa ao servidor MCP num cabeçalho. Ele aparece em três linhas: a da pergunta, na API (início, fim e erro, com a conversa e o usuário); a de cada chamada, no servidor MCP; e a de cada consulta executada, com o nome e a duração (as consultas das telas saem "sem pergunta"). O texto da pergunta não vai para o log, e a auditoria não guarda o identificador. Para acompanhar uma pergunta: `docker compose logs api mcp | grep <identificador>`, com o identificador do bloco de rastreio.
 
 Variáveis, no `backend/.env` (todas com padrão; veja `backend/.env.example`):
@@ -127,6 +134,8 @@ A chave do provedor não vai para o repositório, para o log nem para as mensage
 ## Frontend
 
 Abra `http://localhost:5173`. A aplicação leva ao login do Keycloak (fluxo de código com PKCE pelo cliente público `pulso-web`, ADR 0004), volta com o token só em memória e chama `GET /eu`; o nome e o perfil mostrados vêm dessa resposta. Recarregar a página volta sem pedir senha enquanto a sessão do provedor estiver ativa. O botão **Sair** encerra a sessão também no Keycloak.
+
+**Painéis.** Cada perfil vê o próprio painel, com o filtro de período no endereço da página (`?periodo=`): Vendas (pedidos, receita, atrasos e aprovação; a evolução e a situação das entregas; os pedidos recentes) e Produtos (Produtos no catálogo, nota média, produtos mal avaliados e avaliações recebidas; as avaliações por nota e as categorias com mais reclamações; os produtos mal avaliados e as avaliações recentes, com o comentário como texto simples). Comercial e Diretoria veem "O painel chega em breve".
 
 **Inatividade.** A sessão termina depois de 30 minutos sem uso. O token só é renovado se o usuário interagiu com a página (ponteiro, teclado, rolagem ou volta à aba) desde a última renovação, porque cada renovação prorroga a sessão no Keycloak. Passados os 30 minutos sem interação, a aplicação encerra a sessão também no Keycloak e volta à tela de login. O valor vem de `INATIVIDADE_DA_SESSAO_EM_SEGUNDOS` no `compose.yaml`, que o realm e o `/configuracao.json` usam. Para encurtar numa demonstração, mantendo-o acima dos 5 minutos do token de acesso: `INATIVIDADE_DA_SESSAO_EM_SEGUNDOS=360 docker compose up -d --wait keycloak frontend`.
 
@@ -157,16 +166,17 @@ npm test
 npm run build
 ```
 
-`npm test` roda o Vitest nas funções puras: formatação, período da URL, variação, validação das respostas da API e, do assistente, a leitura do fluxo de eventos, o estado da conversa, a lista de conversas, o Markdown com tabelas, o painel (lateral e expandido), o teto de caracteres e a rede.
+`npm test` roda o Vitest nas funções puras: formatação, período da URL, variação, validação das respostas da API de Vendas e de Produtos e, do assistente, a leitura do fluxo de eventos, o estado da conversa, a lista de conversas, o Markdown com tabelas, o painel (lateral e expandido), o teto de caracteres e a rede.
 
 ## Credenciais do banco
 
 - `dono` (`POSTGRES_USER`): usado pela carga; recria o banco inteiro.
-- `vendas` (`SENHA_DO_PAPEL_VENDAS`): lê apenas o esquema `vendas`, a camada de leitura do perfil Vendas, e é recusado nos dados de origem (ADR 0002).
+- `vendas` (`SENHA_DO_PAPEL_VENDAS`): lê apenas o esquema `vendas`, a camada de leitura do perfil Vendas, e é recusado nos dados de origem e na camada de leitura de Produtos (ADR 0002).
+- `produtos` (`SENHA_DO_PAPEL_PRODUTOS`): lê apenas o esquema `produtos`, a camada de leitura do perfil Produtos (produto, avaliação e data de referência, sem cliente, pedido, entrega, receita nem lojista), e é recusado nos dados de origem e na camada de leitura de Vendas. Não escreve em nada e não se conecta aos bancos `auditoria` e `historico`.
 - `auditoria` (`SENHA_DO_PAPEL_AUDITORIA`): usado pelo servidor MCP; só insere na tabela da auditoria, sem ler, alterar nem apagar (ADR 0008).
 - `historico` (`SENHA_DO_PAPEL_HISTORICO`): usado só pela API; lê, grava e apaga as conversas no banco `historico` e não se conecta a nenhum outro banco (ADR 0009).
 
-As senhas ficam em `backend/.env`, que não é versionado.
+As senhas ficam em `backend/.env`, que não é versionado. **Quem já tem o ambiente no ar de antes da entrega 8** precisa acrescentar `SENHA_DO_PAPEL_PRODUTOS` ao `backend/.env` (veja `backend/.env.example`) e refazer a carga (`docker compose run --rm --build carga`), que cria o papel e a camada de leitura de Produtos; sem a senha, o perfil Produtos é negado em toda consulta.
 
 A API lê o banco só pelo mecanismo de consultas (`backend/consultas`): cada consulta declara um perfil, e o executor conecta com o papel desse perfil (`SENHA_DO_PAPEL_<PERFIL>`). Um perfil sem senha configurada é negado em toda consulta.
 
@@ -199,7 +209,7 @@ uv run ruff format --check
 
 Os testes rodam contra o Postgres e o Keycloak reais, sem mocks. Os da API criam a aplicação dentro do processo e obtêm tokens pelo mesmo fluxo de login do navegador (código + PKCE). Os do servidor MCP falam o protocolo MCP por HTTP, contra o serviço `mcp` do compose ou contra o servidor criado dentro do processo; por isso o ambiente inteiro, com o serviço `mcp`, precisa estar no ar.
 
-A suíte leva cerca de 11 minutos, recarrega o banco e reinicia o Keycloak. O ambiente de testes é um compose por máquina: não rode duas suítes ao mesmo tempo.
+A suíte leva cerca de 18 minutos, recarrega o banco e reinicia o Keycloak. O ambiente de testes é um compose por máquina: não rode duas suítes ao mesmo tempo.
 
 ## Demonstração
 
