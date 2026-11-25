@@ -21,7 +21,7 @@ export function mensagemDaFalha(erro: unknown): string {
   return erro instanceof AssistenteIndisponivel ? ASSISTENTE_INDISPONIVEL : SEM_RESPOSTA;
 }
 
-/** Uma fala anterior, como a rota `POST /assistente` a recebe. */
+/** Uma pergunta ou resposta anterior, como a rota `POST /assistente` a recebe. */
 export interface ItemDaConversa {
   autor: "usuario" | "assistente";
   texto: string;

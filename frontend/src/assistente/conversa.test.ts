@@ -11,12 +11,12 @@ import {
   type Conversa,
 } from "./conversa";
 import type { EventoDaResposta } from "./fluxo";
-import { ITENS_DA_CONVERSA, LIMITE_DE_CARACTERES_DA_PERGUNTA } from "./limites";
+import { ITENS_DA_CONVERSA, LIMITE_DE_CARACTERES_DA_PERGUNTA, MARCA_DE_CORTE } from "./limites";
 
 describe("conversa", () => {
   it("ao enviar, guarda a pergunta e abre uma resposta ainda chegando", () => {
     const conversa = enviar(CONVERSA_VAZIA, "O que está causando os atrasos?");
-    expect(conversa.falas).toEqual([
+    expect(conversa.perguntasERespostas).toEqual([
       { autor: "usuario", texto: "O que está causando os atrasos?" },
       { autor: "assistente", texto: "", situacao: "chegando", consultando: false },
     ]);
@@ -30,7 +30,7 @@ describe("conversa", () => {
   }
 
   function resposta(conversa: Conversa) {
-    return conversa.falas.at(-1);
+    return conversa.perguntasERespostas.at(-1);
   }
 
   it("acumula os trechos na resposta", () => {
@@ -94,7 +94,7 @@ describe("conversa", () => {
       { tipo: "erro", mensagem: "Falhou." },
     );
     const conversa = enviar(comErro, "De novo?");
-    expect(conversa.falas.slice(1)).toEqual([
+    expect(conversa.perguntasERespostas.slice(1)).toEqual([
       { autor: "assistente", texto: "Parcial", situacao: "erro", consultando: false, erro: "Falhou." },
       { autor: "usuario", texto: "De novo?" },
       { autor: "assistente", texto: "", situacao: "chegando", consultando: false },
@@ -190,7 +190,7 @@ describe("conversa", () => {
       aplicar(perguntada, { tipo: "texto", texto: "Três lojistas." }, { tipo: "fim" }),
       "e por estado?",
     );
-    expect(conversa.falas.map((fala) => [fala.autor, fala.texto])).toEqual([
+    expect(conversa.perguntasERespostas.map((item) => [item.autor, item.texto])).toEqual([
       ["usuario", "O que está causando os atrasos?"],
       ["assistente", "Três lojistas."],
       ["usuario", "e por estado?"],
@@ -214,16 +214,16 @@ describe("conversa", () => {
 
   it("corta a resposta longa no teto de caracteres e marca o corte", () => {
     const longa = "📦".repeat(LIMITE_DE_CARACTERES_DA_PERGUNTA + 500);
-    const [, item] = itensParaEnviar(respondida(CONVERSA_VAZIA, "Quais?", longa));
+    const texto = itensParaEnviar(respondida(CONVERSA_VAZIA, "Quais?", longa)).at(1)?.texto ?? "";
 
-    expect([...item.texto]).toHaveLength(LIMITE_DE_CARACTERES_DA_PERGUNTA);
-    expect(item.texto.startsWith("📦".repeat(100))).toBe(true);
-    expect(item.texto.endsWith("…")).toBe(true);
+    expect([...texto]).toHaveLength(LIMITE_DE_CARACTERES_DA_PERGUNTA);
+    expect(texto.startsWith("📦".repeat(100))).toBe(true);
+    expect(texto.endsWith(MARCA_DE_CORTE)).toBe(true);
   });
 
   it("a resposta no teto de caracteres vai inteira", () => {
     const noTeto = "a".repeat(LIMITE_DE_CARACTERES_DA_PERGUNTA);
-    const [, item] = itensParaEnviar(respondida(CONVERSA_VAZIA, "Quais?", noTeto));
-    expect(item.texto).toBe(noTeto);
+    const resposta = itensParaEnviar(respondida(CONVERSA_VAZIA, "Quais?", noTeto)).at(1);
+    expect(resposta).toEqual({ autor: "assistente", texto: noTeto });
   });
 });
