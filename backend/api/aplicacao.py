@@ -23,6 +23,7 @@ from acesso import (
     mensagens,
 )
 from assistente import Assistente, Limites
+from assistente.limites import ITENS_DA_CONVERSA
 from assistente.limites import PADRAO as LIMITES_PADRAO
 from consultas import (
     PERIODO_PADRAO,
@@ -67,7 +68,7 @@ class Pergunta(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     pergunta: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
-    conversa: list[ItemDaConversa] = Field(default_factory=list)
+    conversa: list[ItemDaConversa] = Field(default_factory=list, max_length=ITENS_DA_CONVERSA)
 
 
 class AssistenteIndisponivel(Exception):
@@ -179,6 +180,13 @@ def criar_aplicacao(
             raise AssistenteIndisponivel("sem modelo de linguagem configurado ou sem a chave")
         return assistente
 
+    def pergunta_dentro_dos_tetos(corpo: Pergunta) -> Pergunta:
+        # O teto de caracteres vem da configuração: o modelo do corpo não o conhece.
+        textos = [corpo.pergunta, *(item.texto for item in corpo.conversa)]
+        if any(len(texto) > limites.caracteres for texto in textos):
+            raise ParametroInvalido("pergunta ou item da conversa acima do teto de caracteres")
+        return corpo
+
     @aplicacao.get("/eu")
     def eu(usuario: Autenticado) -> dict:
         return {"nome": usuario.nome, "perfil": usuario.perfil}
@@ -190,7 +198,7 @@ def criar_aplicacao(
         usuario: Autenticado,
         token: Token,
         disponivel: Annotated[Assistente, Depends(assistente_disponivel)],
-        corpo: Pergunta,
+        corpo: Annotated[Pergunta, Depends(pergunta_dentro_dos_tetos)],
     ) -> AsyncIterator[ServerSentEvent]:
         async for evento in disponivel.responder(corpo.pergunta, usuario, token):
             yield ServerSentEvent(event=evento.tipo, data=evento.dados)
