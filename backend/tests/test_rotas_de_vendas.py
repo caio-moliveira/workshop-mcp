@@ -1,4 +1,5 @@
-"""As rotas do painel de Vendas: só o perfil Vendas lê, os outros recebem a mesma negação.
+"""As rotas do painel de Vendas. Quem lê cada rota está na matriz de isolamento
+(test_matriz_de_isolamento.py); aqui ficam os parâmetros, as falhas e o tempo de resposta.
 
 A ordem das verificações é fixa: token (401), perfil (403), parâmetros (400), consulta (RS-08).
 """
@@ -36,27 +37,8 @@ def executor_sem_banco():
 
 
 @pytest.mark.parametrize("rota", ROTAS_DE_VENDAS)
-def test_vendas_le_cada_rota_de_vendas(api, token_de, rota):
-    resposta = pedir(api, rota, token_de(Perfil.VENDAS))
-
-    assert resposta.status_code == 200
-
-
-@pytest.mark.parametrize("rota", ROTAS_DE_VENDAS)
-@pytest.mark.parametrize("perfil", OUTROS_PERFIS, ids=str)
-def test_outros_perfis_recebem_a_mesma_negacao_em_toda_rota_de_vendas(api, token_de, rota, perfil):
-    assert_negado(pedir(api, rota, token_de(perfil)))
-
-
-@pytest.mark.parametrize("rota", ROTAS_DE_VENDAS)
 def test_sem_token_e_recusado_mesmo_com_parametro_invalido(api, rota):
     assert_recusado(pedir(api, rota, periodo="7d"))
-
-
-@pytest.mark.parametrize("rota", ROTAS_DE_VENDAS)
-@pytest.mark.parametrize("perfil", OUTROS_PERFIS, ids=str)
-def test_outro_perfil_e_negado_antes_de_validar_o_parametro(api, token_de, rota, perfil):
-    assert_negado(pedir(api, rota, token_de(perfil), periodo="7d", filtro="x"))
 
 
 PARAMETROS_INVALIDOS = [

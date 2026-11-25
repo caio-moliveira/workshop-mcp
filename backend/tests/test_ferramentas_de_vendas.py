@@ -1,8 +1,8 @@
-"""As ferramentas de Vendas no servidor MCP do ambiente: só o perfil Vendas as lista e chama.
+"""As ferramentas de Vendas no servidor MCP do ambiente, chamadas pelo perfil Vendas.
 
 Um cliente MCP fala o protocolo por HTTP com o serviço `mcp` do compose, com tokens reais do
-provedor (RF-19 a RF-22, RF-26, CA-02). Os outros perfis recebem a lista vazia e, na chamada
-direta, o mesmo erro de uma ferramenta que não existe (RS-08).
+provedor (RF-19 a RF-22, RF-26). Quem lista e quem chama cada ferramenta, e a negação aos demais
+perfis, está na matriz de isolamento (test_matriz_de_isolamento.py).
 
 Depois de cada chamada, o teste confere a linha da auditoria: toda chamada fica registrada, com
 o desfecho (RF-30, RF-31, CA-07).
@@ -15,13 +15,11 @@ import httpx
 import pytest
 from apoio import BANCO_DA_AUDITORIA, conectar_como_dono, ultima_chamada_de
 from cliente_mcp import (
-    FERRAMENTA_DESCONHECIDA,
     MCP_DO_AMBIENTE,
     PARAMETRO_INVALIDO,
     assert_recusado,
     chamar,
     chamar_pelo_protocolo,
-    listar_ferramentas,
     pedir_ao_protocolo,
     texto_do_erro,
 )
@@ -30,7 +28,6 @@ from recusa import pedir
 
 from acesso import Perfil
 
-OUTROS_PERFIS = [perfil for perfil in Perfil if perfil is not Perfil.VENDAS]
 PERIODOS = ["30d", "90d", "12m", "24m"]
 API_DO_AMBIENTE = f"http://127.0.0.1:{os.environ.get('API_PORT', '8000')}"
 
@@ -79,22 +76,6 @@ def mcp_do_ambiente():
     """Um cliente HTTP cru apontado para o servidor MCP do compose."""
     with httpx.Client(base_url=MCP_DO_AMBIENTE, timeout=10) as http:
         yield http
-
-
-def test_vendas_lista_as_ferramentas_de_vendas(token_de):
-    token = token_de(Perfil.VENDAS)
-    antes = id_da_ultima_linha(token)
-
-    ferramentas = listar_ferramentas(MCP_DO_AMBIENTE, token)
-
-    assert sorted(f.name for f in ferramentas) == FERRAMENTAS_DE_VENDAS
-    # Listar não é chamada: não gera linha na auditoria.
-    assert id_da_ultima_linha(token) == antes
-
-
-@pytest.mark.parametrize("perfil", OUTROS_PERFIS, ids=str)
-def test_outros_perfis_recebem_a_lista_vazia(token_de, perfil):
-    assert listar_ferramentas(MCP_DO_AMBIENTE, token_de(perfil)) == []
 
 
 @pytest.mark.parametrize("ferramenta", sorted(ROTA_DA_FERRAMENTA))
@@ -180,43 +161,6 @@ def test_sem_periodo_a_ferramenta_usa_os_ultimos_12_meses(token_de, ferramenta):
 
     assert not sem_periodo.is_error
     assert sem_periodo.structured_content == com_12_meses.structured_content
-
-
-@pytest.mark.parametrize("ferramenta", FERRAMENTAS_DE_VENDAS)
-@pytest.mark.parametrize("perfil", OUTROS_PERFIS, ids=str)
-def test_outro_perfil_recebe_o_erro_de_ferramenta_inexistente(token_de, ferramenta, perfil):
-    token = token_de(perfil)
-
-    resultado = chamar(MCP_DO_AMBIENTE, token, ferramenta)
-
-    assert texto_do_erro(resultado) == FERRAMENTA_DESCONHECIDA
-    assert_auditada(token, ferramenta, None, "negada")
-
-
-@pytest.mark.parametrize("ferramenta", FERRAMENTAS_DE_VENDAS)
-@pytest.mark.parametrize("perfil", OUTROS_PERFIS, ids=str)
-def test_a_resposta_a_outro_perfil_e_identica_a_de_ferramenta_inexistente(
-    mcp_do_ambiente, token_de, ferramenta, perfil
-):
-    """Byte a byte: nada na resposta HTTP diz que a ferramenta existe para outro perfil."""
-    token = token_de(perfil)
-
-    de_outro_perfil = chamar_pelo_protocolo(mcp_do_ambiente, token, ferramenta)
-    assert_auditada(token, ferramenta, None, "negada")
-    inexistente = chamar_pelo_protocolo(mcp_do_ambiente, token, FERRAMENTA_QUE_NUNCA_EXISTIU)
-    # O mesmo resultado na auditoria, com o nome como foi pedido; o motivo fica só no log.
-    assert_auditada(token, FERRAMENTA_QUE_NUNCA_EXISTIU, None, "negada")
-
-    assert de_outro_perfil.status_code == inexistente.status_code == 200
-    assert de_outro_perfil.content == inexistente.content
-    assert _sem_data(de_outro_perfil.headers) == _sem_data(inexistente.headers)
-    assert FERRAMENTA_DESCONHECIDA in de_outro_perfil.text
-    assert ferramenta not in de_outro_perfil.text
-    assert FERRAMENTA_QUE_NUNCA_EXISTIU not in inexistente.text
-
-
-def _sem_data(cabecalhos) -> dict[str, str]:
-    return {nome: valor for nome, valor in cabecalhos.items() if nome != "date"}
 
 
 def test_ferramenta_inexistente_tem_o_mesmo_erro_para_vendas(mcp_do_ambiente, token_de):
