@@ -17,10 +17,17 @@ def ferramentas_de(perfil: Perfil) -> list[str]:
     return sorted(nome for nome, dono in DONO_DA_FERRAMENTA.items() if dono is perfil)
 
 
-def argumentos_minimos(ferramenta: str) -> dict[str, str]:
-    """Os argumentos obrigatórios da ferramenta, cada um com o primeiro valor da enumeração."""
+def _primeiro_valor_valido(esquema: dict) -> str | int:
+    """O primeiro valor que o esquema JSON do parâmetro aceita: da enumeração ou da faixa."""
+    if "enum" in esquema:
+        return esquema["enum"][0]
+    return esquema["minimum"]
+
+
+def argumentos_minimos(ferramenta: str) -> dict[str, str | int]:
+    """Os argumentos obrigatórios da ferramenta, cada um com o primeiro valor que ele aceita."""
     return {
-        parametro.nome: next(iter(parametro.enumeracao)).value
+        parametro.nome: _primeiro_valor_valido(parametro.esquema())
         for parametro in FERRAMENTAS[ferramenta].parametros
         if parametro.obrigatorio
     }
