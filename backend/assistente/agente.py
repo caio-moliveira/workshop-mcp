@@ -1,7 +1,7 @@
 """O agente que responde a pergunta, e os eventos em que a resposta sai."""
 
 import logging
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterable
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -15,6 +15,7 @@ from pydantic_ai import (
     TextPartDelta,
 )
 from pydantic_ai.mcp import MCPToolset
+from pydantic_ai.messages import ModelMessage, ModelRequest, ModelResponse
 from pydantic_ai.models import Model
 
 from acesso import UsuarioAutenticado, mensagens
@@ -95,13 +96,23 @@ class Assistente:
         return self.modelo is not None
 
     async def responder(
-        self, pergunta: str, usuario: UsuarioAutenticado, token: str
+        self,
+        pergunta: str,
+        usuario: UsuarioAutenticado,
+        token: str,
+        conversa: Iterable[tuple[str, str]] = (),
     ) -> AsyncIterator[Evento]:
-        """Os eventos da resposta. Termina sempre com exatamente um `fim` ou um `erro`."""
+        """Os eventos da resposta. Termina sempre com exatamente um `fim` ou um `erro`.
+
+        A conversa anterior, em ordem e como (autor, texto), chega ao modelo como contexto.
+        """
         registro.info("pergunta iniciada: usuário %s", usuario.id)
         try:
             async with self._agente.run_stream_events(
-                pergunta, model=self.modelo, deps=Contexto(token, usuario)
+                pergunta,
+                model=self.modelo,
+                deps=Contexto(token, usuario),
+                message_history=_historico(conversa),
             ) as execucao:
                 async for evento in execucao:
                     if saida := _traduzir(evento):
@@ -112,6 +123,16 @@ class Assistente:
             return
         registro.info("pergunta terminada: usuário %s", usuario.id)
         yield FIM
+
+
+def _historico(conversa: Iterable[tuple[str, str]]) -> list[ModelMessage]:
+    """A conversa anterior como mensagens do modelo: a pergunta do usuário e a resposta em texto."""
+    return [
+        ModelRequest.user_text_prompt(texto)
+        if autor == "usuario"
+        else ModelResponse(parts=[TextPart(content=texto)])
+        for autor, texto in conversa
+    ]
 
 
 def _traduzir(evento: object) -> Evento | None:

@@ -190,7 +190,8 @@ def criar_aplicacao(
         disponivel: Annotated[Assistente, Depends(assistente_disponivel)],
         corpo: Pergunta,
     ) -> AsyncIterator[ServerSentEvent]:
-        async for evento in disponivel.responder(corpo.pergunta, usuario, token):
+        conversa = [(item.autor, item.texto) for item in corpo.conversa]
+        async for evento in disponivel.responder(corpo.pergunta, usuario, token, conversa):
             yield ServerSentEvent(event=evento.tipo, data=evento.dados)
 
     def servir(consulta: Consulta) -> Callable:
