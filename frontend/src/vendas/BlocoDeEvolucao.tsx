@@ -12,6 +12,7 @@ import {
   formatarNumero,
   formatarNumeroCompacto,
 } from "../formatacao";
+import type { Periodo } from "../painel/periodo";
 import { useBloco, type FonteDeDados } from "../useBloco";
 import {
   eEvolucaoDeVendas,
@@ -22,7 +23,6 @@ import {
   type EvolucaoDeVendas,
   type PontoDaEvolucao,
 } from "./evolucao";
-import type { Periodo } from "./periodo";
 
 interface Propriedades {
   fonte: FonteDeDados;

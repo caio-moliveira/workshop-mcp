@@ -10,17 +10,17 @@ import {
   formatarPontosPercentuais,
   formatarVariacaoRelativa,
 } from "../formatacao";
-import { useBloco, type FonteDeDados } from "../useBloco";
-import estilos from "./BlocoDeIndicadores.module.css";
-import { eIndicadoresDeVendas, type IndicadoresDeVendas } from "./indicadores";
-import { ROTULO_DO_PERIODO, type Periodo } from "./periodo";
+import { ROTULO_DO_PERIODO, type Periodo } from "../painel/periodo";
 import {
   sentidoDaVariacao,
   tomDaVariacao,
   variacaoEmPontos,
   variacaoRelativa,
   type Melhora,
-} from "./variacao";
+} from "../painel/variacao";
+import { useBloco, type FonteDeDados } from "../useBloco";
+import estilos from "./BlocoDeIndicadores.module.css";
+import { eIndicadoresDeVendas, type IndicadoresDeVendas } from "./indicadores";
 
 interface Propriedades {
   fonte: FonteDeDados;

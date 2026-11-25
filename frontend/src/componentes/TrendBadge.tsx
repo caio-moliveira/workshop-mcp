@@ -1,4 +1,4 @@
-import type { Tom } from "../vendas/variacao";
+import type { Tom } from "../painel/variacao";
 import { IconeTendencia } from "./icones";
 import estilos from "./TrendBadge.module.css";
 

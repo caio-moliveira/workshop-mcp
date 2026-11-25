@@ -1,6 +1,6 @@
 /** O contrato de `GET /vendas/situacao-das-entregas`: números crus e datas ISO. */
 
-import { type DatasDoPeriodo, eDatasDoPeriodo, eObjeto } from "./contrato";
+import { type DatasDoPeriodo, eDatasDoPeriodo, eObjeto } from "../painel/contrato";
 import { SITUACOES_DE_ENTREGA, type SituacaoDeEntrega } from "./pedidosRecentes";
 
 export interface PedidosNaSituacao {
