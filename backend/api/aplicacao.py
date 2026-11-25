@@ -54,7 +54,7 @@ ROTAS_SO_AUTENTICADAS = frozenset({"/eu", "/assistente"})
 
 
 class ItemDaConversa(BaseModel):
-    """Uma fala anterior da conversa, como o navegador a guardou."""
+    """Uma pergunta ou resposta anterior da conversa, como o navegador a guardou."""
 
     model_config = ConfigDict(extra="forbid")
 

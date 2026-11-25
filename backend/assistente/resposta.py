@@ -1,4 +1,4 @@
-"""O agente que responde a pergunta, e os eventos em que a resposta sai."""
+"""A resposta do assistente à pergunta, e os eventos em que ela sai."""
 
 import asyncio
 import logging
@@ -134,7 +134,9 @@ class Assistente:
             tool_error_behavior="failed",
             process_tool_call=_interromper_se_recusado,
         )
-        self._agente = Agent(deps_type=Contexto, toolsets=[ferramentas], instructions=_instrucoes)
+        self._respondedor = Agent(
+            deps_type=Contexto, toolsets=[ferramentas], instructions=_instrucoes
+        )
 
     @property
     def disponivel(self) -> bool:
@@ -154,11 +156,11 @@ class Assistente:
         registro.info("pergunta iniciada: usuário %s", usuario.id)
         contexto = Contexto(token, usuario)
         try:
-            async with self._agente.run_stream_events(
+            async with self._respondedor.run_stream_events(
                 pergunta,
                 model=self.modelo,
                 deps=contexto,
-                message_history=_historico(conversa),
+                message_history=_conversa_como_mensagens(conversa),
                 usage_limits=UsageLimits(
                     tool_calls_limit=self.limites.chamadas,
                     request_limit=self.limites.requisicoes_ao_modelo,
@@ -198,7 +200,7 @@ class Assistente:
         yield FIM
 
 
-def _historico(conversa: Iterable[tuple[str, str]]) -> list[ModelMessage]:
+def _conversa_como_mensagens(conversa: Iterable[tuple[str, str]]) -> list[ModelMessage]:
     """A conversa anterior como mensagens do modelo: a pergunta do usuário e a resposta em texto."""
     return [
         ModelRequest.user_text_prompt(texto)
@@ -209,7 +211,7 @@ def _historico(conversa: Iterable[tuple[str, str]]) -> list[ModelMessage]:
 
 
 def _traduzir(evento: object) -> Evento | None:
-    """O evento da execução do agente como evento do fluxo, ou nada se não interessa a quem lê."""
+    """O evento do PydanticAI como evento do fluxo, ou nada se não interessa a quem lê."""
     if isinstance(evento, PartStartEvent) and isinstance(evento.part, TextPart):
         # O primeiro trecho de cada parte de texto vem aqui, e não num delta.
         return texto(evento.part.content) if evento.part.content else None

@@ -28,16 +28,16 @@ PERGUNTA = {"pergunta": "O que está causando os atrasos?"}
 ESPERA_DO_MODELO = 2
 
 
-def _falas(mensagens) -> list[tuple[str, str]]:
-    """As falas que o modelo recebeu, em ordem, como (autor, texto)."""
-    falas = []
+def _conversa_recebida(mensagens) -> list[tuple[str, str]]:
+    """As perguntas e respostas que o modelo recebeu, em ordem, como (autor, texto)."""
+    itens = []
     for mensagem in mensagens:
         for parte in mensagem.parts:
             if isinstance(mensagem, ModelRequest) and isinstance(parte, UserPromptPart):
-                falas.append(("usuario", parte.content))
+                itens.append(("usuario", parte.content))
             elif isinstance(mensagem, ModelResponse) and isinstance(parte, TextPart):
-                falas.append(("assistente", parte.content))
-    return falas
+                itens.append(("assistente", parte.content))
+    return itens
 
 
 def test_a_conversa_enviada_chega_ao_modelo_na_ordem_antes_da_pergunta(criar_api, token_de):
@@ -55,7 +55,7 @@ def test_a_conversa_enviada_chega_ao_modelo_na_ordem_antes_da_pergunta(criar_api
 
     eventos(perguntar(api, token_de(Perfil.VENDAS), corpo))
 
-    assert _falas(vistos["mensagens"]) == [
+    assert _conversa_recebida(vistos["mensagens"]) == [
         ("usuario", "O que está causando os atrasos?"),
         ("assistente", "A **Transportadora X** concentra os atrasos."),
         ("usuario", "Desde quando?"),
