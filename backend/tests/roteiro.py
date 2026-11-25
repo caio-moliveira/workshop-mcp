@@ -65,6 +65,24 @@ def perguntar(api, token: str | None, corpo: dict[str, Any] | None = None, **cab
     return api.post(ROTA, json=corpo, headers=cabecalhos)
 
 
+def conversa_gravada(criar_api, token: str, itens: Sequence[dict[str, str]]) -> str | None:
+    """Grava pela rota, no histórico, uma conversa com os pares de pergunta e resposta dados, e
+    devolve o identificador dela. Cada resposta sai de um modelo roteirizado que a escreve.
+
+    Sem itens, nada é gravado: a pergunta seguinte abre uma conversa nova.
+    """
+    id_da_conversa = None
+    for pergunta, resposta in zip(itens[::2], itens[1::2], strict=True):
+        api = criar_api(modelo=modelo_roteirizado(pedacos=[resposta["texto"]]))
+        corpo = {"pergunta": pergunta["texto"]}
+        if id_da_conversa:
+            corpo["id_da_conversa"] = id_da_conversa
+        tipo, dados = eventos(perguntar(api, token, corpo))[0]
+        assert tipo == "conversa"
+        id_da_conversa = dados["id_da_conversa"]
+    return id_da_conversa
+
+
 def eventos(resposta) -> list[tuple[str, Any]]:
     """Os eventos do fluxo, em ordem, como (tipo, dados)."""
     assert resposta.status_code == 200, resposta.text

@@ -6,10 +6,34 @@
  * pode trazer vários blocos. Nada aqui usa rede: quem traz os bytes é `rede.ts`.
  */
 
+/**
+ * Uma chamada terminada, como aparece no rastreio da resposta: a ferramenta que o modelo pediu, se
+ * foi concluída e quanto demorou, medido pela API. Sem parâmetros nem texto de erro.
+ */
+export interface ChamadaDoRastreio {
+  ferramenta: string;
+  desfecho: "concluida" | "nao_concluida";
+  milissegundos: number;
+}
+
+/** Uma chamada no contrato: no evento `chamada` e no rastreio de uma conversa lida do histórico. */
+export function eChamadaDoRastreio(valor: unknown): valor is ChamadaDoRastreio {
+  if (typeof valor !== "object" || valor === null) return false;
+  const { ferramenta, desfecho, milissegundos } = valor as Record<string, unknown>;
+  return (
+    typeof ferramenta === "string" &&
+    (desfecho === "concluida" || desfecho === "nao_concluida") &&
+    typeof milissegundos === "number"
+  );
+}
+
 /** Um evento da resposta, já com os dados lidos do JSON. */
 export type EventoDaResposta =
+  /** O primeiro: a conversa em que a API gravou a pergunta, e o identificador da pergunta. */
+  | { tipo: "conversa"; idDaConversa: string; idDaPergunta: string }
   | { tipo: "texto"; texto: string }
   | { tipo: "estado" }
+  | ({ tipo: "chamada" } & ChamadaDoRastreio)
   | { tipo: "fim"; aviso?: string }
   | { tipo: "erro"; mensagem: string };
 
@@ -65,11 +89,28 @@ function lerBloco(bloco: string): EventoDaResposta | null {
   if (linhasDeDados.length === 0) return null;
   const dados = lerDados(linhasDeDados.join("\n"));
   switch (tipo) {
+    case "conversa":
+      if (typeof dados.id_da_conversa !== "string" || typeof dados.id_da_pergunta !== "string") {
+        throw new ForaDoContrato();
+      }
+      return {
+        tipo: "conversa",
+        idDaConversa: dados.id_da_conversa,
+        idDaPergunta: dados.id_da_pergunta,
+      };
     case "texto":
       if (typeof dados.texto !== "string") throw new ForaDoContrato();
       return { tipo: "texto", texto: dados.texto };
     case "estado":
       return { tipo: "estado" };
+    case "chamada":
+      if (!eChamadaDoRastreio(dados)) throw new ForaDoContrato();
+      return {
+        tipo: "chamada",
+        ferramenta: dados.ferramenta,
+        desfecho: dados.desfecho,
+        milissegundos: dados.milissegundos,
+      };
     case "fim":
       // O aviso (teto de chamadas) é opcional; um aviso que não é texto fica fora do contrato.
       if (dados.aviso === undefined) return { tipo: "fim" };

@@ -8,7 +8,8 @@ import psycopg
 from psycopg import sql
 
 from auditoria import BANCO, PAPEL, Resultado
-from carga.conexao import conectar, variavel_obrigatoria
+from carga.banco_permanente import criar_banco_se_faltar, preparar_papel
+from carga.conexao import conectar
 
 VARIAVEL_DA_SENHA = "SENHA_DO_PAPEL_AUDITORIA"
 
@@ -36,10 +37,8 @@ def preparar_auditoria(conexao: psycopg.Connection) -> None:
 
     `conexao` é do papel dono, em autocommit, fora do banco da auditoria.
     """
-    if not conexao.execute("select 1 from pg_database where datname = %s", (BANCO,)).fetchone():
-        print(f"carga: criando o banco {BANCO}")
-        conexao.execute(sql.SQL("create database {}").format(sql.Identifier(BANCO)))
-    _preparar_papel(conexao)
+    criar_banco_se_faltar(conexao, BANCO)
+    preparar_papel(conexao, PAPEL, VARIAVEL_DA_SENHA, BANCO)
     with conectar(BANCO, autocommit=True) as no_banco:
         no_banco.execute(ESTRUTURA)
         # Só inserir: o papel não lê, não altera e não apaga (RF-32). A gravação não usa
@@ -50,18 +49,3 @@ def preparar_auditoria(conexao: psycopg.Connection) -> None:
         no_banco.execute(
             sql.SQL("grant insert on auditoria.chamada to {}").format(sql.Identifier(PAPEL))
         )
-
-
-def _preparar_papel(conexao: psycopg.Connection) -> None:
-    """Ao contrário dos papéis de perfil, o da auditoria nunca é derrubado: só a senha muda."""
-    nome = sql.Identifier(PAPEL)
-    if not conexao.execute("select 1 from pg_roles where rolname = %s", (PAPEL,)).fetchone():
-        conexao.execute(sql.SQL("create role {} login").format(nome))
-    conexao.execute(
-        sql.SQL("alter role {} password {}").format(
-            nome, sql.Literal(variavel_obrigatoria(VARIAVEL_DA_SENHA))
-        )
-    )
-    conexao.execute(
-        sql.SQL("grant connect on database {} to {}").format(sql.Identifier(BANCO), nome)
-    )

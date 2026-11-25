@@ -1,0 +1,85 @@
+/* Visual técnico e discreto (FE §8): texto pequeno, cor secundária, nomes em fonte monoespaçada. */
+.rastreio {
+  margin-top: var(--espaco-2);
+  font-size: var(--texto-label);
+  color: var(--text-secondary);
+}
+
+.alternar {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espaco-1);
+  padding: var(--espaco-1) 0;
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.alternar:hover {
+  color: var(--text-primary);
+}
+
+.alternar:focus-visible {
+  outline: none;
+  border-radius: var(--raio-botao);
+  box-shadow: var(--anel-de-foco);
+}
+
+.seta {
+  display: inline-block;
+  width: 1em;
+  color: var(--text-tertiary);
+}
+
+.conteudo {
+  margin-top: var(--espaco-1);
+  padding: var(--espaco-2) var(--espaco-3);
+  border-left: 2px solid var(--border);
+}
+
+.chamadas {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chamada {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--espaco-1) var(--espaco-3);
+  padding: var(--espaco-1) 0;
+}
+
+.ferramenta,
+.pergunta code {
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.concluida {
+  color: var(--sucesso);
+}
+
+.nao_concluida {
+  color: var(--erro);
+}
+
+.duracao {
+  margin-left: auto;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.vazio,
+.pergunta {
+  margin: 0;
+  padding: var(--espaco-1) 0;
+}
+
+.pergunta {
+  color: var(--text-tertiary);
+}

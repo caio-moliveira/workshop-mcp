@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ApiIndisponivel, TokenRecusado } from "../api";
 import {
   ASSISTENTE_INDISPONIVEL,
+  CONVERSA_APAGADA,
   mensagemDaFalha,
   perguntarAoAssistente,
   SEM_RESPOSTA,
@@ -21,7 +22,7 @@ function responderComTexto(status: number, corpo: string) {
 
 async function falhaDaPergunta(): Promise<unknown> {
   try {
-    await perguntarAoAssistente("http://api", "abc", { pergunta: "Oi?", conversa: [] });
+    await perguntarAoAssistente("http://api", "abc", { pergunta: "Oi?" });
   } catch (erro) {
     return erro;
   }
@@ -44,6 +45,12 @@ describe("falhas da pergunta antes do fluxo", () => {
     responderComTexto(503, "<html>Service Unavailable</html>");
 
     expect(mensagemDaFalha(await falhaDaPergunta())).toBe(ASSISTENTE_INDISPONIVEL);
+  });
+
+  it("o 404 ao continuar uma conversa apagada (em outra aba) diz isso, e não que a API caiu", async () => {
+    responderCom(404, { erro: "Conversa não encontrada." });
+
+    expect(mensagemDaFalha(await falhaDaPergunta())).toBe(CONVERSA_APAGADA);
   });
 
   it("o 401 segue como TokenRecusado, para a sessão tratar", async () => {

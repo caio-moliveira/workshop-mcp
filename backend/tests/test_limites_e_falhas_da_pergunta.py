@@ -42,10 +42,6 @@ def _assert_um_unico_desfecho_generico(lidos) -> None:
     assert not [nome for nome in NOMES_INTERNOS if nome in desfecho]
 
 
-def _fala(texto: str, autor: str = "usuario") -> dict:
-    return {"autor": autor, "texto": texto}
-
-
 # O teto de chamadas: a resposta para com um aviso, sem erro.
 
 
@@ -66,17 +62,16 @@ def test_o_modelo_em_laco_para_no_teto_de_chamadas_e_termina_com_fim_e_aviso(cri
 
 @pytest.mark.parametrize(
     "corpo",
-    [
-        {"pergunta": "x" * 51},
-        {"pergunta": "Oi?", "conversa": [_fala("Oi")] * 21},
-        {"pergunta": "Oi?", "conversa": [_fala("Oi"), _fala("x" * 51, "assistente")]},
-    ],
-    ids=["pergunta-grande-demais", "conversa-com-itens-demais", "item-da-conversa-grande-demais"],
+    [{"pergunta": "x" * 51}, {"pergunta": "📦" * 51}],
+    ids=["pergunta-grande-demais", "pergunta-grande-demais-em-caracteres"],
 )
 def test_pedido_acima_dos_tetos_recebe_400_antes_da_resposta(criar_api, token_de, corpo):
-    api = criar_api(modelo=modelo_roteirizado(), limites=Limites(caracteres=50))
+    vistos: dict = {}
+    api = criar_api(modelo=modelo_roteirizado(vistos=vistos), limites=Limites(caracteres=50))
 
     resposta = perguntar(api, token_de(Perfil.VENDAS), corpo)
+
+    assert vistos == {}
 
     assert resposta.status_code == 400
     assert resposta.json() == RESPOSTA_DE_PARAMETRO_INVALIDO
@@ -84,7 +79,7 @@ def test_pedido_acima_dos_tetos_recebe_400_antes_da_resposta(criar_api, token_de
 
 def test_pedido_no_limite_dos_tetos_e_aceito(criar_api, token_de):
     api = criar_api(modelo=modelo_roteirizado(), limites=Limites(caracteres=50))
-    corpo = {"pergunta": "x" * 50, "conversa": [_fala("x" * 50)] * 20}
+    corpo = {"pergunta": "x" * 50}
 
     lidos = eventos(perguntar(api, token_de(Perfil.VENDAS), corpo))
 
@@ -102,7 +97,7 @@ def test_modelo_lento_termina_com_erro_de_tempo_esgotado_sem_desfazer_o_texto(cr
 
     lidos = eventos(perguntar(api, token_de(Perfil.VENDAS)))
 
-    assert lidos == [
+    assert lidos[1:] == [
         ("texto", {"texto": "Os atrasos "}),
         ("erro", {"erro": mensagens.TEMPO_ESGOTADO}),
     ]
@@ -119,7 +114,7 @@ def test_modelo_que_falha_no_meio_termina_com_erro_generico_sem_desfazer_o_texto
 
     lidos = eventos(perguntar(api, token_de(Perfil.VENDAS)))
 
-    assert lidos == [
+    assert lidos[1:] == [
         ("texto", {"texto": "Os atrasos "}),
         ("erro", {"erro": ASSISTENTE_INDISPONIVEL}),
     ]
@@ -138,7 +133,7 @@ def test_token_que_o_servidor_mcp_recusa_termina_com_erro_de_sessao_expirada(cri
 
     lidos = eventos(perguntar(api, token))
 
-    assert lidos == [("erro", {"erro": mensagens.SESSAO_EXPIRADA})]
+    assert lidos[1:] == [("erro", {"erro": mensagens.SESSAO_EXPIRADA})]
     _assert_um_unico_desfecho_generico(lidos)
 
 

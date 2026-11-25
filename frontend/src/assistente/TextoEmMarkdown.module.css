@@ -25,3 +25,49 @@
 .texto strong {
   font-weight: var(--peso-semibold);
 }
+
+/* Subtítulo da resposta longa: pouco maior que o corpo, para separar blocos sem gritar. */
+.texto h4 {
+  margin: var(--espaco-4) 0 0;
+  font-size: var(--texto-titulo-card);
+  font-weight: var(--peso-semibold);
+  color: var(--text-primary);
+}
+
+.texto h4:first-child {
+  margin-top: 0;
+}
+
+/* Tabela compacta (FE §7 e §8): a caixa rola na horizontal quando a tabela não cabe no painel. */
+.rolagem {
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--raio-botao);
+}
+
+.rolagem table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--texto-label);
+  font-variant-numeric: tabular-nums;
+}
+
+/* O alinhamento à direita das colunas numéricas vem do próprio Markdown, no estilo da célula. */
+.rolagem th,
+.rolagem td {
+  padding: var(--espaco-2) var(--espaco-3);
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.rolagem th {
+  background: var(--surface-muted);
+  font-weight: var(--peso-semibold);
+  color: var(--text-secondary);
+}
+
+.rolagem tr:last-child td {
+  border-bottom: 0;
+}

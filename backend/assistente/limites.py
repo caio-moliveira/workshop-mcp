@@ -3,7 +3,7 @@
 import os
 from dataclasses import dataclass
 
-# A conversa reenviada pelo navegador: até tantos itens, cada um dentro do teto de caracteres.
+# A conversa gravada que vai ao modelo com a pergunta: até tantos itens, os mais recentes.
 ITENS_DA_CONVERSA = 20
 
 
@@ -13,7 +13,7 @@ class Limites:
 
     # Chamadas de ferramenta por pergunta. Ao atingir, a resposta para com um aviso.
     chamadas: int = 8
-    # Caracteres da pergunta e de cada item da conversa reenviada.
+    # Caracteres da pergunta.
     caracteres: int = 2000
     # Tempo máximo da pergunta inteira, em segundos.
     segundos: float = 60

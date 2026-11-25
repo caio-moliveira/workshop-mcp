@@ -36,6 +36,17 @@
       "credentials": [{ "type": "password", "value": "${SENHA_DO_USUARIO_VENDAS}", "temporary": false }]
     },
     {
+      "id": "da9d61d3-2dde-4796-afd2-cc70e9543cce",
+      "username": "vitor.vendas",
+      "firstName": "Vitor",
+      "lastName": "Nunes",
+      "email": "vitor.nunes@pulso.example",
+      "emailVerified": true,
+      "enabled": true,
+      "groups": ["/Vendas"],
+      "credentials": [{ "type": "password", "value": "${SENHA_DO_USUARIO_VENDAS_VITOR}", "temporary": false }]
+    },
+    {
       "id": "de6f0717-e940-4f57-8c5c-a485fdb532fa",
       "username": "bruno.produtos",
       "firstName": "Bruno",

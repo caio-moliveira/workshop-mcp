@@ -1,0 +1,98 @@
+/* A lista das conversas do usuário, no lugar da conversa dentro do painel do assistente. */
+.lista {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espaco-1);
+}
+
+.abrir {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: var(--espaco-2) var(--espaco-3);
+  border: 0;
+  border-radius: var(--raio-botao);
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--transicao-rapida);
+}
+
+.abrir:hover,
+.abrir[aria-current="true"] {
+  background: var(--surface-muted);
+}
+
+.titulo {
+  overflow: hidden;
+  font-weight: var(--peso-medio);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quando {
+  font-size: var(--texto-label);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.apagar {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: var(--altura-botao);
+  height: var(--altura-botao);
+  border: 0;
+  border-radius: var(--raio-botao);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition:
+    background var(--transicao-rapida),
+    color var(--transicao-rapida);
+}
+
+.apagar:hover {
+  background: var(--surface-muted);
+  color: var(--erro);
+}
+
+.apagar:disabled {
+  opacity: 0.4;
+  cursor: progress;
+}
+
+.falha {
+  flex-basis: 100%;
+  margin: 0;
+  padding-inline: var(--espaco-3);
+  font-size: var(--texto-label);
+  color: var(--erro);
+}
+
+/* Esqueleto proporcional às linhas da lista (FE §10). */
+.carregando {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco-3);
+}
+
+.esqueleto {
+  height: 44px;
+  border-radius: var(--raio-botao);
+  background: var(--surface-muted);
+}

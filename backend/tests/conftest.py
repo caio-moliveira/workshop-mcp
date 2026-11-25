@@ -11,6 +11,7 @@ import psycopg
 import pytest
 from apoio import (
     BANCO_DA_AUDITORIA,
+    BANCO_DO_HISTORICO,
     banco_local,
     compose,
     conectar_como_dono,
@@ -37,6 +38,8 @@ from assistente import Limites
 from auditoria import PAPEL as PAPEL_DA_AUDITORIA
 from auditoria import Auditoria, AuditoriaNoBanco
 from consultas import Credencial, ExecutorDeConsultas, credenciais_do_ambiente
+from historico import PAPEL as PAPEL_DO_HISTORICO
+from historico import Historico, HistoricoNoBanco
 from servidor_mcp import LimiteDeFrequencia
 from servidor_mcp import criar_aplicacao as criar_aplicacao_mcp
 
@@ -91,15 +94,25 @@ def auditoria_local() -> Iterator[AuditoriaNoBanco]:
 
 
 @pytest.fixture(scope="session")
-def criar_api(executor_de_consultas) -> Callable[..., TestClient]:
+def historico_local() -> Iterator[HistoricoNoBanco]:
+    """O histórico do ambiente, com a credencial do papel `historico`, pela máquina local."""
+    banco = replace(banco_local(), nome=BANCO_DO_HISTORICO)
+    credencial = Credencial(PAPEL_DO_HISTORICO, variavel("SENHA_DO_PAPEL_HISTORICO"))
+    with HistoricoNoBanco(banco, credencial) as historico:
+        yield historico
+
+
+@pytest.fixture(scope="session")
+def criar_api(executor_de_consultas, historico_local) -> Callable[..., TestClient]:
     """Cria a API pela fábrica, dentro do processo, validando tokens do provedor real.
 
     Cada parâmetro da configuração de acesso pode ser trocado: o relógio, as chaves, o emissor.
     O executor de consultas também, com `consultas=`, e o modelo de linguagem do assistente, com
     `modelo=` (sem ele, a API fica sem modelo, como sem a chave do provedor), e o servidor MCP
     que o assistente chama, com `endereco_do_mcp=` (sem ele, o serviço `mcp` do compose), e os
-    tetos da pergunta, com `limites=` (sem ele, os padrões). A
-    origem do frontend liberada pelo CORS é a do ambiente.
+    tetos da pergunta, com `limites=` (sem ele, os padrões), e o histórico das conversas, com
+    `historico=` (sem ele, o banco `historico` do compose). A origem do frontend liberada pelo
+    CORS é a do ambiente.
     """
 
     def criar(
@@ -107,6 +120,7 @@ def criar_api(executor_de_consultas) -> Callable[..., TestClient]:
         modelo: Model | None = None,
         endereco_do_mcp: str = MCP_DO_AMBIENTE + CAMINHO_DO_MCP,
         limites: Limites | None = None,
+        historico: Historico | None = None,
         **sobreposicoes,
     ) -> TestClient:
         configuracao = ConfiguracaoDeAcesso(
@@ -121,6 +135,7 @@ def criar_api(executor_de_consultas) -> Callable[..., TestClient]:
             modelo=modelo,
             endereco_do_mcp=endereco_do_mcp,
             limites=limites or Limites(),
+            historico=historico or historico_local,
         )
         return TestClient(aplicacao)
 
