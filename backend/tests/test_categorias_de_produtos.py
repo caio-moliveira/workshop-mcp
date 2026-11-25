@@ -7,16 +7,24 @@ depende do período (glossário). A ferramenta `produtos_categorias` devolve o m
 chamada no servidor MCP criado dentro do processo.
 """
 
+import threading
+import time
+from collections.abc import Iterator
 from datetime import date
 
 import pytest
-from cliente_mcp import chamar
+import uvicorn
+from cliente_mcp import CAMINHO, chamar
+from pydantic_ai.messages import ModelRequest, ToolReturnPart
 from recusa import pedir
+from roteiro import eventos, modelo_roteirizado, perguntar
 
 from acesso import Perfil
 
 ROTA = "/produtos/categorias"
 FERRAMENTA = "produtos_categorias"
+# A pergunta sugerida no painel do assistente de Produtos (frontend/src/perfis.ts).
+PERGUNTA_SUGERIDA = "Quais categorias concentram as piores notas?"
 
 PERIODOS = {
     "30d": (date(2026, 11, 1), date(2026, 11, 30)),
@@ -149,3 +157,51 @@ def test_a_ferramenta_devolve_o_mesmo_conteudo_da_rota(mcp, respostas, token_de,
 
     assert not resultado.is_error
     assert resultado.structured_content == respostas[periodo].json()
+
+
+@pytest.fixture(scope="module")
+def mcp_no_processo(criar_mcp) -> Iterator[str]:
+    """O servidor MCP criado pela fábrica, servido numa thread: o assistente o chama pela rede,
+    como chama o serviço `mcp` do compose, mas com as ferramentas deste código."""
+    servidor = uvicorn.Server(
+        uvicorn.Config(criar_mcp(), host="127.0.0.1", port=0, log_config=None, log_level="warning")
+    )
+    fio = threading.Thread(target=servidor.run, daemon=True)
+    fio.start()
+    limite = time.monotonic() + 30
+    while not servidor.started:
+        assert time.monotonic() < limite, "o servidor MCP não subiu"
+        time.sleep(0.05)
+    porta = servidor.servers[0].sockets[0].getsockname()[1]
+    yield f"http://127.0.0.1:{porta}"
+    servidor.should_exit = True
+    fio.join(timeout=10)
+
+
+def test_a_pergunta_sugerida_leva_as_categorias_ao_modelo(
+    criar_api, mcp_no_processo, token_de, respostas
+):
+    """Com o modelo roteirizado, a pergunta sugerida de Produtos chama `produtos_categorias`, e o
+    modelo recebe as categorias já na ordem que responde à pergunta, sem conta própria."""
+    vistos: dict = {}
+    api = criar_api(
+        modelo=modelo_roteirizado(chamadas=[(FERRAMENTA, {"periodo": "12m"})], vistos=vistos),
+        endereco_do_mcp=mcp_no_processo + CAMINHO,
+    )
+
+    lidos = eventos(perguntar(api, token_de(Perfil.PRODUTOS), {"pergunta": PERGUNTA_SUGERIDA}))
+
+    assert FERRAMENTA in vistos["ferramentas"]
+    [chamada] = [dados for tipo, dados in lidos if tipo == "chamada"]
+    assert chamada["ferramenta"] == FERRAMENTA
+    assert chamada["desfecho"] == "concluida"
+    [retorno] = [
+        parte
+        for mensagem in vistos["mensagens"]
+        if isinstance(mensagem, ModelRequest)
+        for parte in mensagem.parts
+        if isinstance(parte, ToolReturnPart)
+    ]
+    assert retorno.tool_name == FERRAMENTA
+    assert retorno.content == respostas["12m"].json()
+    assert lidos[-1][0] == "fim"
