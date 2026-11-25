@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
 
-from consultas import PERIODO_PADRAO, Consulta, ParametroInvalido, Periodo, vendas
+from consultas import PERIODO_PADRAO, Consulta, ParametroInvalido, Periodo, produtos, vendas
 
 
 @dataclass(frozen=True)
@@ -210,5 +210,25 @@ FERRAMENTAS: dict[str, Ferramenta] = {
             "repete o agrupamento pedido."
         ),
         parametros=(PERIODO, AGRUPAMENTO_DOS_ATRASOS),
+    ),
+    "produtos_indicadores": Ferramenta(
+        consulta=produtos.indicadores,
+        titulo="Indicadores de Produtos",
+        descricao=(
+            "Indicadores gerais de Produtos do marketplace em um período: tamanho do catálogo, "
+            "produtos avaliados, nota média, avaliações recebidas, reclamações e produtos mal "
+            "avaliados. Use para saber como os produtos estão sendo avaliados e se melhoraram ou "
+            "pioraram. 'catalogo' é o número de produtos do marketplace e não depende do "
+            "período. Os demais indicadores contam só as avaliações com data no período e trazem "
+            "o valor do período ('atual') e o do período imediatamente anterior, de mesmo "
+            "tamanho ('anterior', que vem nulo quando não há dados anteriores para comparar). "
+            "'produtos_avaliados' é quantos produtos receberam ao menos uma avaliação no "
+            "período; 'nota_media' é a média das notas, de 1 a 5 (nula sem avaliações); "
+            "'avaliacoes' é o número de avaliações; 'reclamacoes' é quantas delas têm nota 1 ou "
+            "2; 'produtos_mal_avaliados' é quantos produtos têm nota média abaixo de 3,0 com pelo "
+            "menos 3 avaliações no período. 'periodo' traz as datas de início e fim usadas, em "
+            "formato ISO."
+        ),
+        parametros=(PERIODO,),
     ),
 }

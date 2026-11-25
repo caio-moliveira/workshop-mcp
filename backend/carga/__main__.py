@@ -29,7 +29,10 @@ DIRETORIO_SQL = Path(__file__).resolve().parent / "sql"
 
 
 # O papel de cada perfil e a variável de ambiente com a senha da sua credencial.
-VARIAVEL_DA_SENHA_POR_PAPEL = {"vendas": "SENHA_DO_PAPEL_VENDAS"}
+VARIAVEL_DA_SENHA_POR_PAPEL = {
+    "vendas": "SENHA_DO_PAPEL_VENDAS",
+    "produtos": "SENHA_DO_PAPEL_PRODUTOS",
+}
 
 
 def _recriar_papeis(conexao: psycopg.Connection, banco: str) -> None:

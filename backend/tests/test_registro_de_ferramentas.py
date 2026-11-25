@@ -33,6 +33,7 @@ PARAMETROS_PREVISTOS = {
     "vendas_situacao_das_entregas": {"periodo"},
     "vendas_pedidos_recentes": {"periodo"},
     "vendas_atrasos": {"periodo", "agrupamento"},
+    "produtos_indicadores": {"periodo"},
 }
 # Os valores de cada parâmetro, também repetidos: a enumeração é fechada.
 VALORES_PREVISTOS = {
@@ -168,7 +169,8 @@ def test_uma_ferramenta_fora_do_registro_nao_e_publicada(executor_de_consultas, 
     mcp = servidor.http_app(path="/mcp", stateless_http=True, json_response=True)
     token = token_de(Perfil.VENDAS)
 
-    assert [f.name for f in listar_ferramentas(mcp, token)] == list(FERRAMENTAS)
+    de_vendas = [n for n, f in FERRAMENTAS.items() if f.consulta.perfil is Perfil.VENDAS]
+    assert [f.name for f in listar_ferramentas(mcp, token)] == de_vendas
     resultado = chamar(mcp, token, "consulta_livre", {"sql": "select 1"})
     assert texto_do_erro(resultado) == FERRAMENTA_DESCONHECIDA
 

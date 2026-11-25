@@ -2,34 +2,17 @@ import { EmptyState } from "../componentes/EmptyState";
 import { AnuncioDeCarregamento, EstadosDoBloco } from "../componentes/EstadosDoBloco";
 import { KpiCard } from "../componentes/KpiCard";
 import { LoadingSkeleton } from "../componentes/LoadingSkeleton";
-import { TrendBadge } from "../componentes/TrendBadge";
 import { formatarMoeda, formatarNumero, formatarPercentual } from "../formatacao";
-import { ROTULO_DO_PERIODO, type Periodo } from "../painel/periodo";
-import { variacaoDoIndicador, type VariacaoDoIndicador } from "../painel/variacao";
+import estilos from "../painel/GradeDeIndicadores.module.css";
+import type { Periodo } from "../painel/periodo";
+import { variacaoDoIndicador } from "../painel/variacao";
+import { VariacaoDoCartao } from "../painel/VariacaoDoCartao";
 import { useBloco, type FonteDeDados } from "../useBloco";
-import estilos from "./BlocoDeIndicadores.module.css";
 import { eIndicadoresDeVendas, type IndicadoresDeVendas } from "./indicadores";
 
 interface Propriedades {
   fonte: FonteDeDados;
   periodo: Periodo;
-}
-
-/** A variação de um indicador, ou nada quando não há período anterior com que comparar. */
-function Variacao({
-  variacao,
-  periodo,
-}: {
-  variacao: VariacaoDoIndicador | null;
-  periodo: Periodo;
-}) {
-  if (variacao === null) return null;
-  return (
-    <TrendBadge
-      {...variacao}
-      comparacao={`em relação aos ${ROTULO_DO_PERIODO[periodo]} anteriores`}
-    />
-  );
 }
 
 function Indicadores({ dados, periodo }: { dados: IndicadoresDeVendas; periodo: Periodo }) {
@@ -44,7 +27,7 @@ function Indicadores({ dados, periodo }: { dados: IndicadoresDeVendas; periodo: 
         valor={formatarNumero(pedidos.atual)}
         legenda="Inclui pagamentos recusados"
         variacao={
-          <Variacao
+          <VariacaoDoCartao
             variacao={variacaoDoIndicador(pedidos.atual, pedidos.anterior, "relativa", "sobe")}
             periodo={periodo}
           />
@@ -55,7 +38,7 @@ function Indicadores({ dados, periodo }: { dados: IndicadoresDeVendas; periodo: 
         valor={formatarMoeda(receita.atual)}
         legenda="Pagamentos aprovados, com frete"
         variacao={
-          <Variacao
+          <VariacaoDoCartao
             variacao={variacaoDoIndicador(receita.atual, receita.anterior, "relativa", "sobe")}
             periodo={periodo}
           />
@@ -66,7 +49,7 @@ function Indicadores({ dados, periodo }: { dados: IndicadoresDeVendas; periodo: 
         valor={taxa(atraso.atual)}
         legenda={`${atrasos} entre os pedidos entregues`}
         variacao={
-          <Variacao
+          <VariacaoDoCartao
             variacao={variacaoDoIndicador(
               atraso.atual,
               atraso.anterior,
@@ -82,7 +65,7 @@ function Indicadores({ dados, periodo }: { dados: IndicadoresDeVendas; periodo: 
         valor={taxa(aprovacao.atual)}
         legenda="Pedidos com pagamento aprovado"
         variacao={
-          <Variacao
+          <VariacaoDoCartao
             variacao={variacaoDoIndicador(
               aprovacao.atual,
               aprovacao.anterior,
