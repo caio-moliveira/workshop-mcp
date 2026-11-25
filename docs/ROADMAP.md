@@ -26,7 +26,7 @@ Fontes dos requisitos:
 | 4a | Servidor MCP de Vendas | 3 | Concluída |
 | V1 | Verificação com túnel: Claude e ChatGPT | 4a | Concluída (Claude verificado; ChatGPT pendente para a 7) |
 | 4b | Auditoria e limite de frequência | 4a | Concluída |
-| 5a | Chat de Vendas no painel lateral | 4b | Depende de decisões (ver final) |
+| 5a | Chat de Vendas no painel lateral | 4b | Concluída |
 | 5b | Chat expandido, rastreio e histórico | 5a | Livre |
 | 8 | Perfil Produtos | 5b | Livre |
 | 9 | Perfil Comercial | 8 | Livre |
@@ -117,6 +117,7 @@ As entregas 6 e 7 mantêm seus números, mas ficam para depois: a decisão de nu
   - A troca de modelo é feita só por configuração.
 - **Depende de:** 4b.
 - **Cobre:** RF-12, RF-14, RF-15, RF-16, RF-17, RS-03 (modelo), RS-06, CA-04; FE §8 (chat lateral), §6 (pergunta sugerida de Vendas).
+- **Resultado (25/11/2026):** concluída, no roteiro `docs/demonstracao/entrega-5a.md`, executado pela API com o modelo real. O agente (PydanticAI) mora na API e chama o servidor MCP pela rede interna com o token de quem pergunta; a resposta sai em fluxo de eventos (SSE) e o painel lateral a mostra aos poucos, em Markdown. A pergunta sugerida "O que está causando os atrasos?" foi respondida pelo modelo padrão em cerca de 10 s, com `vendas_atrasos` por rota e por lojista, e todos os números citados conferem com o painel (taxa de atraso de 9,0%, 1.411 atrasos em 15.622 entregues, nos 12 meses); a continuação "e por lojista?" usou a conversa. Os deslizes do modelo padrão foram de interpretação, não de dado: numa execução chamou de "próxima da média" uma taxa que é o dobro dela, e corrigiu na continuação; noutra, errou uma soma de participações. O pedido para ignorar as regras e o pedido de dados de Produtos não trouxeram dados de outro perfil, e a Diretoria não recebeu ferramenta nenhuma (CA-04). As chamadas apareceram na auditoria com o nome e o perfil da Ana. A troca para `anthropic:claude-sonnet-5-5` foi feita só por `MODELO_DO_ASSISTENTE`, recriando o serviço `api`. A parte visual do painel (chip, Esc, tela cheia, parar) ficou para conferência manual no navegador, com os passos no roteiro. Tetos por pergunta: 8 chamadas de ferramenta, 2.000 caracteres e 60 segundos, configuráveis.
 
 ### 5b. Chat expandido, rastreio e histórico
 
@@ -234,7 +235,7 @@ Questões listadas em `docs/PRD.md`:
 
 | Decisão | Bloqueia |
 | --- | --- |
-| Provedor de modelo padrão do chat | 5a (só o valor padrão; o modelo é trocável por configuração) |
+| ~~Provedor de modelo padrão do chat~~ | Decidida na 5a: Anthropic, com `anthropic:claude-haiku-5-5` por padrão, trocável por `MODELO_DO_ASSISTENTE` sem mudança de código. |
 | Provedor de nuvem e domínio | 6 e, por consequência, 7 e 11. Adiada. |
 | ~~Como o agente obtém um token aceito pelo MCP: dois destinatários ou troca de token~~ | Decidida na 4a: dois destinatários, sem troca de token (ADR 0006). Não bloqueia mais a 5a. |
 | Meta de 3 segundos do RNF-05 | Nenhuma. É medida na 3 e confirmada na 11. |

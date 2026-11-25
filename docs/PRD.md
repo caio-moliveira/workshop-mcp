@@ -170,9 +170,9 @@ O projeto está pronto quando os oito critérios abaixo passam, os sete primeiro
 
 ## Questões em aberto
 
-Três decisões ainda dependem de definição e podem mudar requisitos acima. Duas já foram tomadas e ficam marcadas.
+Duas decisões ainda dependem de definição e podem mudar requisitos acima. Três já foram tomadas e ficam marcadas.
 
-- [ ] Qual provedor de modelo de linguagem o chat usa por padrão?
+- [x] Qual provedor de modelo de linguagem o chat usa por padrão? Decidido na entrega 5a: Anthropic, com o modelo `anthropic:claude-haiku-5-5`, trocável pela variável `MODELO_DO_ASSISTENTE` sem mudança de código (RF-16). A chave fica em `ANTHROPIC_API_KEY`.
 - [ ] Qual provedor de nuvem e qual domínio hospedam o ambiente público?
 - [x] Como o agente do chat obtém um token aceito pelo servidor MCP: um token com dois destinatários ou uma troca de token? Decidido na entrega 4a: dois destinatários, sem troca de token (`docs/adr/0006-token-da-aplicacao-com-dois-destinatarios.md`).
 - [ ] A meta de 3 segundos do RNF-05 é adequada? É um valor inicial, sem medição.

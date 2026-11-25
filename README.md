@@ -13,6 +13,7 @@ Consulta de dados por perfil com servidor MCP. Os requisitos estão em `docs/PRD
 │   ├── consultas/    # lê o banco com o papel do perfil (compartilhado pela API e pelo servidor MCP)
 │   ├── api/          # API das telas (FastAPI)
 │   ├── servidor_mcp/ # servidor MCP: as consultas como ferramentas (FastMCP)
+│   ├── assistente/   # assistente da aplicação: agente (PydanticAI) que usa as ferramentas do servidor MCP
 │   └── tests/
 ├── frontend/         # aplicação no navegador (React + TypeScript + Vite), servida por nginx
 ├── keycloak/realm/   # configuração versionada do provedor de identidade
@@ -34,6 +35,8 @@ Na primeira vez, crie a configuração de ambiente e troque a senha:
 ```
 cp backend/.env.example backend/.env
 ```
+
+Para usar o assistente, preencha também `ANTHROPIC_API_KEY` (seção Assistente); sem ela, o resto do ambiente funciona igual.
 
 Depois, na raiz do projeto:
 
@@ -74,6 +77,8 @@ O perfil vem do grupo do usuário no realm e viaja no token como a claim `perfil
 ## API
 
 - `GET /eu`: o nome e o perfil do usuário do token. Qualquer problema com o token (ausente, vencido, de outro serviço, assinatura, emissor, perfil) recebe `401` com a mesma resposta; o motivo fica só no log da API.
+- `GET /vendas/indicadores`, `/vendas/evolucao`, `/vendas/situacao-das-entregas` e `/vendas/pedidos-recentes`: os blocos do painel de Vendas, com `?periodo=` (`30d`, `90d`, `12m` ou `24m`; padrão `12m`).
+- `POST /assistente`: uma pergunta ao assistente. Veja a seção Assistente.
 
 ## Servidor MCP
 
@@ -93,6 +98,28 @@ uv run python -m token_de_demonstracao ana.vendas pulso-inspector
 ```
 
 O comando imprime só o token de acesso, que vale 5 minutos. As aplicações são `pulso-web`, `pulso-inspector` e `pulso-outra-aplicacao` (um cliente que existe para provar que um token de outra aplicação é recusado).
+
+## Assistente
+
+O botão **Assistente**, na barra superior do frontend, abre um painel lateral em que o usuário pergunta em linguagem natural e vê a resposta chegar aos poucos. O agente mora na API (`backend/assistente`, com PydanticAI) e só obtém dados pelas ferramentas do servidor MCP: a cada pergunta, a API abre uma conexão nova com o servidor MCP pela rede interna e repassa o token de quem perguntou (RF-15). Por isso cada chamada aparece na auditoria com o usuário logado, conta no limite de frequência dele e só enxerga as ferramentas do perfil dele. A rota não tem regra de perfil própria, e a API não tem credencial própria para o servidor MCP.
+
+- **Rota:** `POST /assistente`, com o token da aplicação (destinatário `pulso-api`). Corpo: `{"pergunta": "...", "conversa": [{"autor": "usuario", "texto": "..."}]}`, com `autor` `usuario` ou `assistente`; campos fora do previsto são recusados. Antes da resposta, erros JSON no formato da API: `401` para token recusado, `400` para pergunta vazia ou acima dos tetos, `503` sem modelo ou sem chave. Depois, um fluxo de eventos (SSE): `texto` (um trecho), `estado` (consultando os dados, sem nome de ferramenta) e, no fim, exatamente um `fim` (com `aviso` quando o teto de chamadas foi atingido) ou um `erro` (sessão expirada, assistente indisponível ou tempo esgotado, sem nome interno). Se o cliente desconecta, a execução é cancelada.
+- **Conversa:** fica só no navegador, acima das páginas; continua ao fechar o painel e ao trocar de página, e some ao recarregar e ao sair. O histórico gravado é da entrega 5b.
+- **Pergunta sugerida:** só Vendas tem uma ("O que está causando os atrasos?").
+- **Log:** a API registra o início, o fim e o erro de cada pergunta, com o identificador do usuário e sem o texto da pergunta.
+
+Variáveis, no `backend/.env` (todas com padrão; veja `backend/.env.example`):
+
+| Variável | Padrão | O que faz |
+| --- | --- | --- |
+| `MODELO_DO_ASSISTENTE` | `anthropic:claude-haiku-5-5` | O modelo, no formato `provedor:modelo` do PydanticAI. Trocar é mudar a linha e recriar só a API: `docker compose up -d --no-deps --wait api` (RF-16) |
+| `ANTHROPIC_API_KEY` | vazia | A chave do provedor do modelo padrão, na variável que o provedor lê (outro provedor lê a própria). Vazia, o ambiente sobe normalmente, a rota responde 503 e o painel avisa que o assistente está indisponível |
+| `LIMITE_DE_CHAMADAS_POR_PERGUNTA` | `8` | Chamadas de ferramenta por pergunta; ao atingir, a resposta termina com um aviso |
+| `LIMITE_DE_CARACTERES_DA_PERGUNTA` | `2000` | Caracteres da pergunta e de cada item da conversa reenviada (até 20 itens); acima, 400 |
+| `TEMPO_MAXIMO_DA_PERGUNTA_EM_SEGUNDOS` | `60` | Tempo máximo de uma pergunta; ao passar, a resposta termina com erro |
+| `ENDERECO_INTERNO_DO_MCP` | `http://mcp:8001/mcp` | Onde a API chama o servidor MCP; o `compose.yaml` já o define para o serviço `api` |
+
+A chave do provedor não vai para o repositório, para o log nem para as mensagens de erro. O passo a passo com o modelo real está em `docs/demonstracao/entrega-5a.md`.
 
 ## Frontend
 
@@ -127,7 +154,7 @@ npm test
 npm run build
 ```
 
-`npm test` roda o Vitest nas funções puras: formatação, período da URL, variação e validação das respostas da API.
+`npm test` roda o Vitest nas funções puras: formatação, período da URL, variação, validação das respostas da API e, do assistente, a leitura do fluxo de eventos, o estado da conversa, o teto de caracteres e a rede.
 
 ## Credenciais do banco
 
@@ -179,6 +206,7 @@ Os roteiros, com comandos e resultados esperados, estão em `docs/demonstracao/`
 - Entrega 3, Vendas na tela: `docs/demonstracao/entrega-3.md`.
 - Entrega 4a, servidor MCP de Vendas: `docs/demonstracao/entrega-4a.md`.
 - Entrega 4b, auditoria e limite de frequência: `docs/demonstracao/entrega-4b.md`.
+- Entrega 5a, chat de Vendas no painel lateral: `docs/demonstracao/entrega-5a.md`.
 
 ## Parar o ambiente
 
