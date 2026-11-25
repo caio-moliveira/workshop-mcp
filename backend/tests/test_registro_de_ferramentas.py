@@ -34,12 +34,15 @@ PARAMETROS_PREVISTOS = {
     "vendas_pedidos_recentes": {"periodo"},
     "vendas_atrasos": {"periodo", "agrupamento"},
     "produtos_indicadores": {"periodo"},
+    "produtos_avaliacoes": {"periodo", "produto"},
 }
 # Os valores de cada parâmetro, também repetidos: a enumeração é fechada.
 VALORES_PREVISTOS = {
     "periodo": ["30d", "90d", "12m", "24m"],
     "agrupamento": ["rota", "lojista"],
 }
+# Os parâmetros inteiros e a faixa de cada um, também repetidos.
+FAIXAS_PREVISTAS = {"produto": (1, 2_147_483_647)}
 PADROES_PREVISTOS = {"periodo": "12m"}
 # Os parâmetros sem padrão, que quem chama precisa informar.
 OBRIGATORIOS_PREVISTOS = {"vendas_atrasos": {"agrupamento"}}
@@ -98,10 +101,15 @@ def test_o_esquema_de_entrada_so_tem_os_parametros_previstos(ferramentas):
         assert set(esquema) <= {"type", "properties", "additionalProperties", "required"}
 
 
-def test_todo_parametro_e_uma_enumeracao_fechada(ferramentas):
+def test_todo_parametro_e_uma_enumeracao_fechada_ou_um_inteiro_com_faixa(ferramentas):
     for ferramenta in ferramentas:
         for nome, parametro in ferramenta.input_schema["properties"].items():
             onde = f"{ferramenta.name}.{nome}"
+            if nome in FAIXAS_PREVISTAS:
+                assert parametro["type"] == "integer", onde
+                assert (parametro["minimum"], parametro["maximum"]) == FAIXAS_PREVISTAS[nome]
+                assert set(parametro) <= {"type", "minimum", "maximum", "description"}, onde
+                continue
             assert parametro["type"] == "string", onde
             assert parametro["enum"] == VALORES_PREVISTOS[nome], onde
             assert set(parametro) <= {"type", "enum", "description", "default"}, onde

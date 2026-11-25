@@ -22,5 +22,5 @@ def argumentos_minimos(ferramenta: str) -> dict[str, str]:
     return {
         parametro.nome: next(iter(parametro.enumeracao)).value
         for parametro in FERRAMENTAS[ferramenta].parametros
-        if parametro.padrao is None
+        if parametro.obrigatorio
     }
