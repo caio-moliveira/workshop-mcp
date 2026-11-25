@@ -5,6 +5,7 @@ trazem números crus e datas ISO; a formatação é do frontend.
 """
 
 from dataclasses import dataclass
+from datetime import date
 
 import psycopg
 
@@ -24,11 +25,19 @@ LIMITE_DE_MAL_AVALIADOS = 50
 # A regra do produto mal avaliado, a mesma no indicador e na lista: um produto por linha, com a
 # nota média e o número de avaliações no período.
 _MAL_AVALIADOS = """
-    select produto_id, avg(nota) as media, count(*) as quantas
+    select produto_id, avg(nota) as media, count(*) as avaliacoes
     from produtos.avaliacao
     where data_avaliacao between %(inicio)s and %(fim)s
     group by produto_id
     having avg(nota) < %(media)s and count(*) >= %(minimo)s
+"""
+
+# As avaliações do período, para abrir um `with`: o resumo e as categorias partem delas.
+_DO_PERIODO = """
+    do_periodo as (
+        select produto_id, nota from produtos.avaliacao
+        where data_avaliacao between %(inicio)s and %(fim)s
+    )
 """
 
 
@@ -41,13 +50,17 @@ class _Resumo:
     produtos_mal_avaliados: int
 
 
+def _data_de_referencia(conexao: psycopg.Connection) -> date:
+    return conexao.execute("select data_referencia from produtos.referencia").fetchone()[0]
+
+
 def _datas_do(periodo: Periodo, conexao: psycopg.Connection) -> DatasDoPeriodo:
     """As datas do período que termina na data de referência dos dados."""
-    referencia = conexao.execute("select data_referencia from produtos.referencia").fetchone()[0]
-    return terminado_em(periodo, referencia)
+    return terminado_em(periodo, _data_de_referencia(conexao))
 
 
 def _parametros(datas: DatasDoPeriodo) -> dict:
+    """As datas do período e os limites das regras do glossário, como parâmetros das consultas."""
     return {
         "inicio": datas.inicio,
         "fim": datas.fim,
@@ -60,10 +73,7 @@ def _parametros(datas: DatasDoPeriodo) -> dict:
 def _resumo(conexao: psycopg.Connection, datas: DatasDoPeriodo) -> _Resumo:
     linha = conexao.execute(
         f"""
-        with do_periodo as (
-            select produto_id, nota from produtos.avaliacao
-            where data_avaliacao between %(inicio)s and %(fim)s
-        )
+        with {_DO_PERIODO}
         select
             (select count(distinct produto_id) from do_periodo),
             (select avg(nota)::float from do_periodo),
@@ -94,7 +104,7 @@ def indicadores(conexao: psycopg.Connection, periodo: Periodo) -> dict:
     )
     catalogo = conexao.execute("select count(*) from produtos.produto").fetchone()[0]
 
-    def par(indicador: str) -> dict:
+    def comparacao(indicador: str) -> dict:
         return {
             "atual": getattr(agora, indicador),
             "anterior": None if antes is None else getattr(antes, indicador),
@@ -103,11 +113,11 @@ def indicadores(conexao: psycopg.Connection, periodo: Periodo) -> dict:
     return {
         "periodo": atual.como_json(),
         "catalogo": catalogo,
-        "produtos_avaliados": par("produtos_avaliados"),
-        "nota_media": par("nota_media"),
-        "avaliacoes": par("avaliacoes"),
-        "reclamacoes": par("reclamacoes"),
-        "produtos_mal_avaliados": par("produtos_mal_avaliados"),
+        "produtos_avaliados": comparacao("produtos_avaliados"),
+        "nota_media": comparacao("nota_media"),
+        "avaliacoes": comparacao("avaliacoes"),
+        "reclamacoes": comparacao("reclamacoes"),
+        "produtos_mal_avaliados": comparacao("produtos_mal_avaliados"),
     }
 
 
@@ -121,10 +131,11 @@ def mal_avaliados(conexao: psycopg.Connection, periodo: Periodo) -> dict:
     datas = _datas_do(periodo, conexao)
     linhas = conexao.execute(
         f"""
-        select p.id, p.nome, p.categoria, p.preco, m.media::float, m.quantas
-        from ({_MAL_AVALIADOS}) m
-        join produtos.produto p on p.id = m.produto_id
-        order by m.media, m.quantas desc, p.id
+        select p.id, p.nome, p.categoria, p.preco, mal_avaliado.media::float,
+               mal_avaliado.avaliacoes
+        from ({_MAL_AVALIADOS}) mal_avaliado
+        join produtos.produto p on p.id = mal_avaliado.produto_id
+        order by mal_avaliado.media, mal_avaliado.avaliacoes desc, p.id
         limit %(limite)s
         """,
         {**_parametros(datas), "limite": LIMITE_DE_MAL_AVALIADOS},
@@ -162,7 +173,7 @@ def notas(conexao: psycopg.Connection, periodo: Periodo) -> dict:
     ).fetchall()
     return {
         "periodo": datas.como_json(),
-        "notas": [{"nota": nota, "avaliacoes": quantas} for nota, quantas in linhas],
+        "notas": [{"nota": nota, "avaliacoes": avaliacoes} for nota, avaliacoes in linhas],
     }
 
 
@@ -176,11 +187,8 @@ def categorias(conexao: psycopg.Connection, periodo: Periodo) -> dict:
     """
     datas = _datas_do(periodo, conexao)
     linhas = conexao.execute(
-        """
-        with do_periodo as (
-            select produto_id, nota from produtos.avaliacao
-            where data_avaliacao between %(inicio)s and %(fim)s
-        )
+        f"""
+        with {_DO_PERIODO}
         select
             p.categoria,
             count(distinct p.id),
@@ -192,7 +200,7 @@ def categorias(conexao: psycopg.Connection, periodo: Periodo) -> dict:
         group by p.categoria
         order by avg(a.nota) asc nulls last, p.categoria
         """,
-        {"inicio": datas.inicio, "fim": datas.fim, "reclamacao": NOTA_MAXIMA_DA_RECLAMACAO},
+        _parametros(datas),
     ).fetchall()
     return {
         "periodo": datas.como_json(),
@@ -242,8 +250,7 @@ def avaliacoes(conexao: psycopg.Connection, periodo: Periodo, produto: int | Non
         limit %(limite)s
         """,
         {
-            "inicio": datas.inicio,
-            "fim": datas.fim,
+            **_parametros(datas),
             "produto": produto,
             "tamanho": TAMANHO_MAXIMO_DO_COMENTARIO,
             "limite": LIMITE_DE_AVALIACOES_RECENTES,
