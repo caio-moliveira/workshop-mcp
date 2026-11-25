@@ -66,7 +66,7 @@ O usuário faz login uma vez. As telas consultam a API, e o chat consulta o serv
 
 - **RF-06** Todo acesso, por tela, chat ou cliente externo, deve exigir login no provedor de identidade.
 - **RF-07** O perfil deve ser atribuído ao usuário no provedor de identidade e viajar dentro do token.
-- **RF-08** O sistema deve ter quatro usuários de demonstração, um por perfil.
+- **RF-08** O sistema deve ter ao menos um usuário de demonstração por perfil. Vendas tem dois, para mostrar o isolamento entre usuários do mesmo perfil (RF-18).
 - **RF-09** A sessão deve expirar, e um token vencido deve ser recusado em qualquer ponto de entrada.
 
 ### API
