@@ -2,10 +2,11 @@
  * O estado da conversa com o assistente, sem React nem rede: cada pergunta enviada abre uma
  * resposta, e os eventos do fluxo vão preenchendo a resposta em andamento.
  *
- * Para estender (aviso no fim, por exemplo): uma situação nova em `RespostaDoAssistente` e o caso
- * dela em `receber` ou numa função irmã de `enviar`.
+ * Para estender: uma situação nova em `RespostaDoAssistente` e o caso dela em `receber` ou numa
+ * função irmã de `enviar`.
  */
 import type { EventoDaResposta } from "./fluxo";
+import { passouDoLimite } from "./limites";
 import type { ItemDaConversa } from "./rede";
 
 export interface PerguntaDoUsuario {
@@ -22,6 +23,8 @@ export interface RespostaDoAssistente {
   consultando: boolean;
   /** A mensagem genérica, quando a resposta terminou em erro. */
   erro?: string;
+  /** O aviso do fim (teto de chamadas): a resposta concluiu, mas parou antes. */
+  aviso?: string;
 }
 
 export type Fala = PerguntaDoUsuario | RespostaDoAssistente;
@@ -42,9 +45,9 @@ export function respondendo(conversa: Conversa): boolean {
   return respostaEmAndamento(conversa) !== null;
 }
 
-/** Só uma pergunta por vez, e nunca em branco. */
+/** Só uma pergunta por vez, nunca em branco e dentro do teto de caracteres. */
 export function podeEnviar(conversa: Conversa, pergunta: string): boolean {
-  return pergunta.trim() !== "" && !respondendo(conversa);
+  return pergunta.trim() !== "" && !passouDoLimite(pergunta) && !respondendo(conversa);
 }
 
 /** A pergunta entra na conversa com a resposta dela ainda vazia. Sem envio possível, nada muda. */
@@ -73,6 +76,7 @@ export function receber(conversa: Conversa, evento: EventoDaResposta): Conversa 
       break;
     case "fim":
       nova = { ...atual, situacao: "concluida", consultando: false };
+      if (evento.aviso) nova.aviso = evento.aviso;
       break;
     case "erro":
       nova = { ...atual, situacao: "erro", consultando: false, erro: evento.mensagem };

@@ -10,16 +10,13 @@ import {
   type Conversa,
 } from "./conversa";
 import type { EventoDaResposta } from "./fluxo";
-import type { CorpoDaPergunta } from "./rede";
+import { mensagemDaFalha, type CorpoDaPergunta } from "./rede";
 
 /** Quem leva a pergunta à API: a Sessao, que põe o token e cuida do 401. */
 export interface FonteDoAssistente {
   /** Abortar o `sinal` fecha a conexão da resposta. */
   perguntar(corpo: CorpoDaPergunta, sinal?: AbortSignal): AsyncIterable<EventoDaResposta>;
 }
-
-/** A pergunta nem chegou a virar fluxo: rede fora, token recusado ou rota indisponível. */
-export const SEM_RESPOSTA = "Não foi possível obter a resposta agora. Tente de novo.";
 
 /**
  * A conversa com o assistente, o envio de perguntas e a parada da resposta. Fica no estado de quem
@@ -49,9 +46,10 @@ export function useConversa(fonte: FonteDoAssistente): {
             if (controle.signal.aborted) return;
             setConversa((atual) => receber(atual, evento));
           }
-        } catch {
+        } catch (erro) {
           if (controle.signal.aborted) return;
-          setConversa((atual) => receber(atual, { tipo: "erro", mensagem: SEM_RESPOSTA }));
+          const mensagem = mensagemDaFalha(erro);
+          setConversa((atual) => receber(atual, { tipo: "erro", mensagem }));
         } finally {
           if (emAndamento.current === controle) emAndamento.current = null;
         }

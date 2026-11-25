@@ -70,6 +70,22 @@ describe("lerEventos", () => {
     expect(eventos).toEqual([{ tipo: "texto", texto: "a" }, { tipo: "fim" }]);
   });
 
+  it("entrega o aviso que vem no fim", async () => {
+    const aviso = "A resposta parou aqui: a pergunta precisou de consultas demais.";
+    const eventos = await todos(
+      lerEventos(
+        pedacos(
+          'event: texto\ndata: {"texto": "Parcial"}\n\n',
+          `event: fim\ndata: ${JSON.stringify({ aviso })}\n\n`,
+        ),
+      ),
+    );
+    expect(eventos).toEqual([
+      { tipo: "texto", texto: "Parcial" },
+      { tipo: "fim", aviso },
+    ]);
+  });
+
   it("entrega o erro com a mensagem do servidor e para ali", async () => {
     const mensagem = "O assistente está indisponível no momento. Tente de novo mais tarde.";
     const eventos = await todos(

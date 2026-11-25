@@ -139,12 +139,6 @@
   line-height: 1.5;
 }
 
-.textoDaResposta {
-  margin: 0;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
 .status {
   display: inline-flex;
   align-items: center;
@@ -183,14 +177,26 @@
   color: var(--erro);
 }
 
-.erro svg {
+.erro svg,
+.aviso svg {
   flex: none;
   width: 16px;
   height: 16px;
 }
 
+/* O aviso do fim (teto de chamadas): a resposta concluiu, mas parou antes. */
+.aviso {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: var(--espaco-2);
+  margin: 0;
+  font-size: var(--texto-label);
+  color: var(--atencao);
+}
+
 .composer {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-end;
   gap: var(--espaco-2);
   padding: var(--espaco-4) var(--espaco-6) var(--espaco-6);
@@ -208,6 +214,26 @@
   font: inherit;
   line-height: 1.5;
   resize: none;
+}
+
+.campo[aria-invalid="true"] {
+  border-color: var(--erro);
+}
+
+/* A pergunta passou do teto: o motivo abaixo do campo, ocupando a linha inteira. */
+.limite {
+  display: flex;
+  flex-basis: 100%;
+  justify-content: space-between;
+  gap: var(--espaco-3);
+  margin: 0;
+  font-size: var(--texto-label);
+  color: var(--erro);
+}
+
+.contagem {
+  flex: none;
+  font-variant-numeric: tabular-nums;
 }
 
 .campo::placeholder {

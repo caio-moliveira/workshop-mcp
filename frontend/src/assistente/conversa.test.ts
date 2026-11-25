@@ -73,6 +73,33 @@ describe("conversa", () => {
     expect(podeEnviar(conversa, "e por lojista?")).toBe(true);
   });
 
+  it("o fim com aviso conclui a resposta mantendo o texto e guarda o aviso", () => {
+    const aviso = "A resposta parou aqui: a pergunta precisou de consultas demais.";
+    const conversa = aplicar(perguntada, { tipo: "texto", texto: "Parcial" }, { tipo: "fim", aviso });
+    expect(resposta(conversa)).toEqual({
+      autor: "assistente",
+      texto: "Parcial",
+      situacao: "concluida",
+      consultando: false,
+      aviso,
+    });
+    expect(podeEnviar(conversa, "e por lojista?")).toBe(true);
+  });
+
+  it("depois de um erro, a nova pergunta abre outra resposta e a anterior fica como estava", () => {
+    const comErro = aplicar(
+      perguntada,
+      { tipo: "texto", texto: "Parcial" },
+      { tipo: "erro", mensagem: "Falhou." },
+    );
+    const conversa = enviar(comErro, "De novo?");
+    expect(conversa.falas.slice(1)).toEqual([
+      { autor: "assistente", texto: "Parcial", situacao: "erro", consultando: false, erro: "Falhou." },
+      { autor: "usuario", texto: "De novo?" },
+      { autor: "assistente", texto: "", situacao: "chegando", consultando: false },
+    ]);
+  });
+
   it("no erro, guarda a mensagem, mantém o texto recebido e libera o envio", () => {
     const mensagem = "O assistente está indisponível no momento. Tente de novo mais tarde.";
     const conversa = aplicar(
