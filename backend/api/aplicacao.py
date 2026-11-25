@@ -22,7 +22,7 @@ from acesso import (
     autenticar,
     mensagens,
 )
-from assistente import Assistente
+from assistente import Assistente, Limites
 from consultas import (
     PERIODO_PADRAO,
     AcessoNegado,
@@ -103,6 +103,7 @@ def criar_aplicacao(
     consultas: ExecutorDeConsultas,
     modelo: Model | None,
     endereco_do_mcp: str,
+    limites: Limites = Limites(),
 ) -> FastAPI:
     """A API valida tokens pela configuração dada, lê o banco só pelo executor de consultas e só
     aceita o navegador vindo do frontend.
@@ -110,7 +111,7 @@ def criar_aplicacao(
     O assistente responde com o modelo dado (sem ele, fica indisponível) e com as ferramentas do
     servidor MCP do endereço dado, chamado com o token de quem pergunta.
     """
-    assistente = Assistente(modelo, endereco_do_mcp)
+    assistente = Assistente(modelo, endereco_do_mcp, limites)
     # Sem /docs, /redoc nem /openapi.json: a API não descreve as próprias rotas a ninguém.
     aplicacao = FastAPI(title="pulso.", docs_url=None, redoc_url=None, openapi_url=None)
     # O token vai no cabeçalho Authorization, nunca em cookie: não há credenciais de navegador.

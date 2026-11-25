@@ -25,3 +25,9 @@ ERRO_INTERNO = "Erro interno."
 # A pergunta ao assistente não pôde ser respondida: sem modelo configurado, ou o modelo ou o
 # servidor MCP falharam no meio da resposta. Não cita provedor, modelo nem ferramenta.
 ASSISTENTE_INDISPONIVEL = "O assistente está indisponível no momento. Tente de novo mais tarde."
+# A pergunta precisou de mais chamadas de ferramenta do que o teto: a resposta para no que já
+# saiu, com este aviso no fim. Não diz qual é o teto.
+CONSULTAS_DEMAIS = (
+    "A resposta parou aqui: a pergunta precisou de consultas demais. "
+    "Tente uma pergunta mais específica."
+)

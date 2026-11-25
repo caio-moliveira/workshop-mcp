@@ -13,11 +13,14 @@ from pydantic_ai import (
     RunContext,
     TextPart,
     TextPartDelta,
+    UsageLimits,
 )
+from pydantic_ai.exceptions import UsageLimitExceeded
 from pydantic_ai.mcp import MCPToolset
 from pydantic_ai.models import Model
 
 from acesso import UsuarioAutenticado, mensagens
+from assistente.limites import Limites
 
 registro = logging.getLogger("assistente")
 
@@ -74,8 +77,11 @@ class Assistente:
     modelo, o assistente está indisponível.
     """
 
-    def __init__(self, modelo: Model | None, endereco_do_mcp: str) -> None:
+    def __init__(
+        self, modelo: Model | None, endereco_do_mcp: str, limites: Limites = Limites()
+    ) -> None:
         self.modelo = modelo
+        self.limites = limites
         ferramentas = MCPToolset(
             endereco_do_mcp,
             # Uma função do contexto: cada execução ganha um cliente próprio, com o token dela.
@@ -97,11 +103,22 @@ class Assistente:
         registro.info("pergunta iniciada: usuário %s", usuario.id)
         try:
             async with self._agente.run_stream_events(
-                pergunta, model=self.modelo, deps=Contexto(token, usuario)
+                pergunta,
+                model=self.modelo,
+                deps=Contexto(token, usuario),
+                usage_limits=UsageLimits(
+                    tool_calls_limit=self.limites.chamadas,
+                    request_limit=self.limites.requisicoes_ao_modelo,
+                ),
             ) as execucao:
                 async for evento in execucao:
                     if saida := _traduzir(evento):
                         yield saida
+        except UsageLimitExceeded as falha:
+            # O que já saiu fica; a resposta termina com o aviso, sem erro.
+            registro.warning("pergunta parou no teto: usuário %s: %s", usuario.id, falha)
+            yield Evento("fim", {"aviso": mensagens.CONSULTAS_DEMAIS})
+            return
         except Exception as falha:
             registro.error("pergunta falhou: usuário %s", usuario.id, exc_info=falha)
             yield erro(mensagens.ASSISTENTE_INDISPONIVEL)
