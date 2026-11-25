@@ -22,9 +22,26 @@ export class AssistenteIndisponivel extends Error {
   }
 }
 
+/**
+ * A conversa continuada não existe mais: foi apagada, quase sempre em outra aba. A API não diz
+ * qual dos dois (inexistente ou de outro usuário), e daqui só pode ser a apagada.
+ */
+export const CONVERSA_APAGADA =
+  "Esta conversa foi apagada e não pode ser continuada. Comece uma nova conversa.";
+
+/** A rota respondeu 404 à pergunta que continuava uma conversa. */
+export class ConversaApagada extends Error {
+  constructor() {
+    super("a conversa não existe mais");
+    this.name = "ConversaApagada";
+  }
+}
+
 /** O texto que fica no lugar da resposta quando a pergunta falha antes do fluxo. */
 export function mensagemDaFalha(erro: unknown): string {
-  return erro instanceof AssistenteIndisponivel ? erro.aviso : SEM_RESPOSTA;
+  if (erro instanceof AssistenteIndisponivel) return erro.aviso;
+  if (erro instanceof ConversaApagada) return CONVERSA_APAGADA;
+  return SEM_RESPOSTA;
 }
 
 /** O texto do campo `erro` do corpo JSON da recusa, ou o de reserva se ele não vier. */
@@ -53,8 +70,8 @@ export interface CorpoDaPergunta {
 /**
  * Faz a pergunta com o token no cabeçalho Authorization e, aceita a pergunta, devolve os eventos
  * da resposta. O `EventSource` não serve: não faz POST nem manda cabeçalho. As recusas vêm antes do
- * fluxo, na promessa: um 401 vira `TokenRecusado`, um 503 vira `AssistenteIndisponivel`; qualquer
- * outra recusa vira `ApiIndisponivel`.
+ * fluxo, na promessa: um 401 vira `TokenRecusado`, um 404 vira `ConversaApagada`, um 503 vira
+ * `AssistenteIndisponivel`; qualquer outra recusa vira `ApiIndisponivel`.
  * Abortar o `sinal` fecha a conexão, e a API cancela a resposta.
  */
 export async function perguntarAoAssistente(
@@ -75,6 +92,7 @@ export async function perguntarAoAssistente(
     throw new ApiIndisponivel(`sem resposta da API: ${String(erro)}`);
   }
   if (resposta.status === 401) throw new TokenRecusado();
+  if (resposta.status === 404) throw new ConversaApagada();
   if (resposta.status === 503) {
     throw new AssistenteIndisponivel(await avisoDaRecusa(resposta, ASSISTENTE_INDISPONIVEL));
   }
