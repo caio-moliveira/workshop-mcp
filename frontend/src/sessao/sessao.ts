@@ -7,6 +7,8 @@ import {
   TokenRecusado,
   type UsuarioAutenticado,
 } from "../api";
+import type { EventoDaResposta } from "../assistente/fluxo";
+import { perguntarAoAssistente, type CorpoDaPergunta } from "../assistente/rede";
 import { VigiaDeInatividade } from "./inatividade";
 
 export type EstadoDaSessao =
@@ -91,6 +93,31 @@ export class Sessao {
    * TokenRecusado.
    */
   async consultar<T>(caminho: string, validar: (valor: unknown) => valor is T): Promise<T> {
+    const token = await this.tokenAtual();
+    try {
+      return await buscarDaApi(this.enderecoDaApi, token, caminho, validar);
+    } catch (erro) {
+      if (erro instanceof TokenRecusado) await this.aoRecusarToken();
+      throw erro;
+    }
+  }
+
+  /**
+   * Faz uma pergunta ao assistente com o token atual e devolve os eventos da resposta. O token
+   * segue as mesmas regras de `consultar`, inclusive o 401 antes do fluxo.
+   */
+  async *perguntar(corpo: CorpoDaPergunta): AsyncGenerator<EventoDaResposta> {
+    const token = await this.tokenAtual();
+    try {
+      yield* perguntarAoAssistente(this.enderecoDaApi, token, corpo);
+    } catch (erro) {
+      if (erro instanceof TokenRecusado) await this.aoRecusarToken();
+      throw erro;
+    }
+  }
+
+  /** O token em vigor, renovado antes se venceu. Sem token, vai ao login e lança TokenRecusado. */
+  private async tokenAtual(): Promise<string> {
     let usuario = await this.gerenciador.getUser();
     if (!usuario || usuario.expired) {
       await this.renovar();
@@ -100,12 +127,7 @@ export class Sessao {
       await this.irParaOLogin();
       throw new TokenRecusado();
     }
-    try {
-      return await buscarDaApi(this.enderecoDaApi, usuario.access_token, caminho, validar);
-    } catch (erro) {
-      if (erro instanceof TokenRecusado) await this.aoRecusarToken();
-      throw erro;
-    }
+    return usuario.access_token;
   }
 
   /** Encerra a sessão também no provedor e volta à tela de login. */

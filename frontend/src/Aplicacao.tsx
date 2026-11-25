@@ -39,7 +39,7 @@ export function Aplicacao({ sessao }: { sessao: Sessao }) {
       const perfil = DESCRICAO_DOS_PERFIS[usuario.perfil];
       const primeiroNome = usuario.nome.split(" ")[0] ?? usuario.nome;
       return (
-        <AppShell usuario={usuario} aoSair={() => void sessao.sair()}>
+        <AppShell usuario={usuario} assistente={sessao} aoSair={() => void sessao.sair()}>
           {usuario.perfil === "vendas" ? (
             <PainelDeVendas fonte={sessao} primeiroNome={primeiroNome} />
           ) : (
