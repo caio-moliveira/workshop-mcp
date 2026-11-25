@@ -19,6 +19,15 @@ const DESFECHO: Record<ChamadaDoRastreio["desfecho"], string> = {
 
 const milissegundos = new Intl.NumberFormat("pt-BR");
 
+/**
+ * A chave de uma chamada na lista. O contrato não dá identificador à chamada, e a mesma ferramenta
+ * pode ser chamada duas vezes com o mesmo desfecho: a posição completa o conteúdo. O rastreio só
+ * cresce no fim, então a posição de uma chamada não muda.
+ */
+function chaveDaChamada(chamada: ChamadaDoRastreio, posicao: number): string {
+  return `${posicao}:${chamada.ferramenta}:${chamada.desfecho}:${chamada.milissegundos}`;
+}
+
 interface Propriedades {
   rastreio: readonly ChamadaDoRastreio[];
   idDaPergunta?: string;
@@ -46,8 +55,8 @@ export function RastreioDaResposta({ rastreio, idDaPergunta }: Propriedades) {
           <p className={estilos.vazio}>Nenhuma ferramenta foi consultada.</p>
         ) : (
           <ol className={estilos.chamadas}>
-            {rastreio.map((chamada, indice) => (
-              <li key={indice} className={estilos.chamada}>
+            {rastreio.map((chamada, posicao) => (
+              <li key={chaveDaChamada(chamada, posicao)} className={estilos.chamada}>
                 <code className={estilos.ferramenta}>{chamada.ferramenta}</code>
                 <span className={estilos[chamada.desfecho]}>{DESFECHO[chamada.desfecho]}</span>
                 <span className={estilos.duracao}>
