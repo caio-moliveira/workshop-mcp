@@ -11,9 +11,8 @@ from datetime import date
 
 import httpx
 import pytest
-from apoio import ultima_chamada_de
+from auditada import assert_auditada
 from cliente_mcp import MCP_DO_AMBIENTE, chamar
-from provedor import conteudo
 from recusa import pedir
 
 from acesso import Perfil
@@ -157,11 +156,4 @@ def test_a_ferramenta_devolve_o_mesmo_conteudo_da_rota_e_fica_na_auditoria(token
     assert da_api.status_code == 200
     assert not resultado.is_error
     assert resultado.structured_content == da_api.json()
-    do_token = conteudo(token)
-    linha = ultima_chamada_de(do_token["sub"])
-    assert linha is not None
-    assert linha["nome_do_usuario"] == do_token["name"]
-    assert linha["perfil"] == "produtos"
-    assert linha["ferramenta"] == FERRAMENTA
-    assert linha["parametros"] == {"periodo": periodo}
-    assert linha["resultado"] == "permitida"
+    assert_auditada(token, FERRAMENTA, {"periodo": periodo}, "permitida")

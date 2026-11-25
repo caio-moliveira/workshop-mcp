@@ -10,7 +10,7 @@ from datetime import date
 from decimal import Decimal
 
 import pytest
-from apoio import ultima_chamada_de
+from auditada import assert_auditada
 from chaves_locais import ChavesLocais, assinar, conteudo_valido, nova_chave
 from cliente_mcp import chamar
 from provedor import DESTINATARIO_DO_MCP
@@ -162,9 +162,4 @@ def test_a_ferramenta_devolve_o_mesmo_que_a_rota_e_fica_na_auditoria(mcp, respos
 
     assert not resultado.is_error
     assert resultado.structured_content == respostas[periodo].json()
-    linha = ultima_chamada_de(sub)
-    assert linha is not None
-    assert linha["perfil"] == "produtos"
-    assert linha["ferramenta"] == FERRAMENTA
-    assert linha["parametros"] == {"periodo": periodo}
-    assert linha["resultado"] == "permitida"
+    assert_auditada(token, FERRAMENTA, {"periodo": periodo}, "permitida")
