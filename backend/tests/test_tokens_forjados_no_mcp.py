@@ -31,11 +31,13 @@ from starlette.testclient import TestClient
 
 from acesso import Perfil, ProvedorIndisponivel
 from consultas import BancoDeDados, Credencial, ExecutorDeConsultas, credenciais_do_ambiente
+from servidor_mcp.ferramentas import FERRAMENTAS
 
 CHAVE = nova_chave()
 FERRAMENTA = "vendas_indicadores"
 FERRAMENTA_QUE_NUNCA_EXISTIU = "vendas_margem_por_cliente"
-OUTROS_PERFIS = [perfil for perfil in Perfil if perfil is not Perfil.VENDAS]
+# Os perfis que não são donos da ferramenta, lidos do registro.
+OUTROS_PERFIS = [p for p in Perfil if p is not FERRAMENTAS[FERRAMENTA].consulta.perfil]
 
 
 def conteudo(**sobreposicoes) -> dict:
@@ -193,11 +195,6 @@ def test_provedor_fora_do_ar_e_indisponibilidade_e_nao_recusa(criar_mcp, caplog)
 
 
 @pytest.mark.parametrize("perfil", OUTROS_PERFIS, ids=str)
-def test_outro_perfil_recebe_a_lista_vazia(mcp, perfil):
-    assert listar_ferramentas(mcp, token_de(perfil)) == []
-
-
-@pytest.mark.parametrize("perfil", OUTROS_PERFIS, ids=str)
 @pytest.mark.parametrize(
     "argumentos",
     [{}, {"periodo": "12m"}, {"periodo": "7d"}, {"filtro": "x"}, {"periodo": 5}],
@@ -277,7 +274,8 @@ def test_perfil_enviado_por_quem_chama_nao_muda_o_perfil_do_token(http, perfil):
         corpo = {"jsonrpc": "2.0", "id": 1, "method": metodo, "params": parametros or {}}
         return http.post("/mcp?perfil=vendas", json=corpo, headers=cabecalhos).json()["result"]
 
-    assert pedir("tools/list")["tools"] == []
+    do_perfil = sorted(n for n, f in FERRAMENTAS.items() if f.consulta.perfil is perfil)
+    assert sorted(f["name"] for f in pedir("tools/list")["tools"]) == do_perfil
     chamada = pedir("tools/call", {"name": FERRAMENTA, "arguments": {"perfil": "vendas"}})
     assert chamada["content"][0]["text"] == FERRAMENTA_DESCONHECIDA
 
