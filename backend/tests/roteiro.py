@@ -12,10 +12,12 @@ from typing import Any
 from pydantic_ai.messages import ModelMessage, ModelResponse, ToolCallPart
 from pydantic_ai.models.function import AgentInfo, DeltaToolCall, FunctionModel
 
+from acesso import mensagens
+
 ROTA = "/assistente"
 # A mensagem genérica, igual na resposta 503 e no evento de erro: não cita provedor, modelo nem
 # ferramenta (RS-08).
-ASSISTENTE_INDISPONIVEL = "O assistente está indisponível no momento. Tente de novo mais tarde."
+ASSISTENTE_INDISPONIVEL = mensagens.ASSISTENTE_INDISPONIVEL
 RESPOSTA_DO_ASSISTENTE_INDISPONIVEL = {"erro": ASSISTENTE_INDISPONIVEL}
 
 
