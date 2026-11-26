@@ -18,11 +18,24 @@ const TITULO = "Novos lojistas por canal";
 const NOTA =
   "Leads que fecharam no período, pelo canal de chegada. A conversão do canal está na dica.";
 
+/** As barras por extenso, para quem não vê o gráfico, na ordem em que ele as mostra. */
+function descricaoDasBarras(canais: DesempenhoDoCanal[]): string {
+  const porExtenso = canais.map((item) => `${item.canal}, ${formatarNumero(item.novos_lojistas)}`);
+  return `Novos lojistas do período por canal, do que trouxe mais para o que trouxe menos: ${porExtenso.join("; ")}.`;
+}
+
+/**
+ * As barras dos canais. O gráfico recebe o foco do teclado e as setas percorrem as barras (a
+ * camada de acessibilidade do Recharts); o mesmo conteúdo vai em texto para os leitores de tela,
+ * como no gráfico do funil.
+ */
 function Grafico({ canais }: { canais: DesempenhoDoCanal[] }) {
   return (
     <ChartPanel titulo={TITULO} descricao={NOTA} series={[NOVOS_LOJISTAS]}>
+      <p className="visualmente-oculto">{descricaoDasBarras(canais)}</p>
       <BarChart
         responsive
+        accessibilityLayer
         layout="vertical"
         data={canais}
         margin={{ top: 4, right: 48, bottom: 0, left: 0 }}
