@@ -429,6 +429,31 @@ FERRAMENTAS: dict[str, Ferramenta] = {
         ),
         parametros=(PERIODO,),
     ),
+    "comercial_canais": Ferramenta(
+        consulta=comercial.canais,
+        titulo="Desempenho dos canais",
+        descricao=(
+            "Os cinco canais pelos quais os leads chegam (Indicação, Orgânico, Mídia paga, "
+            "Eventos e Prospecção ativa) com o desempenho de cada um em um período, já "
+            "ordenados da maior conversão para a menor. Use para responder qual canal traz os "
+            "leads que mais convertem, como os canais se comparam e quanto tempo um lead leva "
+            "para fechar em cada canal; o primeiro da lista é o de maior conversão, sem precisar "
+            "de conta. Cada item de 'canais' traz 'canal' (o nome), 'leads' (leads do canal "
+            "criados no período), 'novos_lojistas' (leads do canal que fecharam no período, "
+            "contados pela data de fechamento, mesmo que criados antes dele), 'conversao' e "
+            "'dias_ate_fechar' (média de dias entre a criação e o fechamento desses novos "
+            "lojistas; nulo se nenhum lead do canal fechou no período). 'conversao' já vem "
+            "calculada, não refaça a conta: novos lojistas do período ÷ leads criados no mesmo "
+            "período, do canal, de 0 em diante (nula no canal sem lead criado no período, que "
+            "fica no fim da lista). É uma razão entre dois movimentos do período, não a parcela "
+            "dos leads do período que fecharam. Não há mínimo de leads para um canal entrar na "
+            "ordem: ao responder, diga sempre os leads e os novos lojistas ao lado da conversão "
+            "e avise quando a base for pequena (poucos leads), como costuma acontecer em 30 "
+            "dias, porque aí a ordem pode mudar por um ou dois fechamentos. 'periodo' traz as "
+            "datas de início e fim usadas, em formato ISO."
+        ),
+        parametros=(PERIODO,),
+    ),
     "comercial_leads": Ferramenta(
         consulta=comercial.leads,
         titulo="Leads recentes",
