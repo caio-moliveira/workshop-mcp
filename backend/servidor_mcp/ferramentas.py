@@ -568,8 +568,8 @@ FERRAMENTAS: dict[str, Ferramenta] = {
             "conta no canal do lojista do primeiro pedido aprovado dele, mesmo que as compras "
             "seguintes sejam de lojistas de outro canal: cada cliente conta num canal só. Uma "
             "taxa é nula quando a contagem dela é zero, e o canal sem pedido entregue fica no fim "
-            "da lista. Somados, os canais dão o total do marketplace no período. Ao responder, "
-            "diga as contagens ao lado das taxas. Nenhum número é de um lojista, cliente ou "
+            "da lista. Somados, os canais dão o total do marketplace no período. Nenhum número "
+            "é de um lojista, cliente ou "
             "pedido individual, e não há recorte por lojista, produto, categoria ou rota. "
             "'periodo' traz as datas de início e fim usadas, em formato ISO."
         ),
