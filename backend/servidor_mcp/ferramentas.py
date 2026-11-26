@@ -5,7 +5,7 @@ outro lugar para declará-lo (RS-05). As descrições são escritas para o model
 escolhe a ferramenta e preenche os parâmetros a partir delas (RF-24).
 """
 
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
@@ -19,7 +19,7 @@ from consultas import (
     produtos,
     vendas,
 )
-from consultas.lead import Canal, Etapa
+from consultas.lead import ETAPAS_EM_NEGOCIACAO, Canal, Etapa
 
 
 @dataclass(frozen=True)
@@ -164,13 +164,24 @@ PRODUTO = ParametroInteiro(
     ),
 )
 
+
+def _enumerados(valores: Iterable[str], antes_do_ultimo: str = "ou", aspas: bool = False) -> str:
+    """Os valores de uma enumeração do domínio escritos numa descrição: 'a, b ou c'."""
+    textos = [f"'{valor}'" if aspas else str(valor) for valor in valores]
+    return f"{', '.join(textos[:-1])} {antes_do_ultimo} {textos[-1]}"
+
+
+# Os canais e as etapas, como as descrições os citam: sempre a partir das enumerações do lead.
+_CANAIS = _enumerados(Canal)
+_ETAPAS = _enumerados(Etapa)
+
 CANAL_DO_LEAD = Parametro(
     nome="canal",
     enumeracao=Canal,
     descricao=(
-        "Canal pelo qual o lead chegou, com a grafia exata, incluindo acentos: 'Indicação', "
-        "'Orgânico', 'Mídia paga', 'Eventos' ou 'Prospecção ativa'. Opcional: se omitido, "
-        "considera os leads de todos os canais."
+        "Canal pelo qual o lead chegou, com a grafia exata, incluindo acentos: "
+        f"{_enumerados(Canal, aspas=True)}. Opcional: se omitido, considera os leads de todos "
+        "os canais."
     ),
     opcional=True,
 )
@@ -179,9 +190,10 @@ ETAPA_DO_LEAD = Parametro(
     nome="etapa",
     enumeracao=Etapa,
     descricao=(
-        "Etapa atual do lead no funil, com a grafia exata: 'Novo', 'Contatado', 'Qualificado', "
-        "'Proposta', 'Fechado' (virou lojista) ou 'Perdido'. Opcional: se omitido, considera os "
-        "leads de todas as etapas."
+        "Etapa atual do lead no funil, com a grafia exata: "
+        f"{', '.join(repr(etapa.value) for etapa in ETAPAS_EM_NEGOCIACAO)}, "
+        f"'{Etapa.FECHADO}' (virou lojista) ou '{Etapa.PERDIDO}'. Opcional: se omitido, "
+        "considera os leads de todas as etapas."
     ),
     opcional=True,
 )
@@ -393,15 +405,15 @@ FERRAMENTAS: dict[str, Ferramenta] = {
             "para saber quantos leads chegaram, quantos viraram lojistas e se o resultado "
             "melhorou ou piorou. Cada número usa a data do próprio fato: 'leads' são os leads "
             "criados no período, e 'leads_em_negociacao' são quantos deles ainda estão nas "
-            "etapas Novo, Contatado, Qualificado ou Proposta (não fecharam nem foram perdidos); "
+            f"etapas {_enumerados(ETAPAS_EM_NEGOCIACAO)} (não fecharam nem foram perdidos); "
             "'novos_lojistas' são os leads que fecharam no período, contados pela data de "
             "fechamento, mesmo que tenham sido criados antes dele; 'dias_ate_fechar' é a média "
             "de dias entre a criação e o fechamento desses novos lojistas (nulo se nenhum lead "
             "fechou no período). 'conversao' já vem calculada, não refaça a conta: novos "
-            "lojistas do período ÷ leads criados no mesmo período, de 0 a 1 (nula sem lead no "
-            "período). É uma razão entre dois movimentos do período, não a parcela dos leads do "
+            "lojistas do período ÷ leads criados no mesmo período, de 0 em diante (nula sem lead "
+            "no período). É uma razão entre dois movimentos do período, não a parcela dos leads do "
             "período que fecharam. 'principal_canal' é o nome do canal que trouxe mais leads "
-            "criados no período (Indicação, Orgânico, Mídia paga, Eventos ou Prospecção ativa; "
+            f"criados no período ({_CANAIS}; "
             "no empate, o de mais novos lojistas e, depois, a ordem alfabética), e "
             "'parcela_do_principal_canal' é a parte dele nos leads do período, de 0 a 1; os "
             "dois são nulos sem lead no período. 'leads', 'novos_lojistas' e 'conversao' trazem "
@@ -423,7 +435,7 @@ FERRAMENTAS: dict[str, Ferramenta] = {
             "período. Não há histórico de etapas: o funil não é acumulado (um lead em Proposta "
             "não é contado também em Novo, Contatado e Qualificado) e não se sabe em que etapa "
             "um lead perdido parou. 'etapas' traz sempre as seis etapas, na ordem do funil e "
-            "com Perdido por último (Novo, Contatado, Qualificado, Proposta, Fechado, Perdido), "
+            f"com Perdido por último ({', '.join(Etapa)}), "
             "cada uma com 'leads' (quantos leads criados no período estão naquela etapa, zero "
             "quando nenhum). 'periodo' traz as datas de início e fim usadas, em formato ISO."
         ),
@@ -433,8 +445,8 @@ FERRAMENTAS: dict[str, Ferramenta] = {
         consulta=comercial.canais,
         titulo="Desempenho dos canais",
         descricao=(
-            "Os cinco canais pelos quais os leads chegam (Indicação, Orgânico, Mídia paga, "
-            "Eventos e Prospecção ativa) com o desempenho de cada um em um período, já "
+            f"Os cinco canais pelos quais os leads chegam ({_enumerados(Canal, 'e')}) com o "
+            "desempenho de cada um em um período, já "
             "ordenados da maior conversão para a menor. Use para responder qual canal traz os "
             "leads que mais convertem, como os canais se comparam e quanto tempo um lead leva "
             "para fechar em cada canal; o primeiro da lista é o de maior conversão, sem precisar "
@@ -469,8 +481,8 @@ FERRAMENTAS: dict[str, Ferramenta] = {
             "período: por exemplo, canal 'Indicação' com etapa 'Proposta' responde quais leads "
             "de Indicação estão em Proposta. Um recorte sem leads dá lista vazia. Cada item de "
             "'leads' traz 'lead' (identificador do lead), 'empresa' (nome da empresa), 'canal' "
-            "(Indicação, Orgânico, Mídia paga, Eventos ou Prospecção ativa), 'etapa' (a etapa "
-            "atual do funil: Novo, Contatado, Qualificado, Proposta, Fechado ou Perdido; não há "
+            f"({_CANAIS}), 'etapa' (a etapa "
+            f"atual do funil: {_ETAPAS}; não há "
             "histórico de etapas), 'data_criacao' (data ISO em que o lead entrou no funil) e "
             "'data_fechamento' (data ISO em que virou lojista; nula em quem não fechou, e só a "
             "etapa Fechado a tem). 'periodo' traz as datas de início e fim usadas, em formato "

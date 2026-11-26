@@ -13,10 +13,12 @@ from datetime import date
 import httpx
 import pytest
 from auditada import assert_auditada
-from cliente_mcp import MCP_DO_AMBIENTE, chamar
+from cliente_mcp import MCP_DO_AMBIENTE, chamar, listar_ferramentas
 from recusa import pedir
 
 from acesso import Perfil
+from consultas import comercial as consultas_do_comercial
+from consultas.periodo import Periodo
 
 ROTA = "/comercial/indicadores"
 FERRAMENTA = "comercial_indicadores"
@@ -182,11 +184,94 @@ def test_resposta_tem_numeros_crus_e_nenhum_nome_interno(respostas):
     for contagem in ("leads", "novos_lojistas"):
         assert isinstance(corpo[contagem]["atual"], int), contagem
     assert isinstance(corpo["leads_em_negociacao"], int)
-    assert 0 < corpo["conversao"]["atual"] < 1
+    # A conversão é uma razão entre dois movimentos do período: pode passar de 1.
+    assert corpo["conversao"]["atual"] > 0
     assert 0 < corpo["parcela_do_principal_canal"] <= 1
     texto = respostas["12m"].text
     for proibido in ("email", "lojista_id", "pedido", "atras", "_id", "dados_de_origem", "origem"):
         assert proibido not in texto
+
+
+def _principal_canal_com(conexao, leads_por_canal: dict[str, int], novos_lojistas: list[str]):
+    """O principal canal dos últimos 30 dias, lido com o papel do Comercial, num período que só
+    tem os leads criados de `leads_por_canal` e um novo lojista em cada canal de `novos_lojistas`.
+
+    Quem chama abre a transação e a desfaz: os dados de origem ficam como estavam.
+    """
+    _, fim = PERIODOS["30d"][0]
+    fora = date(2024, 12, 1)
+    # Tira todo lead do período: nem criado nem fechado nele.
+    conexao.execute(
+        "update dados_de_origem.lead set data_criacao = %s,"
+        " data_fechamento = case when data_fechamento is not null then %s::date end",
+        (fora, fora),
+    )
+    abertos = [
+        linha[0]
+        for linha in conexao.execute(
+            "select id from dados_de_origem.lead where etapa = 'Novo' order by id"
+        ).fetchall()
+    ]
+    fechados = [
+        linha[0]
+        for linha in conexao.execute(
+            "select id from dados_de_origem.lead where etapa = 'Fechado' order by id"
+        ).fetchall()
+    ]
+    for canal, quantos in leads_por_canal.items():
+        for _ in range(quantos):
+            conexao.execute(
+                "update dados_de_origem.lead set canal = %s, data_criacao = %s where id = %s",
+                (canal, fim, abertos.pop()),
+            )
+    # O novo lojista fechou no período e foi criado antes dele: não soma aos leads do canal.
+    for canal in novos_lojistas:
+        conexao.execute(
+            "update dados_de_origem.lead set canal = %s, data_fechamento = %s where id = %s",
+            (canal, fim, fechados.pop()),
+        )
+    conexao.execute("set local role comercial")
+    corpo = consultas_do_comercial.indicadores.ler(conexao, Periodo.TRINTA_DIAS)
+    return corpo["principal_canal"], corpo["parcela_do_principal_canal"]
+
+
+def test_no_empate_de_leads_o_principal_canal_e_o_de_mais_novos_lojistas_e_depois_o_alfabetico(
+    conexao_dono,
+):
+    """Três canais com dois leads cada. O empate não existe nos dados atuais: só dentro de uma
+    transação desfeita no fim, que nenhum outro processo vê."""
+    empatados = {"Eventos": 2, "Mídia paga": 2, "Orgânico": 2}
+
+    with conexao_dono.transaction(force_rollback=True):
+        so_o_alfabeto = _principal_canal_com(conexao_dono, empatados, [])
+    with conexao_dono.transaction(force_rollback=True):
+        um_com_novo_lojista = _principal_canal_com(conexao_dono, empatados, ["Orgânico"])
+    with conexao_dono.transaction(force_rollback=True):
+        dois_com_novo_lojista = _principal_canal_com(
+            conexao_dono, empatados, ["Orgânico", "Mídia paga"]
+        )
+
+    assert so_o_alfabeto == ("Eventos", pytest.approx(2 / 6))
+    # Mais novos lojistas vence o empate, mesmo sendo o último na ordem alfabética.
+    assert um_com_novo_lojista == ("Orgânico", pytest.approx(2 / 6))
+    # Persistindo o empate entre os dois, a ordem alfabética; Eventos, sem novo lojista, não volta.
+    assert dois_com_novo_lojista == ("Mídia paga", pytest.approx(2 / 6))
+
+
+def test_a_descricao_diz_que_a_conversao_e_uma_razao_que_pode_passar_de_1(criar_mcp, token_de):
+    [publicada] = [
+        f
+        for f in listar_ferramentas(criar_mcp(), token_de(Perfil.COMERCIAL))
+        if f.name == FERRAMENTA
+    ]
+
+    assert (
+        "novos lojistas do período ÷ leads criados no mesmo período, de 0 em diante"
+        in publicada.description
+    )
+    assert "'parcela_do_principal_canal' é a parte dele nos leads do período, de 0 a 1" in (
+        publicada.description
+    )
 
 
 @pytest.mark.parametrize("periodo", PERIODOS)

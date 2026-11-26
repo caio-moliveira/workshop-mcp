@@ -1,6 +1,6 @@
 /** O contrato de `GET /comercial/funil`: números crus e datas ISO. */
 
-import { type DatasDoPeriodo, eDatasDoPeriodo, eObjeto } from "../painel/contrato";
+import { type DatasDoPeriodo, eContagem, eDatasDoPeriodo, eObjeto } from "../painel/contrato";
 import { ETAPAS, type Etapa } from "./etapas";
 
 export interface LeadsNaEtapa {
@@ -13,10 +13,6 @@ export interface FunilDoComercial {
   periodo: DatasDoPeriodo;
   /** Sempre as seis etapas, na ordem do funil e com Perdido por último, com zero onde não há lead. */
   etapas: LeadsNaEtapa[];
-}
-
-function eContagem(valor: unknown): valor is number {
-  return Number.isInteger(valor) && (valor as number) >= 0;
 }
 
 export function eFunilDoComercial(valor: unknown): valor is FunilDoComercial {

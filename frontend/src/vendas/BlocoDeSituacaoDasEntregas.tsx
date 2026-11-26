@@ -4,7 +4,13 @@ import { ChartPanel } from "../componentes/ChartPanel";
 import { DicaDoGrafico } from "../componentes/DicaDoGrafico";
 import { EmptyState } from "../componentes/EmptyState";
 import { AnuncioDeCarregamento, EstadosDoBloco } from "../componentes/EstadosDoBloco";
-import { CURSOR, EIXO, SEM_ANIMACAO, type SerieDoGrafico } from "../componentes/graficos";
+import {
+  CURSOR,
+  EIXO,
+  GRADE_VERTICAL,
+  SEM_ANIMACAO,
+  type SerieDoGrafico,
+} from "../componentes/graficos";
 import { LoadingSkeleton } from "../componentes/LoadingSkeleton";
 import { formatarNumero, formatarNumeroCompacto } from "../formatacao";
 import type { Periodo } from "../painel/periodo";
@@ -25,14 +31,6 @@ const TITULO = "Situação das entregas";
 const NOTA = "Pedidos com pagamento recusado não têm entrega e ficam de fora.";
 // A mesma série de pedidos da evolução, com a mesma cor: séries consistentes entre gráficos (FE §7).
 const PEDIDOS: SerieDoGrafico = { rotulo: "Pedidos", cor: "var(--serie-1)", forma: "barra" };
-
-// Barras horizontais: a grade fina acompanha o eixo dos valores, que aqui é o horizontal.
-const GRADE_VERTICAL = {
-  horizontal: false,
-  vertical: true,
-  stroke: "var(--grade-do-grafico)",
-  strokeWidth: 1,
-} as const;
 
 function Grafico({ dados }: { dados: SituacaoDasEntregas }) {
   return (

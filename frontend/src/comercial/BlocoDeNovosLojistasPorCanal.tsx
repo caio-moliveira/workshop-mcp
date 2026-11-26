@@ -4,40 +4,38 @@ import { ChartPanel } from "../componentes/ChartPanel";
 import { DicaDoGrafico } from "../componentes/DicaDoGrafico";
 import { EmptyState } from "../componentes/EmptyState";
 import { AnuncioDeCarregamento, EstadosDoBloco } from "../componentes/EstadosDoBloco";
-import { CURSOR, EIXO, SEM_ANIMACAO } from "../componentes/graficos";
+import { CURSOR, EIXO, GRADE_VERTICAL, SEM_ANIMACAO } from "../componentes/graficos";
 import { LoadingSkeleton } from "../componentes/LoadingSkeleton";
 import { formatarNumero, formatarNumeroCompacto } from "../formatacao";
-import type { Periodo } from "../painel/periodo";
-import { useBloco, type FonteDeDados } from "../useBloco";
 import {
   canaisPorNovosLojistas,
-  eDesempenhoDosCanais,
+  type BuscaDosCanais,
   type DesempenhoDoCanal,
 } from "./desempenhoDosCanais";
 import { linhasDaDica, NOVOS_LOJISTAS } from "./dicaDosCanais";
-
-interface Propriedades {
-  fonte: FonteDeDados;
-  periodo: Periodo;
-}
 
 const TITULO = "Novos lojistas por canal";
 const NOTA =
   "Leads que fecharam no período, pelo canal de chegada. A conversão do canal está na dica.";
 
-// Barras horizontais: a grade fina acompanha o eixo dos valores, que aqui é o horizontal.
-const GRADE_VERTICAL = {
-  horizontal: false,
-  vertical: true,
-  stroke: "var(--grade-do-grafico)",
-  strokeWidth: 1,
-} as const;
+/** As barras por extenso, para quem não vê o gráfico, na ordem em que ele as mostra. */
+function descricaoDasBarras(canais: DesempenhoDoCanal[]): string {
+  const porExtenso = canais.map((item) => `${item.canal}, ${formatarNumero(item.novos_lojistas)}`);
+  return `Novos lojistas do período por canal, do que trouxe mais para o que trouxe menos: ${porExtenso.join("; ")}.`;
+}
 
+/**
+ * As barras dos canais. O gráfico recebe o foco do teclado e as setas percorrem as barras (a
+ * camada de acessibilidade do Recharts); o mesmo conteúdo vai em texto para os leitores de tela,
+ * como no gráfico do funil.
+ */
 function Grafico({ canais }: { canais: DesempenhoDoCanal[] }) {
   return (
     <ChartPanel titulo={TITULO} descricao={NOTA} series={[NOVOS_LOJISTAS]}>
+      <p className="visualmente-oculto">{descricaoDasBarras(canais)}</p>
       <BarChart
         responsive
+        accessibilityLayer
         layout="vertical"
         data={canais}
         margin={{ top: 4, right: 48, bottom: 0, left: 0 }}
@@ -97,16 +95,10 @@ export function NovosLojistasPorCanal({ canais }: { canais: DesempenhoDoCanal[] 
 }
 
 /**
- * Os novos lojistas do período por canal, com a conversão de cada canal na dica e estados
- * próprios (FE §6, §10).
+ * Os novos lojistas do período por canal, com a conversão de cada canal na dica e os estados da
+ * busca que o painel faz e divide com a tabela de desempenho dos canais (FE §6, §10).
  */
-export function BlocoDeNovosLojistasPorCanal({ fonte, periodo }: Propriedades) {
-  const { estado, tentarDeNovo } = useBloco(
-    fonte,
-    `/comercial/canais?periodo=${periodo}`,
-    eDesempenhoDosCanais,
-  );
-
+export function BlocoDeNovosLojistasPorCanal({ estado, tentarDeNovo }: BuscaDosCanais) {
   return (
     <EstadosDoBloco
       estado={estado}

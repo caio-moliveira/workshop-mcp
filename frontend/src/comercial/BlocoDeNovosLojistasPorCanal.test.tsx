@@ -1,7 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import type { FonteDeDados } from "../useBloco";
 import { BlocoDeNovosLojistasPorCanal, NovosLojistasPorCanal } from "./BlocoDeNovosLojistasPorCanal";
 import type { DesempenhoDoCanal } from "./desempenhoDosCanais";
 import { linhasDaDica } from "./dicaDosCanais";
@@ -58,6 +57,35 @@ describe("o bloco de novos lojistas por canal", () => {
     expect(html).not.toContain("Nenhum novo lojista");
   });
 
+  it("descreve as barras em texto, do canal com mais novos lojistas para o de menos", () => {
+    const html = renderToStaticMarkup(
+      <NovosLojistasPorCanal
+        canais={[
+          canal("Indicação", 10, 3),
+          canal("Mídia paga", 16, 1400),
+          canal("Orgânico", 19, 5),
+          canal("Prospecção ativa", 12, 0),
+          canal("Eventos", 0, 1),
+        ]}
+      />,
+    );
+
+    expect(html).toMatch(
+      /<p class="visualmente-oculto">Novos lojistas do período por canal, do que trouxe mais para o que trouxe menos: Mídia paga, 1\.400; Orgânico, 5; Indicação, 3; Eventos, 1; Prospecção ativa, 0\.<\/p>/,
+    );
+  });
+
+  it("num período sem lead e sem novo lojista, mostra o estado vazio no lugar das barras", () => {
+    const html = renderToStaticMarkup(
+      <NovosLojistasPorCanal
+        canais={cincoCanais(0).map((item) => ({ ...item, leads: 0, conversao: null }))}
+      />,
+    );
+
+    expect(html).toContain("Nenhum novo lojista no período");
+    expect(html).not.toContain("recharts");
+  });
+
   it("num período sem novo lojista, mostra o estado vazio no lugar das barras", () => {
     const html = renderToStaticMarkup(<NovosLojistasPorCanal canais={cincoCanais(0)} />);
 
@@ -72,11 +100,9 @@ describe("o bloco de novos lojistas por canal", () => {
 });
 
 describe("o bloco de novos lojistas por canal enquanto carrega", () => {
-  const semResposta: FonteDeDados = { consultar: () => new Promise(() => {}) };
-
   it("anuncia o carregamento aos leitores de tela", () => {
     const html = renderToStaticMarkup(
-      <BlocoDeNovosLojistasPorCanal fonte={semResposta} periodo="30d" />,
+      <BlocoDeNovosLojistasPorCanal estado={{ fase: "carregando" }} tentarDeNovo={() => {}} />,
     );
 
     expect(html).toMatch(/role="status"[^>]*>.*Carregando os novos lojistas por canal…/);

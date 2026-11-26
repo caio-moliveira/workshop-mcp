@@ -1,7 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import type { FonteDeDados } from "../useBloco";
 import {
   BlocoDeDesempenhoDosCanais,
   TabelaDeDesempenhoDosCanais,
@@ -89,10 +88,57 @@ describe("tabela de desempenho dos canais", () => {
   });
 });
 
+describe("o bloco de desempenho dos canais com a resposta pronta", () => {
+  function bloco(canais: DesempenhoDoCanal[]): string {
+    const dados = { periodo: { inicio: "2026-11-01", fim: "2026-11-30" }, canais };
+    return renderToStaticMarkup(
+      <BlocoDeDesempenhoDosCanais estado={{ fase: "pronto", dados }} tentarDeNovo={() => {}} />,
+    );
+  }
+  const semMovimento = CANAIS.map(
+    (item): DesempenhoDoCanal => ({
+      canal: item.canal,
+      leads: 0,
+      novos_lojistas: 0,
+      conversao: null,
+      dias_ate_fechar: null,
+    }),
+  );
+
+  it("num período sem lead e sem novo lojista em nenhum canal, mostra o estado vazio", () => {
+    const html = bloco(semMovimento);
+
+    expect(html).toContain("Nenhum lead nem novo lojista no período");
+    expect(html).toContain("Escolha um período maior");
+    expect(html).not.toContain("<table");
+  });
+
+  it("com um único novo lojista e nenhum lead, a tabela continua com os cinco canais", () => {
+    const html = bloco(
+      semMovimento.map((item) =>
+        item.canal === "Eventos" ? { ...item, novos_lojistas: 1, dias_ate_fechar: 62 } : item,
+      ),
+    );
+
+    expect(html).not.toContain("Nenhum lead nem novo lojista");
+    expect(linhas(html)).toHaveLength(5);
+  });
+
+  it("com leads e nenhum novo lojista, a tabela continua com os cinco canais", () => {
+    const html = bloco(
+      semMovimento.map((item) =>
+        item.canal === "Orgânico" ? { ...item, leads: 2, conversao: 0 } : item,
+      ),
+    );
+
+    expect(html).not.toContain("Nenhum lead nem novo lojista");
+    expect(linhas(html)).toHaveLength(5);
+  });
+});
+
 describe("o bloco de desempenho dos canais enquanto carrega", () => {
-  const semResposta: FonteDeDados = { consultar: () => new Promise(() => {}) };
   const html = renderToStaticMarkup(
-    <BlocoDeDesempenhoDosCanais fonte={semResposta} periodo="30d" />,
+    <BlocoDeDesempenhoDosCanais estado={{ fase: "carregando" }} tentarDeNovo={() => {}} />,
   );
 
   it("mantém a moldura com o título e anuncia o carregamento", () => {

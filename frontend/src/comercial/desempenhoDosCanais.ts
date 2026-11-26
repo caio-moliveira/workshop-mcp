@@ -1,6 +1,15 @@
 /** O contrato de `GET /comercial/canais`: números crus e datas ISO. */
 
-import { type DatasDoPeriodo, eDatasDoPeriodo, eNumero, eObjeto, eUmDe } from "../painel/contrato";
+import {
+  type DatasDoPeriodo,
+  eContagem,
+  eDatasDoPeriodo,
+  eNumero,
+  eObjeto,
+  eUmDe,
+} from "../painel/contrato";
+import type { Periodo } from "../painel/periodo";
+import type { EstadoDoBloco } from "../useBloco";
 import { CANAIS, type Canal } from "./canais";
 
 export interface DesempenhoDoCanal {
@@ -24,8 +33,18 @@ export interface DesempenhoDosCanais {
   canais: DesempenhoDoCanal[];
 }
 
-function eContagem(valor: unknown): valor is number {
-  return Number.isInteger(valor) && (valor as number) >= 0;
+/** O caminho da rota dos canais num período: o painel a busca uma vez só. */
+export function rotaDosCanais(periodo: Periodo): string {
+  return `/comercial/canais?periodo=${periodo}`;
+}
+
+/**
+ * A busca da rota dos canais, feita uma vez no painel e entregue igual à tabela e ao gráfico: os
+ * dois carregam, falham e tentam de novo juntos.
+ */
+export interface BuscaDosCanais {
+  estado: EstadoDoBloco<DesempenhoDosCanais>;
+  tentarDeNovo: () => void;
 }
 
 function eNaoNegativo(valor: unknown): boolean {
@@ -60,6 +79,11 @@ export function eDesempenhoDosCanais(valor: unknown): valor is DesempenhoDosCana
     canais.every(eCanal) &&
     new Set(canais.map((item) => item.canal)).size === CANAIS.length
   );
+}
+
+/** Nenhum lead criado e nenhum novo lojista no período, em nenhum canal: não há o que mostrar. */
+export function semMovimento(canais: DesempenhoDoCanal[]): boolean {
+  return canais.every((item) => item.leads === 0 && item.novos_lojistas === 0);
 }
 
 /**

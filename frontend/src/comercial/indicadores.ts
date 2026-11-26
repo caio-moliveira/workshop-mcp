@@ -4,6 +4,7 @@ import {
   type Comparacao,
   type DatasDoPeriodo,
   eComparacao,
+  eContagem,
   eDatasDoPeriodo,
   eNumero,
   eNumeroOuNulo,
@@ -22,12 +23,21 @@ export interface IndicadoresDoComercial {
   novos_lojistas: Comparacao<number>;
   /** Média de dias da criação ao fechamento; `null` num período sem novo lojista. */
   dias_ate_fechar: number | null;
-  /** Novos lojistas ÷ leads do período, de 0 a 1; `null` num período sem lead. */
+  /**
+   * Novos lojistas ÷ leads do período, de 0 em diante; `null` num período sem lead. Não é uma
+   * coorte: passa de 1 quando leads antigos fecham num período de poucos leads.
+   */
   conversao: Comparacao<number | null>;
   /** O canal que trouxe mais leads no período; `null` num período sem lead. */
   principal_canal: Canal | null;
   /** A parte do principal canal nos leads do período, de 0 a 1; `null` junto com o canal. */
   parcela_do_principal_canal: number | null;
+}
+
+/** A conversão do período e a do anterior: razões de 0 em diante, sem teto em 1. */
+function eConversao(valor: unknown): boolean {
+  if (!eObjeto(valor) || !eComparacao(valor, true)) return false;
+  return [valor.atual, valor.anterior].every((razao) => razao === null || (razao as number) >= 0);
 }
 
 /** O nome do canal e a parcela dele vêm juntos, ou os dois vazios. */
@@ -41,10 +51,10 @@ export function eIndicadoresDoComercial(valor: unknown): valor is IndicadoresDoC
     eObjeto(valor) &&
     eDatasDoPeriodo(valor.periodo) &&
     eComparacao(valor.leads, false) &&
-    eNumero(valor.leads_em_negociacao) &&
+    eContagem(valor.leads_em_negociacao) &&
     eComparacao(valor.novos_lojistas, false) &&
     eNumeroOuNulo(valor.dias_ate_fechar) &&
-    eComparacao(valor.conversao, true) &&
+    eConversao(valor.conversao) &&
     ePrincipalCanal(valor.principal_canal, valor.parcela_do_principal_canal)
   );
 }

@@ -50,7 +50,18 @@ describe("validação da resposta de indicadores do Comercial", () => {
     expect(eIndicadoresDoComercial(corpo)).toBe(true);
   });
 
+  it("aceita a conversão acima de 1: leads antigos fecham num período de poucos leads", () => {
+    const corpo = resposta();
+    corpo.leads = { atual: 4, anterior: 3 };
+    corpo.novos_lojistas = { atual: 6, anterior: 6 };
+    corpo.conversao = { atual: 1.5, anterior: 2 };
+
+    expect(eIndicadoresDoComercial(corpo)).toBe(true);
+  });
+
   it.each([
+    ["conversão negativa", { ...resposta(), conversao: { atual: -0.1, anterior: 0.1 } }],
+    ["conversão anterior negativa", { ...resposta(), conversao: { atual: 0.1, anterior: -0.1 } }],
     ["nulo", null],
     ["lista", []],
     ["sem leads", { ...resposta(), leads: undefined }],
