@@ -1,8 +1,12 @@
 /* Os quatro gráficos pequenos lado a lado, dois a dois (o bloco ocupa 8/12 colunas no desktop),
-   e empilhados no celular (FE §11). Cada um tem a própria escala. */
+   e empilhados no celular (FE §11). Cada um tem a própria escala. Lado a lado com os fatores, o
+   cartão estica até a altura deles: as duas linhas dividem a sobra e os gráficos crescem, sem o
+   vazio embaixo. Empilhado, o cartão tem a altura do conteúdo e nada muda. */
 .grade {
   display: grid;
+  flex: 1 1 auto;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: 1fr;
   gap: var(--espaco-4);
   margin: 0;
 }
@@ -21,11 +25,14 @@
   font-weight: var(--peso-medio);
 }
 
-/* O Recharts (prop `responsive`) mede esta caixa: altura fixa, largura da coluna. */
+/* O Recharts (prop `responsive`) mede esta caixa: 160px no mínimo, mais a sobra do cartão, e a
+   largura da coluna. A base e o mínimo explícitos impedem que o próprio gráfico desenhado empurre a
+   caixa ao voltar para um cartão mais baixo. */
 .grafico {
+  flex: 1 1 160px;
   width: 100%;
-  height: 160px;
   min-width: 0;
+  min-height: 160px;
 }
 
 @media (max-width: 767px) {

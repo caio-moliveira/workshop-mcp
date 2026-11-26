@@ -13,7 +13,8 @@ interface Propriedades {
   children: ReactNode;
   /**
    * `livre` quando o conteúdo são vários gráficos pequenos, cada um com a própria altura, e a
-   * área cresce com eles em vez de ter a altura fixa de um gráfico só.
+   * área cresce com eles em vez de ter a altura fixa de um gráfico só. Se o painel for mais alto
+   * que o conteúdo (esticado ao lado de outro bloco), a área ocupa a sobra, e o conteúdo a reparte.
    */
   altura?: "fixa" | "livre";
 }
