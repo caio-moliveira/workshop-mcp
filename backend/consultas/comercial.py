@@ -11,14 +11,16 @@ from datetime import date
 import psycopg
 
 from acesso import Perfil
-from consultas.lead import Canal, Etapa
+from consultas.lead import ETAPAS_EM_NEGOCIACAO, Canal, Etapa
 from consultas.periodo import DatasDoPeriodo, Periodo, inicio_dos_dados, terminado_em
 from consultas.registro import consulta
 
-# Lead em negociação: ainda não fechou nem foi perdido (glossário).
-ETAPAS_EM_NEGOCIACAO = ["Novo", "Contatado", "Qualificado", "Proposta"]
-# As seis etapas na ordem do funil, com Perdido por último (glossário).
-ETAPAS_DO_FUNIL = [*ETAPAS_EM_NEGOCIACAO, "Fechado", "Perdido"]
+# As listas de texto que as consultas levam ao banco, tiradas das enumerações do lead: as
+# etapas em negociação, as seis etapas na ordem do funil e os cinco canais (a resposta dos
+# canais traz sempre todos, mesmo o que não teve lead).
+_EM_NEGOCIACAO = [etapa.value for etapa in ETAPAS_EM_NEGOCIACAO]
+_ETAPAS_DO_FUNIL = [etapa.value for etapa in Etapa]
+_CANAIS = [canal.value for canal in Canal]
 
 
 @dataclass(frozen=True)
@@ -44,7 +46,7 @@ def _datas_do(periodo: Periodo, conexao: psycopg.Connection) -> DatasDoPeriodo:
 
 
 def _parametros(datas: DatasDoPeriodo) -> dict:
-    return {"inicio": datas.inicio, "fim": datas.fim, "em_negociacao": ETAPAS_EM_NEGOCIACAO}
+    return {"inicio": datas.inicio, "fim": datas.fim, "em_negociacao": _EM_NEGOCIACAO}
 
 
 def _resumo(conexao: psycopg.Connection, datas: DatasDoPeriodo) -> _Resumo:
@@ -145,16 +147,12 @@ def funil(conexao: psycopg.Connection, periodo: Periodo) -> dict:
         group by e.etapa, e.ordem
         order by e.ordem
         """,
-        {"inicio": datas.inicio, "fim": datas.fim, "etapas": ETAPAS_DO_FUNIL},
+        {"inicio": datas.inicio, "fim": datas.fim, "etapas": _ETAPAS_DO_FUNIL},
     ).fetchall()
     return {
         "periodo": datas.como_json(),
         "etapas": [{"etapa": etapa, "leads": leads} for etapa, leads in linhas],
     }
-
-
-# Os canais do glossário: a resposta dos canais traz sempre todos, mesmo o que não teve lead.
-CANAIS = ["Indicação", "Orgânico", "Mídia paga", "Eventos", "Prospecção ativa"]
 
 
 @consulta(Perfil.COMERCIAL)
@@ -191,7 +189,7 @@ def canais(conexao: psycopg.Connection, periodo: Periodo) -> dict:
             leads desc,
             canal
         """,
-        {**_parametros(datas), "canais": CANAIS},
+        {**_parametros(datas), "canais": _CANAIS},
     ).fetchall()
     return {
         "periodo": datas.como_json(),
