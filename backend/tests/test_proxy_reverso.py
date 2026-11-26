@@ -6,11 +6,12 @@ internet, e comparam as respostas com as do serviço alcançado direto.
 
 import json
 import re
+import subprocess
 from collections.abc import Iterator
 
 import httpx
 import pytest
-from apoio import compose
+from apoio import RAIZ_DO_PROJETO, compose
 from cliente_mcp import (
     CAMINHO_DOS_METADADOS,
     MCP_DO_AMBIENTE,
@@ -127,6 +128,48 @@ def test_tunel_so_sobe_com_o_perfil_tunel():
     assert com_perfil.returncode == 0, com_perfil.stderr
     assert "tunel" not in sem_perfil.stdout.split()
     assert "tunel" in com_perfil.stdout.split()
+    assert "tunel-nomeado" not in com_perfil.stdout.split()
+
+
+def test_tunel_nomeado_so_sobe_com_o_proprio_perfil():
+    sem_perfil = compose("config", "--services")
+    com_perfil = compose("--profile", "tunel-nomeado", "config", "--services")
+
+    assert com_perfil.returncode == 0, com_perfil.stderr
+    assert "tunel-nomeado" not in sem_perfil.stdout.split()
+    assert "tunel-nomeado" in com_perfil.stdout.split()
+    assert "tunel" not in com_perfil.stdout.split()
+
+
+def test_tunel_nomeado_le_o_token_de_um_arquivo_e_aponta_para_o_proxy():
+    """O token não passa pelo backend/.env: o contêiner do túnel não recebe as senhas do projeto."""
+    config = compose("--profile", "tunel-nomeado", "config", "--format", "json")
+    assert config.returncode == 0, config.stderr
+    servicos = json.loads(config.stdout)["services"]
+    tunel = servicos["tunel-nomeado"]
+
+    assert "env_file" not in tunel
+    assert "--token-file" in tunel["command"]
+    assert "--token" not in tunel["command"]
+    montagens = [v["target"] for v in tunel.get("volumes", [])]
+    arquivo_do_token = tunel["command"][tunel["command"].index("--token-file") + 1]
+    assert arquivo_do_token in montagens
+    assert all(v.get("read_only") for v in tunel["volumes"])
+    assert "proxy" in tunel["depends_on"]
+    # Nenhum outro serviço monta o arquivo do token.
+    for nome, servico in servicos.items():
+        if nome != "tunel-nomeado":
+            fontes = [v.get("source", "") for v in servico.get("volumes", [])]
+            assert not any("token-do-tunel" in fonte for fonte in fontes), nome
+
+
+def test_o_arquivo_do_token_do_tunel_fica_fora_do_git():
+    resultado = subprocess.run(
+        ["git", "check-ignore", "-q", "backend/token-do-tunel"],
+        cwd=RAIZ_DO_PROJETO,
+        check=False,
+    )
+    assert resultado.returncode == 0
 
 
 @pytest.mark.parametrize(
