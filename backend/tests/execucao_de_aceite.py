@@ -153,6 +153,7 @@ class Contexto:
 
     def __init__(self, endereco_da_api: str = API, endereco_do_mcp: str = MCP_DO_AMBIENTE) -> None:
         self.api = httpx.Client(base_url=endereco_da_api, timeout=30)
+        self.endereco_do_mcp = endereco_do_mcp
         self.mcp = httpx.Client(base_url=endereco_do_mcp, timeout=30)
         self._tokens: dict[tuple[str, str], tuple[str, float]] = {}
         self._historico: HistoricoNoBanco | None = None
@@ -777,14 +778,26 @@ def cenarios_do_limite(servidor: str | Starlette = MCP_DO_AMBIENTE) -> list[Cena
 # --- Assistente, com o modelo roteirizado ---
 
 PERGUNTA_AO_ASSISTENTE = "Quanto vendemos no último mês?"
-# O que o cenário mostra quando a ferramenta de outro perfil é recusada: o nome que o servidor não
-# listou para o token é recusado dentro da API, sem chegar ao servidor.
-RECUSA_NO_ASSISTENTE = "Recusada na chamada: a ferramenta não está na lista do token."
 
 
-def _api_com_modelo(modelo, historico: HistoricoNoBanco, consultas: ExecutorDeConsultas):
-    """A API criada pela fábrica, dentro do processo, com o modelo dado e o serviço `mcp` do
-    compose: o assistente chama o servidor MCP com o token de quem pergunta."""
+def _recusa_de_ferramenta_desconhecida(retorno: ToolReturnPart) -> bool:
+    """A recusa que o assistente devolve ao modelo quando ele pede um nome que o servidor MCP não
+    listou para o token: uma nova tentativa por ferramenta desconhecida, sem chegar ao servidor.
+
+    O texto dela ("Unknown tool name: ... Available tools: ...") cita as ferramentas do perfil;
+    por isso o cenário grava, no lugar dele, a mensagem genérica da ferramenta desconhecida."""
+    return (
+        retorno.outcome == "retried"
+        and retorno.retry is not None
+        and retorno.retry.cause == "unknown_tool"
+    )
+
+
+def _api_com_modelo(
+    modelo, historico: HistoricoNoBanco, consultas: ExecutorDeConsultas, endereco_do_mcp: str
+):
+    """A API criada pela fábrica, dentro do processo, com o modelo dado e o servidor MCP do
+    contexto: o assistente chama o servidor MCP com o token de quem pergunta."""
     configuracao = ConfiguracaoDeAcesso(
         emissor=emissor(),
         destinatario=DESTINATARIO_DA_API,
@@ -795,19 +808,23 @@ def _api_com_modelo(modelo, historico: HistoricoNoBanco, consultas: ExecutorDeCo
         origem_do_frontend=variavel("ENDERECO_DO_FRONTEND"),
         consultas=consultas,
         modelo=modelo,
-        endereco_do_mcp=MCP_DO_AMBIENTE + CAMINHO,
+        endereco_do_mcp=endereco_do_mcp + CAMINHO,
         historico=historico,
     )
     return TestClient(aplicacao)
 
 
 def pergunta_ao_assistente(
-    id: str, descricao: str, nome_de_usuario: str, ferramenta: str
+    id: str,
+    descricao: str,
+    nome_de_usuario: str,
+    ferramenta: str,
+    argumentos: dict[str, str] | None = None,
 ) -> CenarioDeSeguranca:
-    """O usuário pergunta ao assistente, e o modelo roteirizado chama a ferramenta dada. O esperado
-    vem do registro de donos das ferramentas."""
+    """O usuário pergunta ao assistente, e o modelo roteirizado chama a ferramenta dada, por padrão
+    com os argumentos mínimos dela. O esperado vem do registro de donos das ferramentas."""
     demonstracao = _usuario(nome_de_usuario)
-    argumentos = {**argumentos_minimos(ferramenta), "periodo": "30d"}
+    argumentos = argumentos or {**argumentos_minimos(ferramenta), "periodo": "30d"}
     esperado: Desfecho = (
         "permitido" if DONO_DA_FERRAMENTA[ferramenta] is demonstracao.perfil else "negado"
     )
@@ -822,7 +839,7 @@ def pergunta_ao_assistente(
         )
         antes = _ultimo_id_da_auditoria()
         with ExecutorDeConsultas(banco_local(), credenciais_do_ambiente()) as consultas:
-            api = _api_com_modelo(modelo, historico, consultas)
+            api = _api_com_modelo(modelo, historico, consultas, contexto.endereco_do_mcp)
             resposta = perguntar(api, token, {"pergunta": PERGUNTA_AO_ASSISTENTE})
             lidos = eventos(resposta)
         # A conversa da pergunta é só da execução: sai do histórico.
@@ -834,27 +851,33 @@ def pergunta_ao_assistente(
         linhas = _linhas_da_auditoria_desde(do_token["sub"], antes)
         retornos = [
             parte
-            for mensagem in vistos["mensagens"]
+            for mensagem in vistos.get("mensagens", [])
             if isinstance(mensagem, ModelRequest)
             for parte in mensagem.parts
-            if isinstance(parte, ToolReturnPart) and parte.outcome == "success"
+            if isinstance(parte, ToolReturnPart) and parte.tool_name == ferramenta
         ]
-        if retornos:
+        sucesso = next((r for r in retornos if r.outcome == "success"), None)
+        if sucesso:
             [linha] = linhas or [None]
             return Observado(
                 "permitido",
-                Resposta(status=resposta.status_code, linhas=_linhas(retornos[0].content)),
+                Resposta(status=resposta.status_code, linhas=_linhas(sucesso.content)),
                 linha,
                 confere=len(linhas) == 1
                 and linha.usuario == do_token["name"]
                 and linha.ferramenta == ferramenta
                 and linha.resultado == "permitida",
             )
-        # Negada antes do servidor: nenhuma linha nova na auditoria, muito menos uma permitida.
+        recusada = any(_recusa_de_ferramenta_desconhecida(r) for r in retornos)
         return Observado(
             "negado",
-            Resposta(status=resposta.status_code, mensagem=RECUSA_NO_ASSISTENTE),
-            confere=not linhas,
+            Resposta(
+                status=resposta.status_code,
+                mensagem=mensagens.FERRAMENTA_DESCONHECIDA if recusada else None,
+            ),
+            # Recusada antes do servidor: nenhuma linha nova na auditoria. Qualquer outra falha
+            # (o servidor fora do ar, um argumento inválido) não é a negação esperada.
+            confere=recusada and not linhas,
         )
 
     return CenarioDeSeguranca(
