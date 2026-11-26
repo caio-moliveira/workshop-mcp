@@ -175,7 +175,7 @@ _Avoid_: Produto ruim, produto problemático, produto com reclamação
 ### Comercial
 
 **Lead**:
-Uma empresa em negociação para se tornar lojista.
+Uma empresa que entrou no funil para se tornar lojista, esteja em negociação, fechada ou perdida.
 _Avoid_: Prospecto, oportunidade, contato
 
 **Canal**:
@@ -185,3 +185,19 @@ _Avoid_: Origem, origem do lojista, fonte
 **Etapa do funil**:
 A posição de um lead na negociação: Novo, Contatado, Qualificado, Proposta, Fechado ou Perdido.
 _Avoid_: Status do lead, fase, estágio
+
+**Lead em negociação**:
+Um lead que ainda não fechou nem foi perdido: está em Novo, Contatado, Qualificado ou Proposta.
+_Avoid_: Lead aberto, lead ativo, oportunidade
+
+**Lead perdido**:
+Um lead na etapa Perdido, cuja negociação terminou sem ele virar lojista.
+_Avoid_: Lead descartado, lead inativo, churn
+
+**Novo lojista**:
+Um lead que fechou, contado no dia do fechamento.
+_Avoid_: Lead convertido, lojista ativo, cliente novo
+
+**Conversão**:
+O número de novos lojistas de um período dividido pelo número de leads criados no mesmo período, no total ou por canal. É uma razão entre dois movimentos do período, não a parte de um conjunto: um lead criado antes do período pode fechar dentro dele.
+_Avoid_: Taxa de fechamento, taxa de aprovação (que é de Vendas), aproveitamento
