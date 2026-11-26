@@ -186,6 +186,19 @@ uv run python tests/execucao_de_aceite.py
 
 Ela mostra o andamento e o resumo e grava o resultado em `backend/execucao-de-aceite/ultima-execucao.json`, no lugar do anterior; a pasta não é versionada e o contêiner da API a monta só para leitura. Recarregue o painel para ver a nova execução. O comando termina com código 1 se algum cenário divergiu. O esperado de cada cenário vem dos registros de donos das rotas e das ferramentas; um resultado diferente é gravado como divergência, nunca escondido. Rode o comando a partir do checkout em que o compose foi subido: é a pasta dele que a API lê.
 
+**Banco, limite de frequência e assistente.** Os cenários do Banco conectam ao Postgres com a credencial de cada papel, lida do `backend/.env`, e nenhuma senha vai para o resultado. O do assistente cria a API dentro do processo com um modelo roteirizado, que chama o serviço `mcp` do compose com o token do usuário; a ferramenta de outro perfil é recusada dentro da API, sem chegar ao servidor MCP, e por isso não deixa linha na auditoria. A execução também confere que o banco está no estado da carga (a data de referência da configuração da carga e as contagens de referência de cada tabela dos dados de origem) e avisa no terminal e no painel quando não está; nesse caso, rode a recarga.
+
+**O limite padrão e o limite alto.** O cenário do limite de frequência faz `vitor.vendas` passar de 30 chamadas por minuto e mostra `ana.vendas` passando logo depois. Ele exige o servidor MCP no limite padrão, o da execução de aceite e do workshop; a suíte precisa do limite alto. Na raiz do projeto, a partir do checkout principal:
+
+```
+# limite padrão (execução de aceite e workshop)
+docker compose up -d --wait mcp
+# limite alto (suíte)
+LIMITE_DE_CHAMADAS_POR_USUARIO=100000 docker compose up -d --wait mcp
+```
+
+Com o limite alto, o cenário do limite aparece como divergência, e o comando termina com código 1: é o comportamento certo. Depois de rodar a execução de aceite no limite padrão, espere um minuto antes de demonstrar o `vitor.vendas`, que fica barrado até a janela passar.
+
 **A matriz completa.** Depois dos cenários, o mesmo comando percorre todos os pares de rotas e de ferramentas contra os quatro perfis, lidos dos registros de donos (hoje 17 rotas e 18 ferramentas, 140 pares): só o dono é permitido, e um par com resultado diferente do esperado, inclusive uma negação com outra resposta que não a genérica, conta como divergência e aparece no terminal. Os tokens são os dos cenários, e as ferramentas de cada perfil são chamadas numa sessão só do cliente MCP. Os cartões da matriz completa, no painel, mostram os pares executados, os permitidos, os negados e as divergências, para mostrar que os cenários da tela são uma amostra de uma verificação exaustiva. O comando termina com código 1 também se a matriz divergiu.
 
 Tempo do comando, medido contra o compose com o servidor MCP no limite alto da suíte (entrega 11, ticket #108, com os cinco cenários da API): 24,4 s com a matriz completa e 13,3 s sem ela. A matriz em si leva cerca de 2,6 s; o resto da diferença é o login dos dois perfis que só ela usa, cerca de 4 s cada. Como cabe com folga nos 2 minutos, a matriz roda sempre, sem opção, e a data dela é a da própria execução. No limite padrão, de 30 chamadas por minuto, a matriz faz 18 chamadas por usuário: espere um minuto entre duas execuções seguidas, senão o limite barra as chamadas da segunda e elas aparecem como divergência.

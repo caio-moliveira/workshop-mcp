@@ -123,6 +123,82 @@ describe("painel de segurança com uma divergência", () => {
   });
 });
 
+describe("painel de segurança com os grupos Banco, Limite de frequência e Assistente", () => {
+  const banco = cenario({
+    id: "banco-vendas-le-a-camada-da-diretoria",
+    descricao: "O papel vendas é recusado na camada da Diretoria",
+    grupo: "banco",
+    quem: { tipo: "papel", nome: "vendas" },
+    alvo: { tipo: "camada_de_leitura", nome: "diretoria.indicadores", parametros: {} },
+    camadas_de_defesa: ["banco"],
+    resposta: {
+      status: null,
+      mensagem: "Recusado pelo banco: o papel não tem o privilégio (42501).",
+      linhas: null,
+    },
+  });
+  const limite = cenario({
+    id: "limite-vitor-passa-do-limite",
+    descricao: "vitor.vendas faz 31 chamadas seguidas e é barrado",
+    grupo: "limite_de_frequencia",
+    quem: { tipo: "usuario", nome: "vitor.vendas" },
+    alvo: { tipo: "ferramenta", nome: "vendas_indicadores", parametros: { periodo: "30d" } },
+    camadas_de_defesa: ["limite_de_frequencia"],
+    resposta: {
+      status: null,
+      mensagem: "Muitas chamadas em pouco tempo. Tente de novo em instantes.",
+      linhas: null,
+    },
+  });
+  const assistente = cenario({
+    id: "assistente-ferramenta-de-outro-perfil",
+    descricao: "O modelo tenta uma ferramenta de outro perfil e é negado na chamada",
+    grupo: "assistente",
+    quem: { tipo: "usuario", nome: "bruno.produtos" },
+    perfil: "produtos",
+    alvo: { tipo: "assistente", nome: "/assistente", parametros: {} },
+    camadas_de_defesa: ["lista_de_ferramentas", "chamada"],
+  });
+  const marcacao = pronto({ execucao: execucao([assistente, limite, banco]) });
+
+  it("mostra os três grupos, na ordem das camadas de defesa", () => {
+    const grupos = [...marcacao.matchAll(/<th[^>]*scope="rowgroup"[^>]*>([^<]+)<\/th>/g)].map(
+      (m) => m[1],
+    );
+    expect(grupos).toEqual(["Banco", "Limite de frequência", "Assistente"]);
+  });
+
+  it("um cenário do banco mostra o papel e a recusa, sem status HTTP", () => {
+    const [linhaDoBanco] = linhas(marcacao);
+    expect(linhaDoBanco).toContain("vendas");
+    expect(linhaDoBanco).toContain(">Recusado pelo banco: o papel não tem o privilégio (42501).<");
+  });
+
+  it("o limite mostra a mensagem genérica da barreira", () => {
+    expect(linhas(marcacao)[1]).toContain("Muitas chamadas em pouco tempo.");
+  });
+});
+
+describe("painel de segurança com a conferência da carga", () => {
+  it("diz quando o banco está no estado da carga", () => {
+    const carga = { confere: true, data_de_referencia: "2026-11-30", detalhe: null };
+    const marcacao = pronto({ execucao: { ...execucao(), carga } });
+    expect(marcacao).toContain("O banco está no estado da carga.");
+  });
+
+  it("avisa quando não está, com o que difere", () => {
+    const carga = {
+      confere: false,
+      data_de_referencia: "2026-11-30",
+      detalhe: "pedido com 100 linhas, esperadas 29999",
+    };
+    const marcacao = pronto({ execucao: { ...execucao(), carga } });
+    expect(marcacao).toContain(
+      "O banco não está no estado da carga: pedido com 100 linhas, esperadas 29999",
+    );
+  });
+});
+
 describe("cartões da matriz completa", () => {
   const MATRIZ = {
     executada_em: "2026-11-26T14:03:40+00:00",
