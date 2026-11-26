@@ -7,10 +7,16 @@ from registros import DONO_DA_FERRAMENTA, DONO_DA_ROTA
 from aceite import CAMADAS_DE_DEFESA, GRUPOS
 from acesso import Perfil
 
-# Os grupos da matriz que já têm cenários. Cada entrega de cenários acrescenta os seus aqui.
-GRUPOS_COBERTOS = {"api"}
-GRUPOS_COBERTOS |= {"token", "lista_de_ferramentas", "chamada"}
-GRUPOS_COBERTOS |= {"banco", "limite_de_frequencia", "assistente"}
+# Os grupos da matriz, todos com cenários.
+GRUPOS_COBERTOS = {
+    "token",
+    "lista_de_ferramentas",
+    "chamada",
+    "api",
+    "banco",
+    "limite_de_frequencia",
+    "assistente",
+}
 
 # O esperado de cada cenário do Banco, escrito à parte: cada papel lê só a própria camada de
 # leitura, nenhum lê os dados de origem e nenhum escreve (ADR 0002).
