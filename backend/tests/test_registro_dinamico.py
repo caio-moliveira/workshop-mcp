@@ -145,9 +145,17 @@ def test_vendas_lista_as_cinco_ferramentas_e_chama_uma(retorno):
     assert resultado.structured_content
 
 
-def test_a_diretoria_recebe_a_lista_vazia():
-    """Mesmo assistente, outro perfil: o servidor MCP só lista as ferramentas do perfil do token."""
-    assert listar_ferramentas(MCP_DO_AMBIENTE, _token(_assistente(), Perfil.DIRETORIA)) == []
+@pytest.mark.parametrize("perfil", list(Perfil), ids=str)
+def test_o_token_de_cada_perfil_lista_exatamente_as_ferramentas_do_perfil(perfil):
+    """Mesmo assistente, perfis diferentes: o servidor MCP só lista as ferramentas do perfil do
+    token, lidas do registro. Nenhum perfil fica sem ferramenta; a lista vazia é a do perfil sem
+    credencial configurada (test_tokens_forjados_no_mcp.py)."""
+    token = _token(_assistente(), perfil)
+
+    listadas = sorted(f.name for f in listar_ferramentas(MCP_DO_AMBIENTE, token))
+
+    assert listadas
+    assert listadas == ferramentas_de(perfil)
 
 
 def test_a_api_recusa_o_token_do_assistente(api):
