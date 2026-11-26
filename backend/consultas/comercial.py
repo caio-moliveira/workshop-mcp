@@ -123,3 +123,58 @@ def indicadores(conexao: psycopg.Connection, periodo: Periodo) -> dict:
         "principal_canal": None if principal is None else principal[0],
         "parcela_do_principal_canal": None if principal is None else principal[1] / agora.leads,
     }
+
+
+# Os canais do glossário: a resposta dos canais traz sempre todos, mesmo o que não teve lead.
+CANAIS = ["Indicação", "Orgânico", "Mídia paga", "Eventos", "Prospecção ativa"]
+
+
+@consulta(Perfil.COMERCIAL)
+def canais(conexao: psycopg.Connection, periodo: Periodo) -> dict:
+    """Os cinco canais, da maior conversão do período para a menor.
+
+    De cada um: os leads criados no período, os novos lojistas (pela data de fechamento), a
+    conversão e os dias médios até fechar. Não há mínimo de leads: as contagens vão sempre ao lado
+    da conversão. A conversão é `None` no canal sem lead criado no período, que vem por último, e
+    os dias são `None` no canal sem fechamento. No empate da conversão, vem primeiro o canal de
+    mais novos lojistas, depois o de mais leads e, persistindo, a ordem alfabética.
+    """
+    datas = _datas_do(periodo, conexao)
+    linhas = conexao.execute(
+        """
+        with do_canal as (
+            select
+                c.canal,
+                count(*) filter (where l.data_criacao between %(inicio)s and %(fim)s) as leads,
+                count(*) filter (where l.data_fechamento between %(inicio)s and %(fim)s)
+                    as novos_lojistas,
+                (avg(l.data_fechamento - l.data_criacao)
+                    filter (where l.data_fechamento between %(inicio)s and %(fim)s))::float
+                    as dias_ate_fechar
+            from unnest(%(canais)s::text[]) as c (canal)
+            left join comercial.lead l on l.canal = c.canal
+            group by c.canal
+        )
+        select canal, leads, novos_lojistas, dias_ate_fechar
+        from do_canal
+        order by
+            novos_lojistas::float / nullif(leads, 0) desc nulls last,
+            novos_lojistas desc,
+            leads desc,
+            canal
+        """,
+        {**_parametros(datas), "canais": CANAIS},
+    ).fetchall()
+    return {
+        "periodo": datas.como_json(),
+        "canais": [
+            {
+                "canal": canal,
+                "leads": leads,
+                "novos_lojistas": novos_lojistas,
+                "conversao": novos_lojistas / leads if leads else None,
+                "dias_ate_fechar": dias_ate_fechar,
+            }
+            for canal, leads, novos_lojistas, dias_ate_fechar in linhas
+        ],
+    }
