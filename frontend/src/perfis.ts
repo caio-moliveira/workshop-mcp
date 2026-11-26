@@ -33,6 +33,7 @@ export const DESCRICAO_DOS_PERFIS: Record<Perfil, DescricaoDoPerfil> = {
     nome: "Comercial",
     cor: "var(--perfil-comercial)",
     rotuloDoPainel: "Painel Comercial",
+    perguntaSugerida: "Qual canal traz os leads que mais convertem?",
   },
   diretoria: {
     nome: "Diretoria",

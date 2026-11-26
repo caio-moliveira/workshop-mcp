@@ -4,7 +4,9 @@ import linha from "../painel/LinhaAnalitica.module.css";
 import { usePeriodoDaUrl } from "../painel/usePeriodoDaUrl";
 import { DESCRICAO_DOS_PERFIS } from "../perfis";
 import type { FonteDeDados } from "../useBloco";
+import { BlocoDeDesempenhoDosCanais } from "./BlocoDeDesempenhoDosCanais";
 import { BlocoDeIndicadores } from "./BlocoDeIndicadores";
+import { BlocoDeNovosLojistasPorCanal } from "./BlocoDeNovosLojistasPorCanal";
 import { BlocoDoFunil } from "./BlocoDoFunil";
 
 interface Propriedades {
@@ -32,7 +34,11 @@ export function PainelDoComercial({ fonte, primeiroNome }: Propriedades) {
         <div className={linha.principal}>
           <BlocoDoFunil fonte={fonte} periodo={periodo} />
         </div>
+        <div className={linha.complementar}>
+          <BlocoDeNovosLojistasPorCanal fonte={fonte} periodo={periodo} />
+        </div>
       </div>
+      <BlocoDeDesempenhoDosCanais fonte={fonte} periodo={periodo} />
     </>
   );
 }

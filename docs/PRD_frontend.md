@@ -131,11 +131,11 @@ Manter a mesma arquitetura de página para todos, mas trocar os nomes e tipos de
 - Pergunta sugerida: **“Quais categorias concentram as piores notas?”**
 
 ### Comercial
-- KPIs: leads, novos lojistas, conversão, principais origens.
+- KPIs: leads, novos lojistas, conversão, principal canal.
 - Gráfico principal: funil de captação até conversão.
-- Gráfico secundário: origem dos lojistas.
-- Tabela: canais de aquisição / desempenho.
-- Pergunta sugerida: **“Qual origem traz os lojistas que mais convertem?”**
+- Gráfico secundário: novos lojistas por canal.
+- Tabela: desempenho dos canais.
+- Pergunta sugerida: **“Qual canal traz os leads que mais convertem?”**
 
 ### Diretoria
 - KPIs: receita consolidada, recompra, satisfação e retenção.
