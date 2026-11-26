@@ -25,6 +25,10 @@ Fica fora do escopo:
 - Acesso de usuários externos à empresa.
 - Filtro por linha dentro de um mesmo perfil.
 
+### Ambiente do workshop
+
+O projeto é apresentado num workshop sobre MCP, com o ambiente local: aplicação, API, servidor MCP, provedor de identidade e banco rodam no compose da máquina do apresentador, e só os clientes externos (Claude e ChatGPT) entram por um túnel com HTTPS. O aceite (CA-01 a CA-08) é feito nesse ambiente. Nenhum requisito sai: RNF-02 e a parte de RS-10 que exige endereço público ficam para depois do workshop, quando a questão do provedor de nuvem e do domínio for decidida.
+
 ## Perfis e regra de acesso
 
 Cada usuário tem exatamente um perfil, e cada perfil lê apenas o próprio conjunto de dados, na tela e no chat.
@@ -173,7 +177,7 @@ O projeto está pronto quando os oito critérios abaixo passam, os sete primeiro
 Duas decisões ainda dependem de definição e podem mudar requisitos acima. Três já foram tomadas e ficam marcadas.
 
 - [x] Qual provedor de modelo de linguagem o chat usa por padrão? Decidido na entrega 5a: Anthropic, com o modelo `anthropic:claude-haiku-5-5`, trocável pela variável `MODELO_DO_ASSISTENTE` sem mudança de código (RF-16). A chave fica em `ANTHROPIC_API_KEY`.
-- [ ] Qual provedor de nuvem e qual domínio hospedam o ambiente público?
+- [ ] Qual provedor de nuvem e qual domínio hospedam o ambiente público? Adiada para depois do workshop; não bloqueia o aceite (veja Ambiente do workshop).
 - [x] Como o agente do chat obtém um token aceito pelo servidor MCP: um token com dois destinatários ou uma troca de token? Decidido na entrega 4a: dois destinatários, sem troca de token (`docs/adr/0006-token-da-aplicacao-com-dois-destinatarios.md`).
 - [ ] A meta de 3 segundos do RNF-05 é adequada? É um valor inicial, sem medição.
 - [x] Qual é o limite de chamadas por usuário do RS-11? Decidido na entrega 4b: 30 chamadas por usuário por minuto, em janela deslizante, configurável pelas variáveis `LIMITE_DE_CHAMADAS_POR_USUARIO` e `JANELA_DO_LIMITE_EM_SEGUNDOS`.

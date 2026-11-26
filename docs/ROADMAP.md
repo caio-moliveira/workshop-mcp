@@ -24,18 +24,23 @@ Fontes dos requisitos:
 | 2 | Login e perfil | 1 | Concluída |
 | 3 | Vendas na tela | 2 | Concluída |
 | 4a | Servidor MCP de Vendas | 3 | Concluída |
-| V1 | Verificação com túnel: Claude e ChatGPT | 4a | Concluída (Claude verificado; ChatGPT pendente para a 7) |
+| V1 | Verificação com túnel: Claude e ChatGPT | 4a | Concluída (Claude verificado; ChatGPT pendente para a 11) |
 | 4b | Auditoria e limite de frequência | 4a | Concluída |
 | 5a | Chat de Vendas no painel lateral | 4b | Concluída |
 | 5b | Chat expandido, rastreio e histórico | 5a | Concluída |
 | 8 | Perfil Produtos | 5b | Concluída (roteiro executado em 26/11/2026, no fechamento da 9) |
 | 9 | Perfil Comercial | 8 | Concluída |
 | 10 | Perfil Diretoria | 9 | Concluída |
-| 6 | Ambiente público | 4a | Bloqueada: nuvem e domínio |
-| 7 | Claude e ChatGPT no ambiente público | 6, V1 | Bloqueada pela 6 |
-| 11 | Painel de demonstração e aceite final | 7, 10 | Bloqueada pela 7 |
+| 11 | Painel de demonstração e aceite final | 10, V1 | Próxima |
 
-As entregas 6 e 7 mantêm seus números, mas ficam para depois: a decisão de nuvem e domínio foi adiada. As entregas 8 a 10 não dependem delas e seguem enquanto isso. A verificação V1 antecipa o maior risco da 7 sem depender da nuvem.
+Depois do workshop:
+
+| # | Entrega | Depende de | Situação |
+| --- | --- | --- | --- |
+| 6 | Ambiente público | 4a | Adiada: nuvem e domínio |
+| 7 | Claude e ChatGPT no ambiente público | 6, 11 | Adiada |
+
+O projeto é apresentado num workshop sobre MCP, com o ambiente local: tudo roda no compose da máquina do apresentador, e só os clientes externos (Claude e ChatGPT) entram por um túnel com HTTPS, como na V1. Os conceitos do workshop (o fluxo de autorização do protocolo, as ferramentas por perfil, o papel do banco por perfil, a auditoria e o limite de frequência) não dependem de um endereço público. Por isso a 11 depende só da 10 e da V1, e fecha pelo túnel o que antes era da 7: o ChatGPT, o RF-27 a RF-29 e o CA-06. As entregas 6 e 7 mantêm seus números e ficam para depois do workshop, sem prazo: entram quando a decisão de nuvem e domínio for tomada, e a 7 passa a ser só repetir no endereço público o que a 11 fez pelo túnel.
 
 ## Entregas
 
@@ -91,7 +96,7 @@ As entregas 6 e 7 mantêm seus números, mas ficam para depois: a decisão de nu
   - Roteiro manual: conectar cada cliente, fazer login como Vendas e obter uma resposta.
   - Registro do que precisou ser ajustado no provedor de identidade e no servidor para cada cliente.
 - **Depende de:** 4a.
-- **Cobre:** RF-27 e RF-28 (verificação antecipada; o fechamento é na entrega 7).
+- **Cobre:** RF-27 e RF-28 (verificação antecipada; o fechamento é na entrega 11, pelo túnel).
 - **Observação:** é uma verificação de risco, não o ambiente definitivo. Se ela mostrar que o fluxo de autorização exige mudanças, elas entram antes da 4b.
 - **Resultado (24/11/2026):** concluída com o Claude, no roteiro `docs/demonstracao/verificacao-v1.md`. O Claude se registrou sozinho, levou ao login de `ana.vendas` e chamou o servidor MCP; `diego.diretoria` viu a lista vazia. O Claude exigiu dois ajustes no realm: a política de escopos do registro anônimo passou a aceitar `openid`, e o escopo `pulso-mcp` passou a trazer o nome do usuário (ADR 0007).
 - **Lacunas:** o ChatGPT não foi verificado, por decisão do usuário. O endereço de retorno dele já é aceito pelo registro anônimo (teste automático), mas o fluxo completo fica para a entrega 7. Do Claude, a verificação registrou as chamadas ao servidor MCP com 200, mas não anotou os números da resposta: conferi-los com o painel na próxima execução.
@@ -139,6 +144,7 @@ As entregas 6 e 7 mantêm seus números, mas ficam para depois: a decisão de nu
 - **Depende de:** 4a (tecnicamente); na prática entra quando a decisão de nuvem e domínio for tomada.
 - **Cobre:** RS-10, RNF-02.
 - **Bloqueada por:** provedor de nuvem e domínio.
+- **Situação (26/11/2026):** adiada para depois do workshop. O workshop usa o ambiente local, com os clientes externos pelo túnel (veja a Ordem). RS-10 fica coberto em parte pelo túnel, na V1 e na 11; o fechamento dele e o RNF-02 continuam aqui.
 
 ### 7. Claude e ChatGPT no ambiente público
 
@@ -146,9 +152,9 @@ As entregas 6 e 7 mantêm seus números, mas ficam para depois: a decisão de nu
 - **Como demonstrar:**
   - Roteiro com a mesma pergunta na aplicação, no Claude e no ChatGPT, com o mesmo resultado.
   - Um usuário de outro perfil conectado não vê as ferramentas que não são dele.
-- **Depende de:** 6 e V1.
-- **Cobre:** RF-06 (cliente externo), RF-27, RF-28, RF-29, CA-06.
-- **Observação:** a V1 verificou só o Claude. A primeira verificação do ChatGPT (modo desenvolvedor, registro dinâmico) acontece aqui; os passos esperados estão no roteiro da V1.
+- **Depende de:** 6 e 11.
+- **Cobre:** RF-06 (cliente externo), RF-27, RF-28, RF-29 e CA-06, repetidos no endereço público.
+- **Situação (26/11/2026):** adiada para depois do workshop. A primeira verificação do ChatGPT e o fechamento de RF-27 a RF-29 e do CA-06 passaram para a 11, pelo túnel; aqui fica só repetir o roteiro da 11 no endereço público.
 
 ### 8. Perfil Produtos
 
@@ -190,33 +196,35 @@ As entregas 6 e 7 mantêm seus números, mas ficam para depois: a decisão de nu
 - **Como demonstrar:**
   - Painel com os resultados dos testes de isolamento.
   - Roteiro de CA-01 a CA-08 passando.
-  - CA-06 repetido para os quatro perfis no Claude e no ChatGPT.
+  - CA-06 repetido para os quatro perfis no Claude e no ChatGPT, pelo túnel, com a mesma pergunta na aplicação e nos dois clientes e o mesmo resultado.
+  - Um usuário de outro perfil conectado por um cliente externo não vê as ferramentas que não são dele.
   - Revisão dos critérios de aceite visuais.
-- **Depende de:** 7 e 10.
-- **Cobre:** CA-01 a CA-08 (fechamento), RNF-05 (medição final); FE §9 (painel de segurança), §13.
+- **Depende de:** 10 e V1. Não depende mais da 7: o workshop usa o ambiente local, e os clientes externos entram pelo túnel.
+- **Cobre:** CA-01 a CA-08 (fechamento), RF-06 (cliente externo), RF-27 a RF-29, RS-10 (em parte, pelo túnel), RNF-05 (medição final); FE §9 (painel de segurança), §13.
+- **Observação:** o ChatGPT é verificado aqui pela primeira vez (modo desenvolvedor, registro dinâmico), com os passos esperados no roteiro da V1. Se ele não funcionar pelo túnel, isso fica registrado como lacuna e não bloqueia a 11; o Claude continua obrigatório.
 
 ## Verificação de cobertura
 
-Todos os requisitos com identificador aparecem em alguma entrega.
+Todos os requisitos com identificador aparecem em alguma entrega. RNF-02 e a parte de RS-10 que exige endereço público só fecham na 6, depois do workshop.
 
 | Requisitos | Entregas |
 | --- | --- |
 | RF-01 a RF-05 | 1, 3, 8, 9, 10 |
-| RF-06 a RF-09 | 2, 4a, 7 |
+| RF-06 a RF-09 | 2, 4a, 11 (7 depois do workshop) |
 | RF-10 a RF-13 | 3, 4a, 5a, 8, 9, 10 |
 | RF-14 a RF-18 | 5a, 5b |
 | RF-19 a RF-26 | 4a, 8, 9, 10 |
-| RF-27 a RF-29 | V1, 7 |
+| RF-27 a RF-29 | V1, 11 (7 depois do workshop) |
 | RF-30 a RF-32 | 4b |
 | RS-01 a RS-03 | 2, 4a, 5a |
 | RS-04 | 1, 8, 9, 10 |
 | RS-05, RS-06, RS-08 | 3, 4a, 5a |
 | RS-07 | 8 |
 | RS-09 | 1 |
-| RS-10 | 6 |
+| RS-10 | V1 e 11 (em parte, pelo túnel), 6 |
 | RS-11 | 4b |
 | RNF-01, RNF-04, RNF-07 | 1 |
-| RNF-02 | 6 |
+| RNF-02 | 6 (depois do workshop) |
 | RNF-03 | 2 |
 | RNF-05 | 3, 11 |
 | RNF-06 | 5b |
@@ -224,7 +232,7 @@ Todos os requisitos com identificador aparecem em alguma entrega.
 | CA-03 | 4a |
 | CA-04 | 5a |
 | CA-05 | 8 |
-| CA-06 | 7, 11 |
+| CA-06 | 11 (7 depois do workshop) |
 | CA-07 | 4b |
 | CA-08 | 1 |
 | FE §1 a §13 | 2, 3, 5a, 5b, 8, 9, 10, 11 |
@@ -241,7 +249,7 @@ Questões listadas em `docs/PRD.md`:
 | Decisão | Bloqueia |
 | --- | --- |
 | ~~Provedor de modelo padrão do chat~~ | Decidida na 5a: Anthropic, com `anthropic:claude-haiku-5-5` por padrão, trocável por `MODELO_DO_ASSISTENTE` sem mudança de código. |
-| Provedor de nuvem e domínio | 6 e, por consequência, 7 e 11. Adiada. |
+| Provedor de nuvem e domínio | 6 e, por consequência, 7. Adiada para depois do workshop; não bloqueia mais a 11. |
 | ~~Como o agente obtém um token aceito pelo MCP: dois destinatários ou troca de token~~ | Decidida na 4a: dois destinatários, sem troca de token (ADR 0006). Não bloqueia mais a 5a. |
 | Meta de 3 segundos do RNF-05 | Nenhuma. É medida na 3 e confirmada na 11. |
 | ~~Limite de chamadas por usuário do RS-11~~ | Decidida na 4b: 30 chamadas por usuário por minuto, configurável (`LIMITE_DE_CHAMADAS_POR_USUARIO` e `JANELA_DO_LIMITE_EM_SEGUNDOS`). |
