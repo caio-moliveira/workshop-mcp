@@ -91,6 +91,10 @@ services:
   # MODELO_DO_ASSISTENTE e a chave, da variável do provedor (ANTHROPIC_API_KEY), as duas do
   # .env. Sem a chave, a API sobe assim mesmo e só o assistente fica indisponível. Grava e lê as
   # conversas no banco do histórico com o papel `historico` (SENHA_DO_PAPEL_HISTORICO, do .env).
+  # O interruptor de demonstração fica ligado: o ambiente local é o do workshop. Com ele, a rota
+  # /seguranca devolve a última execução de aceite, gravada pelo comando em
+  # backend/execucao-de-aceite/ (uv run python tests/execucao_de_aceite.py). O painel revela os
+  # nomes das rotas e das ferramentas de todos os perfis: fora de uma demonstração, desligue.
   api:
     build:
       context: backend
@@ -100,6 +104,11 @@ services:
       ENDERECO_INTERNO_DO_PROVEDOR: http://keycloak:8080
       ENDERECO_INTERNO_DO_MCP: http://mcp:8001/mcp
       POSTGRES_HOST: postgres
+      PAINEL_DE_SEGURANCA: ligado
+      PASTA_DA_EXECUCAO_DE_ACEITE: /execucao-de-aceite
+    volumes:
+      # Só leitura: quem grava é o comando da execução de aceite, na máquina local.
+      - ./backend/execucao-de-aceite:/execucao-de-aceite:ro
     ports:
       - "127.0.0.1:${API_PORT:-8000}:8000"
     depends_on:

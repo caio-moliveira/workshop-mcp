@@ -9,6 +9,7 @@ ENV PATH="/opt/venv/bin:$PATH" PYTHONUNBUFFERED=1
 COPY pyproject.toml uv.lock ./
 RUN uv sync --locked --no-dev
 
+COPY aceite ./aceite
 COPY acesso ./acesso
 COPY api ./api
 COPY assistente ./assistente
