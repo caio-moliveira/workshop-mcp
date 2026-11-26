@@ -7,18 +7,23 @@ e ele é executado no roteiro, com o limite padrão.
 
 import json
 from dataclasses import replace
+from datetime import date
 
 import pytest
 from apoio import variavel
 from execucao_de_aceite import (
     Contexto,
     cenarios,
+    cenarios_do_limite,
+    conferir_carga,
     executar_cenario,
     leitura_de_rota,
     principal,
 )
 
 from aceite import ARQUIVO_DA_ULTIMA_EXECUCAO, ExecucaoDeAceite, ler_ultima_execucao
+from acesso import mensagens
+from servidor_mcp import limite_do_ambiente
 
 SENHAS_DO_AMBIENTE = [
     "POSTGRES_PASSWORD",
@@ -101,7 +106,12 @@ def test_o_resultado_tem_a_forma_prevista(execucao):
 def test_cada_chamada_traz_a_linha_da_auditoria(execucao):
     gravada = ler_ultima_execucao(execucao["pasta"])
     for cenario in gravada.cenarios:
-        if cenario.alvo.tipo in {"ferramenta", "assistente"}:
+        # A ferramenta de outro perfil pedida pelo assistente é recusada dentro da API, sem chegar
+        # ao servidor MCP: não é uma chamada e não deixa linha.
+        chamada = cenario.alvo.tipo == "ferramenta" or (
+            cenario.alvo.tipo == "assistente" and cenario.obtido == "permitido"
+        )
+        if chamada:
             assert cenario.auditoria is not None, cenario.id
 
 
@@ -111,7 +121,9 @@ def test_um_cenario_permitido_traz_so_o_status_e_as_linhas(execucao):
     assert permitidos
     for cenario in permitidos:
         assert cenario["resposta"]["mensagem"] is None
-        assert cenario["resposta"]["status"] == 200
+        # O status é o HTTP, quando há: o banco e o resultado de uma ferramenta não têm.
+        sem_http = cenario["alvo"]["tipo"] in {"camada_de_leitura", "dados_de_origem", "ferramenta"}
+        assert cenario["resposta"]["status"] == (None if sem_http else 200), cenario["id"]
         assert isinstance(cenario["resposta"]["linhas"], int)
 
 
@@ -161,3 +173,82 @@ def test_uma_negacao_com_outra_resposta_tambem_e_divergencia():
 
     assert (executado.obtido, executado.resposta.status) == ("negado", 400)
     assert executado.divergencia is True
+
+
+# --- Banco, Limite de frequência, Assistente e a conferência da carga (ticket #107) ---
+
+
+def test_os_cenarios_do_banco_rodam_com_a_credencial_de_cada_papel(execucao):
+    gravada = ler_ultima_execucao(execucao["pasta"])
+    do_banco = {c.id: c for c in gravada.cenarios if c.grupo == "banco"}
+    assert len(do_banco) == 4
+    assert do_banco["banco-vendas-le-a-propria-camada"].resposta.linhas == 29999
+    for cenario in do_banco.values():
+        assert cenario.quem.tipo == "papel"
+        assert not cenario.divergencia, cenario.id
+        if cenario.obtido == "negado":
+            assert "42501" in cenario.resposta.mensagem, cenario.id
+
+
+def test_o_assistente_chama_o_mcp_com_o_token_do_usuario(execucao):
+    gravada = ler_ultima_execucao(execucao["pasta"])
+    por_id = {c.id: c for c in gravada.cenarios if c.grupo == "assistente"}
+    permitido = por_id["assistente-chama-o-mcp-com-o-token-do-usuario"]
+    negado = por_id["assistente-ferramenta-de-outro-perfil"]
+
+    assert (permitido.obtido, negado.obtido) == ("permitido", "negado")
+    # O nome do usuário na auditoria é o do token de quem perguntou (RF-15).
+    assert permitido.auditoria.usuario == "Bruno Costa"
+    assert permitido.auditoria.resultado == "permitida"
+    assert permitido.auditoria.ferramenta == "produtos_indicadores"
+    assert negado.auditoria is None
+    assert negado.camadas_de_defesa == ["lista_de_ferramentas", "chamada"]
+
+
+def test_a_execucao_confere_e_registra_o_estado_da_carga(execucao):
+    gravada = ler_ultima_execucao(execucao["pasta"])
+    assert gravada.carga.confere is True
+    assert gravada.carga.data_de_referencia == date(2026, 11, 30)
+    assert gravada.carga.detalhe is None
+    assert any(
+        linha.startswith("Carga: o banco está no estado da carga") for linha in execucao["saida"]
+    )
+
+
+def test_a_conferencia_avisa_quando_o_banco_nao_esta_no_estado_da_carga():
+    """Contra referências que o banco não tem, a conferência diz o que difere."""
+    carga = conferir_carga(date(2025, 11, 30), {"pedido": 30000, "lead": 1500})
+
+    assert carga.confere is False
+    assert carga.data_de_referencia == date(2026, 11, 30)
+    assert "2026-11-30" in carga.detalhe and "2025-11-30" in carga.detalhe
+    assert "pedido com 29999 linhas, esperadas 30000" in carga.detalhe
+    assert "lead" not in carga.detalhe
+
+
+def test_o_cenario_do_limite_barra_o_vitor_e_a_ana_continua_passando(criar_mcp):
+    """Com um servidor MCP criado no processo, no limite padrão: o do compose fica no alto."""
+    servidor = criar_mcp(limite=limite_do_ambiente({}))
+    vitor, ana = cenarios_do_limite(servidor)
+
+    with Contexto() as contexto:
+        barrado = executar_cenario(vitor, contexto)
+        passando = executar_cenario(ana, contexto)
+
+    assert (barrado.obtido, barrado.divergencia) == ("negado", False)
+    assert barrado.resposta.mensagem == mensagens.MUITAS_CHAMADAS
+    assert barrado.auditoria.resultado == "limitada"
+    assert barrado.auditoria.usuario == "Vitor Nunes"
+    assert (passando.obtido, passando.divergencia) == ("permitido", False)
+    assert passando.auditoria.resultado == "permitida"
+    assert passando.auditoria.usuario == "Ana Ribeiro"
+
+
+def test_com_o_limite_alto_o_cenario_do_limite_aparece_como_divergencia(criar_mcp):
+    servidor = criar_mcp(limite=limite_do_ambiente({"LIMITE_DE_CHAMADAS_POR_USUARIO": "100000"}))
+    vitor, _ = cenarios_do_limite(servidor)
+
+    with Contexto() as contexto:
+        executado = executar_cenario(vitor, contexto)
+
+    assert (executado.obtido, executado.divergencia) == ("permitido", True)
