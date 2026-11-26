@@ -25,7 +25,7 @@ import time
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field, replace
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Literal
 
@@ -33,24 +33,39 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import httpx  # noqa: E402
-from apoio import banco_local, variavel  # noqa: E402
-from cliente_mcp import CAMINHO, FERRAMENTA_DESCONHECIDA, MCP_DO_AMBIENTE  # noqa: E402
+import psycopg  # noqa: E402
+from apoio import (  # noqa: E402
+    BANCO_DA_AUDITORIA,
+    banco_local,
+    conectar_como_dono,
+    conectar_como_perfil,
+    variavel,
+)
+from cliente_mcp import CAMINHO, FERRAMENTA_DESCONHECIDA, MCP_DO_AMBIENTE, chamar  # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
 from fastmcp import Client  # noqa: E402
 from fastmcp.client.client import CallToolResult  # noqa: E402
 from fastmcp.client.transports import StreamableHttpTransport  # noqa: E402
 from provedor import (  # noqa: E402
+    DESTINATARIO_DA_API,
     USUARIOS_DE_DEMONSTRACAO,
     conteudo,
+    emissor,
     token_pelo_fluxo_de_codigo,
+    url_das_chaves,
     usuario_de,
 )
+from pydantic_ai.messages import ModelRequest, ToolReturnPart  # noqa: E402
 from registros import DONO_DA_FERRAMENTA, DONO_DA_ROTA, argumentos_minimos  # noqa: E402
+from roteiro import eventos, modelo_roteirizado, perguntar  # noqa: E402
+from starlette.applications import Starlette  # noqa: E402
 
 from aceite import (  # noqa: E402
     GRUPOS,
     Alvo,
     CamadaDeDefesa,
     Cenario,
+    ConferenciaDaCarga,  # noqa: E402
     Desfecho,
     ExecucaoDeAceite,
     Grupo,
@@ -60,11 +75,18 @@ from aceite import (  # noqa: E402
     Resposta,
     gravar_execucao,
 )
-from acesso import Perfil, UsuarioAutenticado, mensagens  # noqa: E402
-from consultas import Credencial  # noqa: E402
+from acesso import ChavesDoProvedor, ConfiguracaoDeAcesso, Perfil, UsuarioAutenticado, mensagens  # noqa: E402
+from api import criar_aplicacao as criar_api  # noqa: E402
+from carga.configuracao import ler_configuracao  # noqa: E402
+from consultas import (  # noqa: E402
+    Credencial,  # noqa: E402
+    ExecutorDeConsultas,
+    credenciais_do_ambiente,
+)
 from historico import BANCO as BANCO_DO_HISTORICO  # noqa: E402
 from historico import PAPEL as PAPEL_DO_HISTORICO  # noqa: E402
 from historico import HistoricoNoBanco  # noqa: E402
+from servidor_mcp.limite import CHAMADAS_PADRAO  # noqa: E402
 
 API = f"http://127.0.0.1:{os.environ.get('API_PORT', '8000')}"
 PASTA_PADRAO = Path(__file__).resolve().parents[1] / "execucao-de-aceite"
@@ -308,11 +330,401 @@ def cenarios_da_api() -> list[CenarioDeSeguranca]:
     ]
 
 
+# --- A auditoria, lida pelo dono ---
+
+
+def _ultimo_id_da_auditoria() -> int:
+    """O identificador da linha mais recente da auditoria: o marco antes de um pedido."""
+    with conectar_como_dono(BANCO_DA_AUDITORIA) as conexao:
+        return conexao.execute("select coalesce(max(id), 0) from auditoria.chamada").fetchone()[0]
+
+
+def _linhas_da_auditoria_desde(id_do_usuario: str, depois_do_id: int) -> list[LinhaDaAuditoria]:
+    """As linhas que as chamadas do usuário (o `sub` do token) deixaram depois do marco."""
+    with conectar_como_dono(BANCO_DA_AUDITORIA) as conexao:
+        linhas = conexao.execute(
+            "select id, horario, nome_do_usuario, ferramenta, parametros, resultado"
+            " from auditoria.chamada where id_do_usuario = %s and id > %s order by id",
+            (id_do_usuario, depois_do_id),
+        ).fetchall()
+    return [
+        LinhaDaAuditoria(
+            id=id,
+            horario=horario,
+            usuario=usuario,
+            ferramenta=ferramenta,
+            argumentos=argumentos,
+            resultado=resultado,
+        )
+        for id, horario, usuario, ferramenta, argumentos, resultado in linhas
+    ]
+
+
+# --- Camada de defesa Banco ---
+
+# O que o cenário mostra quando o banco recusa: o código do Postgres para privilégio insuficiente,
+# sem o texto do erro.
+RECUSA_DO_BANCO = "Recusado pelo banco: o papel não tem o privilégio (42501)."
+
+
+def _esperado_no_banco(papel: Perfil, objeto: str, escrita: bool) -> Desfecho:
+    """Cada papel lê só a própria camada de leitura e não escreve em nada (ADR 0002)."""
+    esquema = objeto.split(".")[0]
+    return "permitido" if not escrita and esquema == papel.value else "negado"
+
+
+def acesso_ao_banco(
+    id: str, descricao: str, papel: Perfil, objeto: str, escrita: str | None = None
+) -> CenarioDeSeguranca:
+    """Um papel do banco, com a própria credencial, lê o objeto ou, com `escrita`, executa esse
+    comando nele. A escrita é inócua mesmo se passasse: não muda linha nenhuma e é desfeita."""
+
+    def executar(_: Contexto) -> Observado:
+        with conectar_como_perfil(papel) as conexao:
+            try:
+                if escrita:
+                    # Só os privilégios podem barrar: a sessão pede transações de escrita.
+                    conexao.execute("set default_transaction_read_only = off")
+                    with conexao.transaction(force_rollback=True):
+                        conexao.execute(escrita)
+                    return Observado("permitido", Resposta(status=None, linhas=0))
+                linhas = conexao.execute(f"select count(*) from {objeto}").fetchone()[0]
+            except psycopg.errors.InsufficientPrivilege:
+                return Observado("negado", Resposta(status=None, mensagem=RECUSA_DO_BANCO))
+        return Observado("permitido", Resposta(status=None, linhas=linhas))
+
+    origem = objeto.startswith("dados_de_origem.")
+    return CenarioDeSeguranca(
+        id=id,
+        descricao=descricao,
+        grupo="banco",
+        quem=Quem(tipo="papel", nome=papel.value),
+        perfil=papel,
+        alvo=Alvo(
+            tipo="dados_de_origem" if origem else "camada_de_leitura",
+            nome=objeto,
+            parametros={"comando": escrita} if escrita else {},
+        ),
+        camadas_de_defesa=("banco",),
+        esperado=_esperado_no_banco(papel, objeto, escrita is not None),
+        executar=executar,
+    )
+
+
+def cenarios_do_banco() -> list[CenarioDeSeguranca]:
+    return [
+        acesso_ao_banco(
+            "banco-vendas-le-a-propria-camada",
+            "O papel vendas lê a própria camada de leitura",
+            Perfil.VENDAS,
+            "vendas.pedido",
+        ),
+        acesso_ao_banco(
+            "banco-vendas-le-a-camada-da-diretoria",
+            "O papel vendas é recusado na camada da Diretoria",
+            Perfil.VENDAS,
+            "diretoria.indicadores",
+        ),
+        acesso_ao_banco(
+            "banco-diretoria-le-os-dados-de-origem",
+            "O papel diretoria é recusado nos dados de origem",
+            Perfil.DIRETORIA,
+            "dados_de_origem.pedido",
+        ),
+        acesso_ao_banco(
+            "banco-comercial-escreve-na-propria-camada",
+            "O papel comercial não escreve, nem na própria camada",
+            Perfil.COMERCIAL,
+            "comercial.lead",
+            escrita="update comercial.lead set etapa = etapa where false",
+        ),
+    ]
+
+
+# --- Camada de defesa Limite de frequência ---
+
+FERRAMENTA_DO_LIMITE = "vendas_indicadores"
+ARGUMENTOS_DO_LIMITE = {"periodo": "30d"}
+# Uma chamada além do limite padrão: com ele, a última é barrada.
+CHAMADAS_ALEM_DO_LIMITE = CHAMADAS_PADRAO + 1
+
+
+def chamadas_seguidas(
+    id: str,
+    descricao: str,
+    nome_de_usuario: str,
+    chamadas: int,
+    esperado: Desfecho,
+    servidor: str | Starlette = MCP_DO_AMBIENTE,
+) -> CenarioDeSeguranca:
+    """O usuário chama a mesma ferramenta até `chamadas` vezes seguidas, parando na primeira
+    barrada; o obtido é o da última. Exige o servidor MCP no limite padrão."""
+
+    def executar(contexto: Contexto) -> Observado:
+        token = contexto.token_de(nome_de_usuario)
+        antes = _ultimo_id_da_auditoria()
+        for _ in range(chamadas):
+            resultado = chamar(servidor, token, FERRAMENTA_DO_LIMITE, ARGUMENTOS_DO_LIMITE)
+            if resultado.is_error:
+                break
+        linhas = _linhas_da_auditoria_desde(conteudo(token)["sub"], antes)
+        ultima = linhas[-1] if linhas else None
+        if resultado.is_error:
+            mensagem = resultado.content[0].text
+            limitada = ultima is not None and ultima.resultado == "limitada"
+            return Observado(
+                "negado",
+                Resposta(status=None, mensagem=mensagem),
+                ultima,
+                confere=limitada and mensagem == mensagens.MUITAS_CHAMADAS,
+            )
+        return Observado(
+            "permitido",
+            Resposta(status=None, linhas=_linhas(resultado.structured_content)),
+            ultima,
+            confere=ultima is not None and ultima.resultado == "permitida",
+        )
+
+    return CenarioDeSeguranca(
+        id=id,
+        descricao=descricao,
+        grupo="limite_de_frequencia",
+        quem=Quem(tipo="usuario", nome=nome_de_usuario),
+        perfil=_usuario(nome_de_usuario).perfil,
+        alvo=Alvo(
+            tipo="ferramenta",
+            nome=FERRAMENTA_DO_LIMITE,
+            parametros={**ARGUMENTOS_DO_LIMITE, "chamadas": chamadas},
+        ),
+        camadas_de_defesa=("limite_de_frequencia",),
+        esperado=esperado,
+        executar=executar,
+        preparar=lambda contexto: contexto.token_de(nome_de_usuario),
+        exige_limite_padrao=True,
+    )
+
+
+def cenarios_do_limite(servidor: str | Starlette = MCP_DO_AMBIENTE) -> list[CenarioDeSeguranca]:
+    """O Vitor passa do limite, e não a Ana: ela não fica barrada no meio da apresentação."""
+    return [
+        chamadas_seguidas(
+            "limite-vitor-passa-do-limite",
+            f"vitor.vendas faz {CHAMADAS_ALEM_DO_LIMITE} chamadas seguidas e é barrado",
+            "vitor.vendas",
+            CHAMADAS_ALEM_DO_LIMITE,
+            "negado",
+            servidor,
+        ),
+        chamadas_seguidas(
+            "limite-ana-continua-passando",
+            "ana.vendas, logo depois, continua passando: o limite é por usuário",
+            "ana.vendas",
+            1,
+            "permitido",
+            servidor,
+        ),
+    ]
+
+
+# --- Assistente, com o modelo roteirizado ---
+
+PERGUNTA_AO_ASSISTENTE = "Quanto vendemos no último mês?"
+# O que o cenário mostra quando a ferramenta de outro perfil é recusada: o nome que o servidor não
+# listou para o token é recusado dentro da API, sem chegar ao servidor.
+RECUSA_NO_ASSISTENTE = "Recusada na chamada: a ferramenta não está na lista do token."
+
+
+def _api_com_modelo(modelo, historico: HistoricoNoBanco, consultas: ExecutorDeConsultas):
+    """A API criada pela fábrica, dentro do processo, com o modelo dado e o serviço `mcp` do
+    compose: o assistente chama o servidor MCP com o token de quem pergunta."""
+    configuracao = ConfiguracaoDeAcesso(
+        emissor=emissor(),
+        destinatario=DESTINATARIO_DA_API,
+        chaves=ChavesDoProvedor(url_das_chaves()),
+    )
+    aplicacao = criar_api(
+        configuracao,
+        origem_do_frontend=variavel("ENDERECO_DO_FRONTEND"),
+        consultas=consultas,
+        modelo=modelo,
+        endereco_do_mcp=MCP_DO_AMBIENTE + CAMINHO,
+        historico=historico,
+    )
+    return TestClient(aplicacao)
+
+
+def pergunta_ao_assistente(
+    id: str, descricao: str, nome_de_usuario: str, ferramenta: str
+) -> CenarioDeSeguranca:
+    """O usuário pergunta ao assistente, e o modelo roteirizado chama a ferramenta dada. O esperado
+    vem do registro de donos das ferramentas."""
+    demonstracao = _usuario(nome_de_usuario)
+    argumentos = {**argumentos_minimos(ferramenta), "periodo": "30d"}
+    esperado: Desfecho = (
+        "permitido" if DONO_DA_FERRAMENTA[ferramenta] is demonstracao.perfil else "negado"
+    )
+
+    def executar(contexto: Contexto) -> Observado:
+        token = contexto.token_de(nome_de_usuario)
+        do_token = conteudo(token)
+        historico = contexto._historico_do_ambiente()
+        vistos: dict = {}
+        modelo = modelo_roteirizado(
+            chamadas=[(ferramenta, argumentos)], pedacos=["Ok."], vistos=vistos
+        )
+        antes = _ultimo_id_da_auditoria()
+        with ExecutorDeConsultas(banco_local(), credenciais_do_ambiente()) as consultas:
+            api = _api_com_modelo(modelo, historico, consultas)
+            resposta = perguntar(api, token, {"pergunta": PERGUNTA_AO_ASSISTENTE})
+            lidos = eventos(resposta)
+        # A conversa da pergunta é só da execução: sai do histórico.
+        dono = UsuarioAutenticado(
+            id=do_token["sub"], nome=demonstracao.nome, perfil=demonstracao.perfil
+        )
+        historico.apagar_conversa(dono, uuid.UUID(lidos[0][1]["id_da_conversa"]))
+
+        linhas = _linhas_da_auditoria_desde(do_token["sub"], antes)
+        retornos = [
+            parte
+            for mensagem in vistos["mensagens"]
+            if isinstance(mensagem, ModelRequest)
+            for parte in mensagem.parts
+            if isinstance(parte, ToolReturnPart) and parte.outcome == "success"
+        ]
+        if retornos:
+            [linha] = linhas or [None]
+            return Observado(
+                "permitido",
+                Resposta(status=resposta.status_code, linhas=_linhas(retornos[0].content)),
+                linha,
+                confere=len(linhas) == 1
+                and linha.usuario == do_token["name"]
+                and linha.ferramenta == ferramenta
+                and linha.resultado == "permitida",
+            )
+        # Negada antes do servidor: nenhuma linha nova na auditoria, muito menos uma permitida.
+        return Observado(
+            "negado",
+            Resposta(status=resposta.status_code, mensagem=RECUSA_NO_ASSISTENTE),
+            confere=not linhas,
+        )
+
+    return CenarioDeSeguranca(
+        id=id,
+        descricao=descricao,
+        grupo="assistente",
+        quem=Quem(tipo="usuario", nome=nome_de_usuario),
+        perfil=demonstracao.perfil,
+        alvo=Alvo(
+            tipo="assistente",
+            nome="/assistente",
+            parametros={"ferramenta": ferramenta, **argumentos},
+        ),
+        # A ferramenta de outro perfil não está na lista do token, e a chamada a ela é recusada.
+        camadas_de_defesa=("chamada",)
+        if esperado == "permitido"
+        else (
+            "lista_de_ferramentas",
+            "chamada",
+        ),
+        esperado=esperado,
+        executar=executar,
+        preparar=lambda contexto: contexto.token_de(nome_de_usuario),
+    )
+
+
+def cenarios_do_assistente() -> list[CenarioDeSeguranca]:
+    return [
+        pergunta_ao_assistente(
+            "assistente-chama-o-mcp-com-o-token-do-usuario",
+            "O assistente chama o servidor MCP com o token do usuário (RF-15)",
+            "bruno.produtos",
+            "produtos_indicadores",
+        ),
+        pergunta_ao_assistente(
+            "assistente-ferramenta-de-outro-perfil",
+            "O modelo tenta uma ferramenta de outro perfil e é negado na chamada",
+            "bruno.produtos",
+            "comercial_indicadores",
+        ),
+    ]
+
+
 # Os cenários de cada grupo da matriz, na ordem em que um pedido atravessa as camadas de defesa.
 # Um grupo ainda sem cenários fica de fora.
 CENARIOS_POR_GRUPO: dict[Grupo, Callable[[], list[CenarioDeSeguranca]]] = {
     "api": cenarios_da_api,
 }
+CENARIOS_POR_GRUPO |= {
+    "banco": cenarios_do_banco,
+    "limite_de_frequencia": cenarios_do_limite,
+    "assistente": cenarios_do_assistente,
+}
+
+
+# --- A conferência da carga ---
+
+# O banco da carga padrão (configuração versionada da carga): as linhas de cada tabela dos dados
+# de origem. A data de referência vem da própria configuração.
+CONTAGENS_DE_REFERENCIA = {
+    "avaliacao": 20114,
+    "categoria": 20,
+    "cliente": 28511,
+    "entrega": 28789,
+    "item_pedido": 41118,
+    "lead": 1500,
+    "lojista": 300,
+    "pagamento": 29999,
+    "pedido": 29999,
+    "produto": 2000,
+    "referencia": 1,
+}
+
+
+def conferir_carga(
+    data_de_referencia: date | None = None,
+    contagens: dict[str, int] = CONTAGENS_DE_REFERENCIA,
+) -> ConferenciaDaCarga:
+    """Se o banco está no estado da carga: a data de referência (por padrão, a da configuração
+    da carga) e as contagens de referência, lidas com o papel dono."""
+    esperada = data_de_referencia or ler_configuracao().data_referencia
+    try:
+        with conectar_como_dono() as conexao:
+            data = conexao.execute(
+                "select data_referencia from dados_de_origem.referencia"
+            ).fetchone()[0]
+            obtidas = {
+                tabela: conexao.execute(
+                    f"select count(*) from dados_de_origem.{tabela}"
+                ).fetchone()[0]
+                for tabela in contagens
+            }
+    except psycopg.Error as erro:
+        return ConferenciaDaCarga(
+            confere=False, detalhe=f"o banco não pôde ser lido ({type(erro).__name__})"
+        )
+    diferencas = []
+    if data != esperada:
+        diferencas.append(f"data de referência {data}, esperada {esperada}")
+    diferencas += [
+        f"{tabela} com {obtidas[tabela]} linhas, esperadas {esperado}"
+        for tabela, esperado in contagens.items()
+        if obtidas[tabela] != esperado
+    ]
+    return ConferenciaDaCarga(
+        confere=not diferencas,
+        data_de_referencia=data,
+        detalhe="; ".join(diferencas) or None,
+    )
+
+
+def _linha_da_carga(carga: ConferenciaDaCarga) -> str:
+    if carga.confere:
+        return (
+            f"Carga: o banco está no estado da carga (data de referência "
+            f"{carga.data_de_referencia}, contagens de referência conferidas)."
+        )
+    return f"AVISO: o banco não está no estado da carga: {carga.detalhe}."
 
 
 def cenarios() -> list[CenarioDeSeguranca]:
@@ -531,8 +943,9 @@ def principal(
         execucao = executar_aceite(lista, contexto, escrever)
         # A matriz completa cabe nos 2 minutos (medido no README): roda sempre, com a data dela.
         matriz = executar_matriz_completa(contexto, andamento=escrever)
-    execucao = execucao.model_copy(update={"matriz_completa": matriz})
+    execucao = execucao.model_copy(update={"matriz_completa": matriz, "carga": conferir_carga()})
     escrever(_resumo_da_matriz(matriz))
+    escrever(_linha_da_carga(execucao.carga))
     destino = gravar_execucao(execucao, opcoes.pasta)
     escrever(_resumo(execucao, time.perf_counter() - inicio))
     escrever(f"Resultado gravado em {destino}; recarregue o painel de segurança.")
