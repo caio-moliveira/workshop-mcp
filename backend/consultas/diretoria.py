@@ -7,6 +7,7 @@ dela, como em Produtos. As respostas trazem números crus e datas ISO; a formata
 """
 
 from datetime import date
+from decimal import Decimal
 
 import psycopg
 
@@ -95,4 +96,90 @@ def indicadores(conexao: psycopg.Connection, periodo: Periodo) -> dict:
             "retidos": retidos,
             "clientes_do_periodo_anterior": clientes_antes,
         },
+    }
+
+
+# O nome do agrupamento da tendência em cada período: o mesmo da evolução de Vendas.
+_AGRUPAMENTO_DA_TENDENCIA = {
+    Periodo.TRINTA_DIAS: "dia",
+    Periodo.NOVENTA_DIAS: "semana",
+    Periodo.DOZE_MESES: "mes",
+    Periodo.VINTE_E_QUATRO_MESES: "mes",
+}
+
+
+def ponto_da_tendencia(
+    inicio: date,
+    *,
+    clientes: int,
+    clientes_com_recompra: int,
+    receita: Decimal,
+    avaliacoes: int,
+    satisfacao: float | None,
+    entregues: int,
+    atrasos: int,
+) -> dict:
+    """Um ponto da tendência, com as taxas calculadas dentro dele e as contagens ao lado.
+
+    Um indicador do ponto fica `None` quando a base dele é zero: sem cliente, a taxa de
+    recompra; sem avaliação, a satisfação; sem pedido entregue, a taxa de atraso.
+    """
+    return {
+        "inicio": inicio.isoformat(),
+        "receita": float(receita),
+        "taxa_de_recompra": _razao(clientes_com_recompra, clientes),
+        "clientes": clientes,
+        "clientes_com_recompra": clientes_com_recompra,
+        "satisfacao": satisfacao if avaliacoes else None,
+        "avaliacoes": avaliacoes,
+        "taxa_de_atraso": _razao(atrasos, entregues),
+        "entregues": entregues,
+        "atrasos": atrasos,
+    }
+
+
+@consulta(Perfil.DIRETORIA)
+def tendencia(conexao: psycopg.Connection, periodo: Periodo) -> dict:
+    """Receita, taxa de recompra, satisfação e taxa de atraso de cada dia, semana ou mês do
+    período, em ordem, com a granularidade da evolução de Vendas.
+
+    Cada ponto começa no primeiro dia do seu dia, semana (a segunda) ou mês de calendário, mesmo
+    que o período comece no meio dele; só os dias do período entram. A retenção não entra: por dia
+    ela é ruído.
+    """
+    linhas = conexao.execute(
+        """
+        select inicio, contagem, clientes_com_recompra, receita, avaliacoes, satisfacao,
+               entregues, atrasos
+        from diretoria.tendencia
+        where periodo = %s
+        order by inicio
+        """,
+        (periodo.value,),
+    ).fetchall()
+    return {
+        "periodo": _datas_do(periodo, conexao).como_json(),
+        "agrupamento": _AGRUPAMENTO_DA_TENDENCIA[periodo],
+        "pontos": [
+            ponto_da_tendencia(
+                inicio,
+                clientes=clientes,
+                clientes_com_recompra=com_recompra,
+                receita=receita,
+                avaliacoes=avaliacoes,
+                satisfacao=satisfacao,
+                entregues=entregues,
+                atrasos=atrasos,
+            )
+            for (
+                inicio,
+                clientes,
+                com_recompra,
+                receita,
+                avaliacoes,
+                satisfacao,
+                entregues,
+                atrasos,
+            ) in linhas
+        ],
     }

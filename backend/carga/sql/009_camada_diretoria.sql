@@ -153,3 +153,70 @@ from dados_de_origem.referencia;
 
 grant usage on schema diretoria to diretoria;
 grant select on all tables in schema diretoria to diretoria;
+
+-- A tendência (#98): os indicadores de cada dia, semana ou mês do período, na granularidade da
+-- evolução de Vendas: dia em 30 dias, semana em 90 dias e mês em 12 e 24 meses. Cada ponto começa
+-- no primeiro dia do seu dia, semana (a segunda, ISO 8601) ou mês de calendário, mesmo que o
+-- período comece no meio dele, e só os dias do período entram nele.
+create view base_da_diretoria.ponto_da_tendencia as
+select
+    pe.periodo,
+    s::date as inicio,
+    greatest(s::date, pe.inicio) as primeiro_dia,
+    least((s + u.passo)::date - 1, pe.fim) as ultimo_dia
+from base_da_diretoria.periodo pe
+cross join lateral (
+    select
+        case pe.periodo when '30d' then 'day' when '90d' then 'week' else 'month' end,
+        case pe.periodo when '30d' then interval '1 day' when '90d' then interval '1 week'
+            else interval '1 month' end
+) u (unidade, passo)
+cross join lateral generate_series(
+    date_trunc(u.unidade, pe.inicio::timestamp), pe.fim::timestamp, u.passo
+) s;
+
+-- Uma linha por período e ponto. A contagem é a dos clientes com pedido aprovado no ponto, e a
+-- taxa de recompra do ponto é calculada dentro dele: dos clientes do ponto, os que fizeram nele
+-- uma recompra. A receita é a de Vendas e a satisfação a de Produtos, com as mesmas regras de
+-- data dos indicadores. A taxa de atraso segue a regra de Vendas: dos pedidos do ponto já
+-- entregues (no prazo ou com atraso), os entregues com atraso; prazo vencido e em trânsito não
+-- entram. A retenção não entra: por dia ela é ruído.
+create view diretoria.tendencia as
+with pedidos as (
+    select
+        t.periodo,
+        t.inicio,
+        count(distinct a.cliente) as contagem,
+        count(distinct a.cliente) filter (where a.recompra) as clientes_com_recompra,
+        coalesce(sum(a.valor), 0) as receita,
+        count(e.pedido_id) filter (
+            where e.situacao in ('Entregue no prazo', 'Entregue com atraso')
+        ) as entregues,
+        count(e.pedido_id) filter (where e.situacao = 'Entregue com atraso') as atrasos
+    from base_da_diretoria.ponto_da_tendencia t
+    left join base_da_diretoria.pedido_aprovado a
+        on a.dia between t.primeiro_dia and t.ultimo_dia
+    left join dados_de_origem.entrega e on e.pedido_id = a.pedido
+    group by t.periodo, t.inicio
+),
+avaliacoes as (
+    select t.periodo, t.inicio, count(v.nota) as avaliacoes, avg(v.nota)::float as satisfacao
+    from base_da_diretoria.ponto_da_tendencia t
+    left join dados_de_origem.avaliacao v
+        on v.data_avaliacao between t.primeiro_dia and t.ultimo_dia
+    group by t.periodo, t.inicio
+)
+select
+    p.periodo,
+    p.inicio,
+    p.contagem,
+    p.clientes_com_recompra,
+    p.receita,
+    v.avaliacoes,
+    v.satisfacao,
+    p.entregues,
+    p.atrasos
+from pedidos p
+join avaliacoes v using (periodo, inicio);
+
+grant select on diretoria.tendencia to diretoria;

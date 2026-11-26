@@ -520,4 +520,35 @@ FERRAMENTAS: dict[str, Ferramenta] = {
         ),
         parametros=(PERIODO,),
     ),
+    "diretoria_tendencia": Ferramenta(
+        consulta=diretoria.tendencia,
+        titulo="Tendência da Diretoria",
+        descricao=(
+            "Série temporal dos indicadores consolidados do marketplace em um período: receita, "
+            "taxa de recompra, satisfação e taxa de atraso de cada dia, semana ou mês, em ordem "
+            "cronológica. Use para saber como esses indicadores evoluíram, quando subiram ou "
+            "caíram; para o total do período e a comparação com o anterior, use "
+            "diretoria_indicadores. Todos os números já vêm calculados, não refaça a conta. O "
+            "agrupamento vem em 'agrupamento' e é o mesmo da evolução de Vendas: dia em 30 dias "
+            "('dia'), semana em 90 dias ('semana', começando na segunda) e mês em 12 e 24 meses "
+            "('mes'). Cada item de 'pontos' traz 'inicio' (data ISO do primeiro dia do ponto no "
+            "calendário) e os quatro indicadores, cada um com as contagens de que saiu: "
+            "'receita' é a soma dos pagamentos aprovados dos pedidos comprados no ponto, pelo dia "
+            "da compra no horário de Brasília (a mesma de Vendas; a soma dos pontos é a receita "
+            "do período). 'taxa_de_recompra' é calculada dentro do ponto, de 0 a 1: dos clientes "
+            "com pedido aprovado no ponto ('clientes'), a parte que fez nele uma recompra, um "
+            "pedido aprovado que não é o primeiro do cliente ('clientes_com_recompra'); por ser "
+            "de um ponto curto, ela não é comparável à taxa do período inteiro. 'satisfacao' é a "
+            "nota média, de 1 a 5, das avaliações feitas no ponto ('avaliacoes'). "
+            "'taxa_de_atraso' é, de 0 a 1, a parte dos pedidos do ponto já entregues "
+            "('entregues') que foi entregue com atraso ('atrasos'), a regra de Vendas: em "
+            "trânsito e prazo vencido não entram, por isso os últimos dias têm poucos ou nenhum "
+            "entregue. Um indicador vem nulo no ponto em que a base dele é zero (sem cliente, "
+            "sem avaliação ou sem entrega), sem que o ponto falte na série. Quando o período "
+            "começa no meio de uma semana ou de um mês, o primeiro ponto é parcial. A retenção "
+            "não entra na série: por dia ela é ruído; ela está em diretoria_indicadores. Nenhum "
+            "número é de um cliente, pedido ou avaliação individual."
+        ),
+        parametros=(PERIODO,),
+    ),
 }
