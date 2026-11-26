@@ -144,7 +144,7 @@ O projeto é apresentado num workshop sobre MCP, com o ambiente local: tudo roda
 - **Depende de:** 4a (tecnicamente); na prática entra quando a decisão de nuvem e domínio for tomada.
 - **Cobre:** RS-10, RNF-02.
 - **Bloqueada por:** provedor de nuvem e domínio.
-- **Situação (26/11/2026):** adiada para depois do workshop. O workshop usa o ambiente local, com os clientes externos pelo túnel (veja a Ordem). RS-10 fica coberto em parte pelo túnel, na V1 e na 11; o fechamento dele e o RNF-02 continuam aqui.
+- **Situação (26/11/2026):** adiada para depois do workshop. O workshop usa o ambiente local, com os clientes externos pelo túnel (veja a Ordem). RS-10 fica coberto em parte pelo túnel, na V1 e na 11; o fechamento dele e o RNF-02 continuam aqui. **Antecipado na 11 (#114):** um túnel nomeado da Cloudflare, com endereço fixo num domínio do usuário, para os assistentes externos; é só o endereço público do proxy reverso, com HTTPS, sem hospedagem, sem endereços próprios para cada serviço e sem o banco numa rede de nuvem.
 
 ### 7. Claude e ChatGPT no ambiente público
 

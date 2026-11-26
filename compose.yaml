@@ -223,6 +223,20 @@ services:
       proxy:
         condition: service_healthy
 
+  # Túnel nomeado: o mesmo papel do túnel rápido, com endereço fixo (um nome no domínio do
+  # usuário, configurado no painel da Cloudflare apontando para http://proxy:80). Só sobe com o
+  # perfil tunel-nomeado. O token vem do arquivo backend/token-do-tunel, fora do git e fora do
+  # backend/.env, para que este contêiner não receba as senhas do projeto.
+  tunel-nomeado:
+    image: cloudflare/cloudflared:2026.10.7
+    profiles: [tunel-nomeado]
+    command: ["tunnel", "--no-autoupdate", "run", "--token-file", "/etc/cloudflared/token"]
+    volumes:
+      - ./backend/token-do-tunel:/etc/cloudflared/token:ro
+    depends_on:
+      proxy:
+        condition: service_healthy
+
   # Frontend: o build servido por nginx. Os endereços do provedor e da API entram ao subir o
   # contêiner, em /configuracao.json, sem rebuild. Abra em http://localhost:5173, o endereço que
   # o provedor aceita como retorno do login (ENDERECO_DO_FRONTEND).

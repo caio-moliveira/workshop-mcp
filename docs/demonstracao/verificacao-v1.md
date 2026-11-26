@@ -179,6 +179,16 @@ Se o ChatGPT recusar algum passo, anote a mensagem que ele mostra e o que aparec
 
 **Reiniciar o provedor ou trocar o endereço do túnel apaga os clientes registrados.** O realm é reimportado a cada subida (ADR 0004), e o endereço do túnel muda a cada execução dele. Nos dois casos o conector do assistente deixa de funcionar: remova-o e adicione-o de novo.
 
+## Variante: túnel nomeado, com endereço fixo
+
+Na entrega 11, o compose ganhou o perfil `tunel-nomeado`: o mesmo papel do túnel rápido, com um túnel criado na conta da Cloudflare do usuário e um endereço fixo num domínio dele. No painel da Cloudflare (Zero Trust → Networks → Tunnels), crie o túnel e um "Public hostname" com o serviço `HTTP` em `proxy:80`; copie o token do túnel, sozinho, para o arquivo `backend/token-do-tunel` (fora do git e fora do `backend/.env`). Ponha o endereço fixo nas duas variáveis do passo 3 e suba:
+
+```
+docker compose --profile tunel-nomeado up -d --wait
+```
+
+Os passos 4 a 7 valem iguais, com `$TUNEL` no endereço fixo. Como o endereço não muda, o conector do assistente continua valendo de uma sessão para outra, enquanto o provedor não reiniciar. Para voltar ao modo local, como no passo 8, com `docker compose stop tunel-nomeado`.
+
 ## Ajustes por assistente
 
 ### Claude

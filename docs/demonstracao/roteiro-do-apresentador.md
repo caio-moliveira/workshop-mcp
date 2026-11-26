@@ -94,6 +94,8 @@ Faça tudo isto antes de a plateia entrar. Os passos 1 a 6 cabem em 30 minutos; 
    ```
 
    bash: `docker compose logs tunel | grep trycloudflare.com`. Anote o endereço e deixe pronta uma cópia do `backend/.env` com as duas linhas do modo túnel (passo 3 da V1), para o bloco 7 ser só trocar o arquivo e subir de novo. Um túnel novo muda o endereço; se o túnel cair, refaça este passo.
+
+   **Com o túnel nomeado** (endereço fixo, seção "Variante: túnel nomeado" da V1), o endereço não precisa ser anotado: suba com `docker compose --profile tunel-nomeado up -d --wait`, e a cópia do `backend/.env` do modo túnel já tem o endereço fixo. Nos comandos do bloco 7, troque `tunel` por `tunel-nomeado`.
 8. **As janelas.** O provedor guarda uma sessão por navegador, então dois usuários ao mesmo tempo pedem duas janelas que não compartilham sessão:
    - terminal 1, na raiz do projeto (o `docker compose` e o `psql`); terminal 2, em `backend/` (os tokens, o Inspector pela linha de comando e a execução de aceite), com a fonte grande;
    - Chrome, janela normal: a aplicação em `http://localhost:5173`, como `ana.vendas`;

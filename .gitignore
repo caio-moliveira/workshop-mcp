@@ -7,3 +7,5 @@ __pycache__/
 .token-da-demonstracao
 # O resultado da execução de aceite, que a API lê para o painel de segurança.
 backend/execucao-de-aceite/
+# O token do túnel nomeado (dá acesso à conta da Cloudflare).
+backend/token-do-tunel
