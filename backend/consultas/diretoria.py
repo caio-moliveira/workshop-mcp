@@ -6,8 +6,10 @@ no período pelo dia da compra no horário de Brasília, como em Vendas, e a ava
 dela, como em Produtos. As respostas trazem números crus e datas ISO; a formatação é do frontend.
 """
 
+from collections.abc import Callable
 from datetime import date
 from decimal import Decimal
+from typing import NamedTuple
 
 import psycopg
 
@@ -16,23 +18,58 @@ from consultas.lead import Canal
 from consultas.periodo import DatasDoPeriodo, Periodo, terminado_em
 from consultas.registro import consulta
 
-# Os blocos dos fatores de recompra e os grupos de cada um, na ordem em que a resposta os traz.
-# Os grupos sem desfecho não existem: o primeiro pedido em trânsito ou com prazo vencido, e o
-# primeiro pedido sem avaliação.
-GRUPOS_DOS_FATORES: dict[str, tuple[str, ...]] = {
-    "primeira_entrega": ("No prazo", "Com atraso"),
-    "primeira_nota": ("1 ou 2", "3", "4 ou 5"),
-    "faixa_de_atraso": ("No prazo", "Até 7 dias", "Mais de 7 dias"),
+
+def _razao(parte: int | None, todo: int | None) -> float | None:
+    """A parte dividida pelo todo, ou `None` quando falta um dos dois ou o todo é zero."""
+    if parte is None or not todo:
+        return None
+    return parte / todo
+
+
+def _grupo_de_recompra(
+    grupo: str, contagem: int, com_recompra: int | None, _satisfacao: float | None
+) -> dict:
+    """Um grupo de clientes pelo primeiro pedido: a taxa de recompra e as contagens dela."""
+    return {
+        "grupo": grupo,
+        "clientes": contagem,
+        "clientes_com_recompra": com_recompra,
+        "taxa_de_recompra": _razao(com_recompra, contagem),
+    }
+
+
+def _grupo_de_satisfacao(
+    grupo: str, contagem: int, _com_recompra: int | None, satisfacao: float | None
+) -> dict:
+    """Uma faixa de atraso: a nota média das avaliações dela e quantas são."""
+    return {"grupo": grupo, "avaliacoes": contagem, "satisfacao": satisfacao}
+
+
+class BlocoDosFatores(NamedTuple):
+    """Os grupos de um bloco, na ordem da resposta, e a forma de cada item dele."""
+
+    grupos: tuple[str, ...]
+    item: Callable[[str, int, int | None, float | None], dict]
+
+
+# Os blocos dos fatores de recompra, na ordem em que a resposta os traz. Os grupos sem desfecho
+# não existem: o primeiro pedido em trânsito ou com prazo vencido, e o primeiro pedido sem
+# avaliação.
+BLOCOS_DOS_FATORES: dict[str, BlocoDosFatores] = {
+    "primeira_entrega": BlocoDosFatores(("No prazo", "Com atraso"), _grupo_de_recompra),
+    "primeira_nota": BlocoDosFatores(("1 ou 2", "3", "4 ou 5"), _grupo_de_recompra),
+    "faixa_de_atraso": BlocoDosFatores(
+        ("No prazo", "Até 7 dias", "Mais de 7 dias"), _grupo_de_satisfacao
+    ),
 }
-_BLOCO_DE_SATISFACAO = "faixa_de_atraso"
 
 # As dimensões fechadas da camada: cada coluna de texto de uma view é uma delas, e os valores que
 # ela traz são exatamente os da enumeração.
 DIMENSOES: dict[str, tuple[str, ...]] = {
     "periodo": tuple(periodo.value for periodo in Periodo),
     "canal": tuple(canal.value for canal in Canal),
-    "bloco": tuple(GRUPOS_DOS_FATORES),
-    "grupo": tuple(dict.fromkeys(g for grupos in GRUPOS_DOS_FATORES.values() for g in grupos)),
+    "bloco": tuple(BLOCOS_DOS_FATORES),
+    "grupo": tuple(dict.fromkeys(g for b in BLOCOS_DOS_FATORES.values() for g in b.grupos)),
 }
 
 
@@ -43,13 +80,6 @@ def _data_de_referencia(conexao: psycopg.Connection) -> date:
 def _datas_do(periodo: Periodo, conexao: psycopg.Connection) -> DatasDoPeriodo:
     """As datas do período que termina na data de referência dos dados."""
     return terminado_em(periodo, _data_de_referencia(conexao))
-
-
-def _razao(parte: int | None, todo: int | None) -> float | None:
-    """A parte dividida pelo todo, ou `None` quando falta um dos dois ou o todo é zero."""
-    if parte is None or not todo:
-        return None
-    return parte / todo
 
 
 @consulta(Perfil.DIRETORIA)
@@ -130,24 +160,13 @@ def fatores_de_recompra(conexao: psycopg.Connection, periodo: Periodo) -> dict:
             (periodo.value,),
         )
     }
-    resposta: dict = {"periodo": _datas_do(periodo, conexao).como_json()}
-    for bloco, grupos in GRUPOS_DOS_FATORES.items():
-        itens = []
-        for grupo in grupos:
-            contagem, com_recompra, satisfacao = linhas[(bloco, grupo)]
-            if bloco == _BLOCO_DE_SATISFACAO:
-                itens.append({"grupo": grupo, "avaliacoes": contagem, "satisfacao": satisfacao})
-            else:
-                itens.append(
-                    {
-                        "grupo": grupo,
-                        "clientes": contagem,
-                        "clientes_com_recompra": com_recompra,
-                        "taxa_de_recompra": _razao(com_recompra, contagem),
-                    }
-                )
-        resposta[bloco] = itens
-    return resposta
+    return {
+        "periodo": _datas_do(periodo, conexao).como_json(),
+        **{
+            bloco: [item(grupo, *linhas[(bloco, grupo)]) for grupo in grupos]
+            for bloco, (grupos, item) in BLOCOS_DOS_FATORES.items()
+        },
+    }
 
 
 @consulta(Perfil.DIRETORIA)
