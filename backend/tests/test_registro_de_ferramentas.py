@@ -43,6 +43,7 @@ PARAMETROS_PREVISTOS = {
     "comercial_canais": {"periodo"},
     "comercial_leads": {"periodo", "canal", "etapa"},
     "diretoria_indicadores": {"periodo"},
+    "diretoria_fatores_de_recompra": {"periodo"},
     "diretoria_resumo": {"periodo"},
     "diretoria_tendencia": {"periodo"},
 }

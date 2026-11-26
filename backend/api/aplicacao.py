@@ -118,6 +118,7 @@ ROTAS_DE_DADOS: dict[str, Consulta] = {
     "/comercial/canais": comercial.canais,
     "/comercial/leads": comercial.leads,
     "/diretoria/indicadores": diretoria.indicadores,
+    "/diretoria/fatores-de-recompra": diretoria.fatores_de_recompra,
     "/diretoria/resumo": diretoria.resumo,
     "/diretoria/tendencia": diretoria.tendencia,
 }

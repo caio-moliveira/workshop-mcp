@@ -1,0 +1,10 @@
+/* Os três blocos dos fatores, empilhados: cada um tem duas ou três barras, e a altura do gráfico
+   é a de poucas barras. */
+.blocos {
+  --altura-do-grafico: 120px;
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco-4);
+  min-width: 0;
+}

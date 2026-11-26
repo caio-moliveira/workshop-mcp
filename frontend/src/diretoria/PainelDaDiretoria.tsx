@@ -6,6 +6,7 @@ import { DESCRICAO_DOS_PERFIS } from "../perfis";
 import type { FonteDeDados } from "../useBloco";
 import { BlocoDeIndicadores } from "./BlocoDeIndicadores";
 import { BlocoDeTendencia } from "./BlocoDeTendencia";
+import { BlocoDosFatoresDeRecompra } from "./BlocoDosFatoresDeRecompra";
 import { ResumoPorCanalDoLojista } from "./BlocoDoResumoPorCanal";
 
 interface Propriedades {
@@ -33,6 +34,9 @@ export function PainelDaDiretoria({ fonte, primeiroNome }: Propriedades) {
       <div className={linha.linhaAnalitica}>
         <div className={linha.principal}>
           <BlocoDeTendencia fonte={fonte} periodo={periodo} />
+        </div>
+        <div className={linha.complementar}>
+          <BlocoDosFatoresDeRecompra fonte={fonte} periodo={periodo} />
         </div>
       </div>
       <ResumoPorCanalDoLojista fonte={fonte} periodo={periodo} />
