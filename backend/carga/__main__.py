@@ -32,6 +32,7 @@ DIRETORIO_SQL = Path(__file__).resolve().parent / "sql"
 VARIAVEL_DA_SENHA_POR_PAPEL = {
     "vendas": "SENHA_DO_PAPEL_VENDAS",
     "produtos": "SENHA_DO_PAPEL_PRODUTOS",
+    "comercial": "SENHA_DO_PAPEL_COMERCIAL",
 }
 
 
