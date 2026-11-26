@@ -151,9 +151,6 @@ create view diretoria.referencia as
 select data_referencia
 from dados_de_origem.referencia;
 
-grant usage on schema diretoria to diretoria;
-grant select on all tables in schema diretoria to diretoria;
-
 -- Fatores de recompra -------------------------------------------------------------------------
 
 -- O primeiro pedido aprovado de cada cliente, qualquer que seja a data dele, com o desfecho da
@@ -243,8 +240,6 @@ cross join grupo g
 left join recompra r on r.periodo = pe.periodo and r.bloco = g.bloco and r.grupo = g.grupo
 left join satisfacao s on s.periodo = pe.periodo and s.bloco = g.bloco and s.grupo = g.grupo;
 
-grant select on diretoria.fatores_de_recompra to diretoria;
-
 -- Resumo por canal do lojista ---------------------------------------------------------------------
 
 -- O canal de cada lojista: o do lead que o originou. Todo lojista vem de um lead fechado.
@@ -324,8 +319,6 @@ left join pedidos d on d.periodo = pe.periodo and d.canal = c.canal
 left join avaliacoes v on v.periodo = pe.periodo and v.canal = c.canal
 left join clientes k on k.periodo = pe.periodo and k.canal = c.canal;
 
-grant select on diretoria.resumo to diretoria;
-
 -- A tendência (#98): os indicadores de cada dia, semana ou mês do período, na granularidade da
 -- evolução de Vendas: dia em 30 dias, semana em 90 dias e mês em 12 e 24 meses. Cada ponto começa
 -- no primeiro dia do seu dia, semana (a segunda, ISO 8601) ou mês de calendário, mesmo que o
@@ -391,4 +384,5 @@ select
 from pedidos p
 join avaliacoes v using (periodo, inicio);
 
-grant select on diretoria.tendencia to diretoria;
+grant usage on schema diretoria to diretoria;
+grant select on all tables in schema diretoria to diretoria;
