@@ -81,6 +81,11 @@ export function eDesempenhoDosCanais(valor: unknown): valor is DesempenhoDosCana
   );
 }
 
+/** Nenhum lead criado e nenhum novo lojista no período, em nenhum canal: não há o que mostrar. */
+export function semMovimento(canais: DesempenhoDoCanal[]): boolean {
+  return canais.every((item) => item.leads === 0 && item.novos_lojistas === 0);
+}
+
 /**
  * Os canais para o gráfico de novos lojistas: do canal com mais novos lojistas para o de menos,
  * com o empate pelo nome. A resposta, na ordem da conversão, fica como veio.

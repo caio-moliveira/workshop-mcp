@@ -1,11 +1,12 @@
 import { DataTable, type Coluna } from "../componentes/DataTable";
+import { EmptyState } from "../componentes/EmptyState";
 import { AnuncioDeCarregamento, EstadosDoBloco } from "../componentes/EstadosDoBloco";
 import { LoadingSkeleton } from "../componentes/LoadingSkeleton";
 import { formatarNumero, formatarPercentual } from "../formatacao";
 import { MolduraDeTabela } from "../painel/MolduraDeTabela";
 import estilos from "./BlocoDeDesempenhoDosCanais.module.css";
 import { CANAIS } from "./canais";
-import type { BuscaDosCanais, DesempenhoDoCanal } from "./desempenhoDosCanais";
+import { semMovimento, type BuscaDosCanais, type DesempenhoDoCanal } from "./desempenhoDosCanais";
 
 const COLUNAS: Coluna<DesempenhoDoCanal>[] = [
   { titulo: "Canal", celula: (c) => c.canal },
@@ -64,8 +65,9 @@ export function TabelaDeDesempenhoDosCanais({ canais }: { canais: DesempenhoDoCa
 
 /**
  * A tabela de desempenho dos canais do período, com os estados da busca que o painel faz e divide
- * com o gráfico de novos lojistas (FE §6, §10). A resposta traz sempre os cinco canais: não há
- * estado vazio, e o canal sem lead ou sem fechamento fica na linha com a célula vazia.
+ * com o gráfico de novos lojistas (FE §6, §10). A resposta traz sempre os cinco canais: o canal
+ * sem lead ou sem fechamento fica na linha com a célula vazia, e só o período sem nenhum lead e
+ * sem nenhum novo lojista, em nenhum canal, vira o estado vazio.
  */
 export function BlocoDeDesempenhoDosCanais({ estado, tentarDeNovo }: BuscaDosCanais) {
   return (
@@ -81,11 +83,18 @@ export function BlocoDeDesempenhoDosCanais({ estado, tentarDeNovo }: BuscaDosCan
         </MolduraDeTabela>
       }
     >
-      {(dados) => (
-        <MolduraDeTabela {...MOLDURA}>
-          <TabelaDeDesempenhoDosCanais canais={dados.canais} />
-        </MolduraDeTabela>
-      )}
+      {(dados) =>
+        semMovimento(dados.canais) ? (
+          <EmptyState
+            titulo="Nenhum lead nem novo lojista no período"
+            descricao="Nenhum canal trouxe lead ou fechou negócio nestes dias. Escolha um período maior para comparar os canais."
+          />
+        ) : (
+          <MolduraDeTabela {...MOLDURA}>
+            <TabelaDeDesempenhoDosCanais canais={dados.canais} />
+          </MolduraDeTabela>
+        )
+      }
     </EstadosDoBloco>
   );
 }
