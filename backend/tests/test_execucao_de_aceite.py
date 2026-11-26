@@ -17,8 +17,13 @@ from execucao_de_aceite import (
     leitura_de_rota,
     principal,
 )
+from provedor import USUARIOS_DE_DEMONSTRACAO
 
 from aceite import ARQUIVO_DA_ULTIMA_EXECUCAO, ExecucaoDeAceite, ler_ultima_execucao
+
+# O nome de cada usuário de demonstração, como o token o traz e a auditoria o grava.
+NOME_DO_USUARIO = {u.nome_de_usuario: u.nome for u in USUARIOS_DE_DEMONSTRACAO}
+RESULTADO_NA_AUDITORIA = {"permitido": "permitida", "negado": "negada"}
 
 SENHAS_DO_AMBIENTE = [
     "POSTGRES_PASSWORD",
@@ -161,3 +166,39 @@ def test_uma_negacao_com_outra_resposta_tambem_e_divergencia():
 
     assert (executado.obtido, executado.resposta.status) == ("negado", 400)
     assert executado.divergencia is True
+
+
+# --- Servidor MCP: Token, Lista de ferramentas e Chamada ---
+
+
+def test_a_linha_da_auditoria_traz_o_usuario_a_ferramenta_e_o_desfecho(execucao):
+    """Lida pelo dono, a linha é a da chamada do cenário, permitida ou negada (CA-07)."""
+    gravada = ler_ultima_execucao(execucao["pasta"])
+    chamadas = [c for c in gravada.cenarios if c.alvo.tipo == "ferramenta"]
+    assert {c.obtido for c in chamadas} == {"permitido", "negado"}
+    for cenario in chamadas:
+        linha = cenario.auditoria
+        assert linha.usuario == NOME_DO_USUARIO[cenario.quem.nome], cenario.id
+        assert linha.ferramenta == cenario.alvo.nome, cenario.id
+        assert linha.argumentos == cenario.alvo.parametros, cenario.id
+        assert linha.resultado == RESULTADO_NA_AUDITORIA[cenario.obtido], cenario.id
+
+
+def test_a_ferramenta_de_outro_perfil_recebe_a_resposta_da_inexistente(execucao):
+    por_id = {c.id: c for c in ler_ultima_execucao(execucao["pasta"]).cenarios}
+    inexistente = por_id["chamada-ferramenta-inexistente"].resposta
+
+    assert inexistente.mensagem == "Ferramenta desconhecida."
+    for id in (
+        "chamada-vendas-chama-ferramenta-da-diretoria",
+        "chamada-diretoria-chama-ferramenta-de-vendas",
+    ):
+        assert por_id[id].resposta == inexistente, id
+
+
+def test_os_tokens_recusados_sao_negados_com_401(execucao):
+    gravada = ler_ultima_execucao(execucao["pasta"])
+    de_token = [c for c in gravada.cenarios if c.grupo == "token"]
+    assert len(de_token) == 3
+    for cenario in de_token:
+        assert (cenario.obtido, cenario.resposta.status) == ("negado", 401), cenario.id

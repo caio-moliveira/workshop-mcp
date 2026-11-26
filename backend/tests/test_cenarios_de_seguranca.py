@@ -2,12 +2,14 @@
 donos, os grupos previstos estão cobertos e os identificadores são únicos."""
 
 from execucao_de_aceite import cenarios
-from registros import DONO_DA_ROTA
+from registros import DONO_DA_FERRAMENTA, DONO_DA_ROTA
 
 from aceite import CAMADAS_DE_DEFESA, GRUPOS
+from acesso import Perfil
 
 # Os grupos da matriz que já têm cenários. Cada entrega de cenários acrescenta os seus aqui.
 GRUPOS_COBERTOS = {"api"}
+GRUPOS_COBERTOS |= {"token", "lista_de_ferramentas", "chamada"}
 
 # O esperado de cada cenário da API, escrito à parte do registro: o dono lê, os outros não.
 ESPERADO_DA_API = {
@@ -63,3 +65,64 @@ def test_os_dois_perfis_negados_na_rota_alheia_sao_de_perfis_diferentes():
     produtos = por_id["api-produtos-le-rota-do-comercial"]
     assert (vendas.quem.nome, produtos.quem.nome) == ("ana.vendas", "bruno.produtos")
     assert DONO_DA_ROTA[vendas.alvo.nome] != DONO_DA_ROTA[produtos.alvo.nome]
+
+
+# --- Servidor MCP: Token, Lista de ferramentas e Chamada ---
+
+
+def test_os_cenarios_de_token_sao_todos_negados_e_nao_tem_usuario():
+    """Sem token, token de outra aplicação (CA-03) e assinatura forjada."""
+    de_token = {c.id: c for c in cenarios() if c.grupo == "token"}
+    assert set(de_token) == {
+        "token-sem-token",
+        "token-de-outra-aplicacao",
+        "token-com-assinatura-forjada",
+    }
+    for cenario in de_token.values():
+        assert cenario.esperado == "negado", cenario.id
+        assert cenario.quem.tipo == "token", cenario.id
+        assert cenario.camadas_de_defesa == ("token",), cenario.id
+
+
+def test_cada_um_dos_quatro_perfis_lista_as_proprias_ferramentas():
+    da_lista = [c for c in cenarios() if c.grupo == "lista_de_ferramentas"]
+    assert sorted(c.perfil for c in da_lista) == sorted(Perfil)
+    for cenario in da_lista:
+        assert cenario.alvo.tipo == "lista_de_ferramentas", cenario.id
+        assert cenario.esperado == "permitido", cenario.id
+
+
+def test_o_esperado_de_cada_chamada_vem_do_registro_de_donos_das_ferramentas():
+    chamadas = [c for c in cenarios() if c.alvo.tipo == "ferramenta"]
+    assert chamadas
+    for cenario in chamadas:
+        dono = DONO_DA_FERRAMENTA.get(cenario.alvo.nome)
+        assert cenario.esperado == ("permitido" if dono is cenario.perfil else "negado"), cenario.id
+
+
+def test_os_cenarios_da_chamada_sao_os_previstos():
+    por_id = {c.id: c for c in cenarios() if c.grupo == "chamada"}
+    assert {i: (c.quem.nome, c.esperado) for i, c in por_id.items()} == {
+        "chamada-dono-chama-a-propria-ferramenta": ("ana.vendas", "permitido"),
+        "chamada-vendas-chama-ferramenta-da-diretoria": ("ana.vendas", "negado"),
+        "chamada-diretoria-chama-ferramenta-de-vendas": ("diego.diretoria", "negado"),
+        "chamada-ferramenta-inexistente": ("ana.vendas", "negado"),
+    }
+    assert DONO_DA_FERRAMENTA[por_id["chamada-vendas-chama-ferramenta-da-diretoria"].alvo.nome] is (
+        Perfil.DIRETORIA
+    )
+    assert DONO_DA_FERRAMENTA[por_id["chamada-diretoria-chama-ferramenta-de-vendas"].alvo.nome] is (
+        Perfil.VENDAS
+    )
+    assert por_id["chamada-ferramenta-inexistente"].alvo.nome not in DONO_DA_FERRAMENTA
+
+
+def test_a_ferramenta_de_outro_perfil_declara_as_duas_camadas_de_defesa():
+    """Ela não aparece na lista e é recusada na chamada: uma camada não depende da outra."""
+    de_outro_perfil = [
+        c for c in cenarios() if c.alvo.tipo == "ferramenta" and c.alvo.nome in DONO_DA_FERRAMENTA
+    ]
+    negadas = [c for c in de_outro_perfil if c.esperado == "negado"]
+    assert len(negadas) == 2
+    for cenario in negadas:
+        assert cenario.camadas_de_defesa == ("lista_de_ferramentas", "chamada"), cenario.id

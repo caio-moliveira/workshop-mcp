@@ -31,9 +31,23 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import httpx  # noqa: E402
-from apoio import banco_local, variavel  # noqa: E402
-from provedor import USUARIOS_DE_DEMONSTRACAO, conteudo, token_pelo_fluxo_de_codigo  # noqa: E402
-from registros import DONO_DA_ROTA  # noqa: E402
+import jwt  # noqa: E402
+from apoio import BANCO_DA_AUDITORIA, banco_local, conectar_como_dono, variavel  # noqa: E402
+from chaves_locais import nova_chave  # noqa: E402
+from cliente_mcp import FERRAMENTA_DESCONHECIDA, MCP_DO_AMBIENTE, pedir_ao_protocolo  # noqa: E402
+from provedor import (  # noqa: E402
+    APLICACAO,
+    OUTRA_APLICACAO,
+    USUARIOS_DE_DEMONSTRACAO,
+    conteudo,
+    token_pelo_fluxo_de_codigo,
+)
+from registros import (  # noqa: E402
+    DONO_DA_FERRAMENTA,
+    DONO_DA_ROTA,
+    argumentos_minimos,
+    ferramentas_de,
+)
 
 from aceite import (  # noqa: E402
     GRUPOS,
@@ -102,19 +116,23 @@ class Contexto:
     """O que os cenários de uma execução compartilham: o cliente da API, os tokens já obtidos e
     o que for preciso preparar (a conversa de outro usuário). Feche ao terminar."""
 
-    def __init__(self, endereco_da_api: str = API) -> None:
+    def __init__(self, endereco_da_api: str = API, endereco_do_mcp: str = MCP_DO_AMBIENTE) -> None:
         self.api = httpx.Client(base_url=endereco_da_api, timeout=30)
-        self._tokens: dict[str, tuple[str, float]] = {}
+        self.mcp = httpx.Client(base_url=endereco_do_mcp, timeout=30)
+        self._tokens: dict[tuple[str, str], tuple[str, float]] = {}
         self._historico: HistoricoNoBanco | None = None
         self._conversas: dict[str, tuple[UsuarioAutenticado, uuid.UUID]] = {}
 
-    def token_de(self, nome_de_usuario: str) -> str:
-        """O token de acesso do usuário de demonstração, pelo fluxo de código, guardado."""
-        guardado = self._tokens.get(nome_de_usuario)
+    def token_de(self, nome_de_usuario: str, aplicacao: str = APLICACAO) -> str:
+        """O token de acesso do usuário de demonstração, pelo fluxo de código, guardado. Por
+        padrão, o login é o da aplicação; `aplicacao` escolhe outro cliente do realm."""
+        chave = (nome_de_usuario, aplicacao)
+        guardado = self._tokens.get(chave)
         if guardado and time.monotonic() - guardado[1] < VALIDADE_DO_TOKEN_GUARDADO_EM_SEGUNDOS:
             return guardado[0]
-        token = token_pelo_fluxo_de_codigo(nome_de_usuario, _usuario(nome_de_usuario).senha())
-        self._tokens[nome_de_usuario] = (token, time.monotonic())
+        senha = _usuario(nome_de_usuario).senha()
+        token = token_pelo_fluxo_de_codigo(nome_de_usuario, senha, aplicacao)
+        self._tokens[chave] = (token, time.monotonic())
         return token
 
     def conversa_de(self, nome_de_usuario: str) -> uuid.UUID:
@@ -145,6 +163,7 @@ class Contexto:
         if self._historico is not None:
             self._historico.fechar()
         self.api.close()
+        self.mcp.close()
 
     def __enter__(self) -> "Contexto":
         return self
@@ -296,10 +315,277 @@ def cenarios_da_api() -> list[CenarioDeSeguranca]:
     ]
 
 
+# --- Servidor MCP: camadas de defesa Token, Lista de ferramentas e Chamada ---
+
+FERRAMENTA_QUE_NUNCA_EXISTIU = "vendas_margem_por_cliente"
+LISTA_DE_FERRAMENTAS = "tools/list"
+
+
+def _token_forjado(token: str) -> str:
+    """O mesmo cabeçalho e o mesmo conteúdo de um token real, assinados por uma chave que o
+    provedor não conhece: só a assinatura é falsa."""
+    cabecalho = jwt.get_unverified_header(token)
+    return jwt.encode(conteudo(token), nova_chave(), algorithm="RS256", headers=cabecalho)
+
+
+def _observar_recusa_do_token(resposta: httpx.Response) -> Observado:
+    """A recusa do token no servidor MCP: 401, sem corpo, com o `WWW-Authenticate` Bearer."""
+    if resposta.is_success:
+        return Observado("permitido", Resposta(status=resposta.status_code), confere=False)
+    bearer = resposta.headers.get("www-authenticate", "").startswith("Bearer")
+    return Observado(
+        "negado",
+        Resposta(status=resposta.status_code),
+        confere=resposta.status_code == 401 and bearer,
+    )
+
+
+def _ferramentas_listadas(resposta: httpx.Response) -> list[str] | None:
+    """Os nomes que o servidor listou; `None` se a lista não veio."""
+    if not resposta.is_success:
+        return None
+    return sorted(f["name"] for f in resposta.json()["result"]["tools"])
+
+
+def recusa_do_token(
+    id: str,
+    descricao: str,
+    tipo_de_token: str,
+    obter_token: Callable[["Contexto"], str | None],
+) -> CenarioDeSeguranca:
+    """A lista de ferramentas pedida com um token que o servidor MCP não pode aceitar."""
+    tokens: dict[str, str | None] = {}
+
+    def preparar(contexto: Contexto) -> None:
+        tokens["token"] = obter_token(contexto)
+
+    def executar(contexto: Contexto) -> Observado:
+        resposta = pedir_ao_protocolo(contexto.mcp, tokens["token"], LISTA_DE_FERRAMENTAS)
+        return _observar_recusa_do_token(resposta)
+
+    return CenarioDeSeguranca(
+        id=id,
+        descricao=descricao,
+        grupo="token",
+        quem=Quem(tipo="token", nome=tipo_de_token),
+        perfil=None,
+        alvo=Alvo(tipo="lista_de_ferramentas", nome=LISTA_DE_FERRAMENTAS),
+        camadas_de_defesa=("token",),
+        esperado="negado",
+        executar=executar,
+        preparar=preparar,
+    )
+
+
+def lista_de_ferramentas(id: str, descricao: str, nome_de_usuario: str) -> CenarioDeSeguranca:
+    """O usuário lista as ferramentas e precisa ver exatamente as do perfil, pelo registro. Só a
+    quantidade vai para o resultado."""
+    perfil = _usuario(nome_de_usuario).perfil
+
+    def executar(contexto: Contexto) -> Observado:
+        token = contexto.token_de(nome_de_usuario)
+        resposta = pedir_ao_protocolo(contexto.mcp, token, LISTA_DE_FERRAMENTAS)
+        listadas = _ferramentas_listadas(resposta)
+        if listadas is None:
+            return Observado("negado", Resposta(status=resposta.status_code), confere=False)
+        return Observado(
+            "permitido",
+            Resposta(status=resposta.status_code, linhas=len(listadas)),
+            confere=listadas == ferramentas_de(perfil),
+        )
+
+    return CenarioDeSeguranca(
+        id=id,
+        descricao=descricao,
+        grupo="lista_de_ferramentas",
+        quem=Quem(tipo="usuario", nome=nome_de_usuario),
+        perfil=perfil,
+        alvo=Alvo(tipo="lista_de_ferramentas", nome=LISTA_DE_FERRAMENTAS),
+        camadas_de_defesa=("lista_de_ferramentas",),
+        esperado="permitido",
+        executar=executar,
+        preparar=lambda contexto: contexto.token_de(nome_de_usuario),
+    )
+
+
+def _ultimo_id_da_auditoria(id_do_usuario: str) -> int:
+    """O id da linha mais recente do usuário na auditoria, lido pelo dono; 0 se não há."""
+    with conectar_como_dono(BANCO_DA_AUDITORIA) as conexao:
+        (ultimo,) = conexao.execute(
+            "select coalesce(max(id), 0) from auditoria.chamada where id_do_usuario = %s",
+            (id_do_usuario,),
+        ).fetchone()
+    return ultimo
+
+
+def _linha_da_auditoria(
+    id_do_usuario: str, ferramenta: str, depois_de: int
+) -> LinhaDaAuditoria | None:
+    """A linha que a chamada deixou na auditoria, lida pelo dono: a primeira do usuário para a
+    ferramenta depois de `depois_de`. O filtro isola a chamada do cenário das de outros pedidos
+    do mesmo usuário."""
+    with conectar_como_dono(BANCO_DA_AUDITORIA) as conexao:
+        linha = conexao.execute(
+            "select id, horario, nome_do_usuario, ferramenta, parametros, resultado"
+            " from auditoria.chamada where id_do_usuario = %s and ferramenta = %s and id > %s"
+            " order by id limit 1",
+            (id_do_usuario, ferramenta, depois_de),
+        ).fetchone()
+    if linha is None:
+        return None
+    id, horario, usuario, nome, argumentos, resultado = linha
+    return LinhaDaAuditoria(
+        id=id,
+        horario=horario,
+        usuario=usuario,
+        ferramenta=nome,
+        argumentos=argumentos,
+        resultado=resultado,
+    )
+
+
+def _observar_chamada(resposta: httpx.Response) -> tuple[Desfecho, Resposta]:
+    """O desfecho de uma chamada de ferramenta: o erro de ferramenta é negado, com a mensagem; o
+    sucesso é permitido, só com o status e a quantidade de linhas."""
+    resultado = resposta.json().get("result", {}) if resposta.is_success else {}
+    if resposta.is_success and not resultado.get("isError"):
+        linhas = _linhas(resultado.get("structuredContent"))
+        return "permitido", Resposta(status=resposta.status_code, linhas=linhas)
+    textos = [item.get("text") for item in resultado.get("content", [])]
+    mensagem = textos[0] if len(textos) == 1 else None
+    return "negado", Resposta(status=resposta.status_code, mensagem=mensagem)
+
+
+def chamada_de_ferramenta(
+    id: str, descricao: str, nome_de_usuario: str, ferramenta: str
+) -> CenarioDeSeguranca:
+    """O usuário chama uma ferramenta com os argumentos mínimos dela; o esperado vem do registro
+    de donos. A de outro perfil é barrada em duas camadas, e o cenário confere as duas: ela não
+    aparece na lista e é recusada na chamada. A negação é a da ferramenta inexistente, e a linha
+    da auditoria precisa trazer o desfecho (CA-07)."""
+    perfil = _usuario(nome_de_usuario).perfil
+    dono = DONO_DA_FERRAMENTA.get(ferramenta)
+    esperado: Desfecho = "permitido" if dono is perfil else "negado"
+    argumentos = argumentos_minimos(ferramenta) if dono else {}
+    # A de outro perfil existe e some da lista; a inexistente nem existe para sumir.
+    de_outro_perfil = dono is not None and dono is not perfil
+    camadas: tuple[CamadaDeDefesa, ...] = (
+        ("lista_de_ferramentas", "chamada") if de_outro_perfil else ("chamada",)
+    )
+    antes: dict[str, int] = {}
+
+    def preparar(contexto: Contexto) -> None:
+        sub = conteudo(contexto.token_de(nome_de_usuario))["sub"]
+        antes["id"] = _ultimo_id_da_auditoria(sub)
+
+    def executar(contexto: Contexto) -> Observado:
+        token = contexto.token_de(nome_de_usuario)
+        fora_da_lista = True
+        if de_outro_perfil:
+            listadas = _ferramentas_listadas(
+                pedir_ao_protocolo(contexto.mcp, token, LISTA_DE_FERRAMENTAS)
+            )
+            fora_da_lista = listadas is not None and ferramenta not in listadas
+        chamada = {"name": ferramenta, "arguments": argumentos}
+        resposta = pedir_ao_protocolo(contexto.mcp, token, "tools/call", chamada)
+        obtido, observada = _observar_chamada(resposta)
+        auditoria = _linha_da_auditoria(conteudo(token)["sub"], ferramenta, antes["id"])
+        mensagem_certa = obtido == "permitido" or observada.mensagem == FERRAMENTA_DESCONHECIDA
+        na_auditoria = "permitida" if obtido == "permitido" else "negada"
+        auditada = auditoria is not None and auditoria.resultado == na_auditoria
+        confere = fora_da_lista and mensagem_certa and auditada
+        return Observado(obtido, observada, auditoria, confere)
+
+    return CenarioDeSeguranca(
+        id=id,
+        descricao=descricao,
+        grupo="chamada",
+        quem=Quem(tipo="usuario", nome=nome_de_usuario),
+        perfil=perfil,
+        alvo=Alvo(tipo="ferramenta", nome=ferramenta, parametros=argumentos),
+        camadas_de_defesa=camadas,
+        esperado=esperado,
+        executar=executar,
+        preparar=preparar,
+    )
+
+
+def cenarios_do_token() -> list[CenarioDeSeguranca]:
+    return [
+        recusa_do_token(
+            "token-sem-token",
+            "Sem token, o servidor MCP recusa o pedido",
+            "sem token",
+            lambda _: None,
+        ),
+        recusa_do_token(
+            "token-de-outra-aplicacao",
+            "O token de outra aplicação do mesmo provedor é recusado (CA-03)",
+            "token de outra aplicação",
+            lambda contexto: contexto.token_de("ana.vendas", OUTRA_APLICACAO),
+        ),
+        recusa_do_token(
+            "token-com-assinatura-forjada",
+            "Um token com a assinatura forjada é recusado",
+            "token com assinatura forjada",
+            lambda contexto: _token_forjado(contexto.token_de("ana.vendas")),
+        ),
+    ]
+
+
+def cenarios_da_lista_de_ferramentas() -> list[CenarioDeSeguranca]:
+    return [
+        lista_de_ferramentas(
+            "lista-de-vendas", "Vendas lista só as próprias ferramentas", "ana.vendas"
+        ),
+        lista_de_ferramentas(
+            "lista-de-produtos", "Produtos lista só as próprias ferramentas", "bruno.produtos"
+        ),
+        lista_de_ferramentas(
+            "lista-do-comercial", "O Comercial lista só as próprias ferramentas", "carla.comercial"
+        ),
+        lista_de_ferramentas(
+            "lista-da-diretoria", "A Diretoria lista só as próprias ferramentas", "diego.diretoria"
+        ),
+    ]
+
+
+def cenarios_da_chamada() -> list[CenarioDeSeguranca]:
+    return [
+        chamada_de_ferramenta(
+            "chamada-dono-chama-a-propria-ferramenta",
+            "O dono chama a própria ferramenta, e a chamada fica na auditoria",
+            "ana.vendas",
+            ferramentas_de(Perfil.VENDAS)[0],
+        ),
+        chamada_de_ferramenta(
+            "chamada-vendas-chama-ferramenta-da-diretoria",
+            "Vendas chama uma ferramenta da Diretoria: não listada e recusada",
+            "ana.vendas",
+            ferramentas_de(Perfil.DIRETORIA)[0],
+        ),
+        chamada_de_ferramenta(
+            "chamada-diretoria-chama-ferramenta-de-vendas",
+            "A Diretoria chama uma ferramenta de Vendas: não listada e recusada",
+            "diego.diretoria",
+            ferramentas_de(Perfil.VENDAS)[0],
+        ),
+        chamada_de_ferramenta(
+            "chamada-ferramenta-inexistente",
+            "Uma ferramenta inexistente recebe a mesma resposta da de outro perfil",
+            "ana.vendas",
+            FERRAMENTA_QUE_NUNCA_EXISTIU,
+        ),
+    ]
+
+
 # Os cenários de cada grupo da matriz, na ordem em que um pedido atravessa as camadas de defesa.
 # Um grupo ainda sem cenários fica de fora.
 CENARIOS_POR_GRUPO: dict[Grupo, Callable[[], list[CenarioDeSeguranca]]] = {
     "api": cenarios_da_api,
+    "token": cenarios_do_token,
+    "lista_de_ferramentas": cenarios_da_lista_de_ferramentas,
+    "chamada": cenarios_da_chamada,
 }
 
 
