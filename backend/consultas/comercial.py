@@ -11,6 +11,7 @@ from datetime import date
 import psycopg
 
 from acesso import Perfil
+from consultas.lead import Canal, Etapa
 from consultas.periodo import DatasDoPeriodo, Periodo, inicio_dos_dados, terminado_em
 from consultas.registro import consulta
 
@@ -122,4 +123,55 @@ def indicadores(conexao: psycopg.Connection, periodo: Periodo) -> dict:
         "conversao": comparacao("conversao"),
         "principal_canal": None if principal is None else principal[0],
         "parcela_do_principal_canal": None if principal is None else principal[1] / agora.leads,
+    }
+
+
+# Os leads recentes são uma amostra, não o total do período.
+LIMITE_DE_LEADS_RECENTES = 20
+
+
+@consulta(Perfil.COMERCIAL)
+def leads(
+    conexao: psycopg.Connection,
+    periodo: Periodo,
+    canal: Canal | None = None,
+    etapa: Etapa | None = None,
+) -> dict:
+    """Os leads criados no período, do mais recente para o mais antigo, no máximo 20; com `canal`
+    ou `etapa`, só os do recorte, ainda dentro do período. Um recorte sem lead dá lista vazia.
+
+    A data de fechamento é `None` no lead que não fechou. O identificador desempata os leads
+    criados no mesmo dia.
+    """
+    datas = _datas_do(periodo, conexao)
+    linhas = conexao.execute(
+        """
+        select id, empresa, canal, etapa, data_criacao, data_fechamento
+        from comercial.lead
+        where data_criacao between %(inicio)s and %(fim)s
+          and (%(canal)s::text is null or canal = %(canal)s::text)
+          and (%(etapa)s::text is null or etapa = %(etapa)s::text)
+        order by data_criacao desc, id desc
+        limit %(limite)s
+        """,
+        {
+            **_parametros(datas),
+            "canal": None if canal is None else canal.value,
+            "etapa": None if etapa is None else etapa.value,
+            "limite": LIMITE_DE_LEADS_RECENTES,
+        },
+    ).fetchall()
+    return {
+        "periodo": datas.como_json(),
+        "leads": [
+            {
+                "lead": lead,
+                "empresa": empresa,
+                "canal": canal,
+                "etapa": etapa,
+                "data_criacao": criacao.isoformat(),
+                "data_fechamento": None if fechamento is None else fechamento.isoformat(),
+            }
+            for lead, empresa, canal, etapa, criacao, fechamento in linhas
+        ],
     }
