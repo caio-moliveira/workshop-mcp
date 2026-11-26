@@ -267,6 +267,8 @@ Os roteiros, com comandos e resultados esperados, estão em `docs/demonstracao/`
 - Entrega 9, perfil Comercial: `docs/demonstracao/entrega-9.md`.
 - Entrega 10, perfil Diretoria: `docs/demonstracao/entrega-10.md`.
 
+O roteiro do apresentador, para o workshop de 90 minutos, em oito blocos na ordem dos conceitos, com a preparação e o que gravar como reserva: `docs/demonstracao/roteiro-do-apresentador.md`.
+
 ## Parar o ambiente
 
 ```
