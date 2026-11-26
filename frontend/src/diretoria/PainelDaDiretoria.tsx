@@ -1,9 +1,11 @@
 import { PageHeading } from "../componentes/PageHeading";
 import { PeriodFilter } from "../componentes/PeriodFilter";
+import linha from "../painel/LinhaAnalitica.module.css";
 import { usePeriodoDaUrl } from "../painel/usePeriodoDaUrl";
 import { DESCRICAO_DOS_PERFIS } from "../perfis";
 import type { FonteDeDados } from "../useBloco";
 import { BlocoDeIndicadores } from "./BlocoDeIndicadores";
+import { BlocoDeTendencia } from "./BlocoDeTendencia";
 
 interface Propriedades {
   fonte: FonteDeDados;
@@ -27,6 +29,11 @@ export function PainelDaDiretoria({ fonte, primeiroNome }: Propriedades) {
         controles={<PeriodFilter periodo={periodo} aoMudar={mudarPeriodo} />}
       />
       <BlocoDeIndicadores fonte={fonte} periodo={periodo} />
+      <div className={linha.linhaAnalitica}>
+        <div className={linha.principal}>
+          <BlocoDeTendencia fonte={fonte} periodo={periodo} />
+        </div>
+      </div>
     </>
   );
 }
