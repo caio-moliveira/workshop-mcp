@@ -7,6 +7,7 @@ import threading
 import time
 from collections.abc import Callable, Iterator
 from dataclasses import replace
+from pathlib import Path
 
 import psycopg
 import pytest
@@ -113,8 +114,9 @@ def criar_api(executor_de_consultas, historico_local) -> Callable[..., TestClien
     `modelo=` (sem ele, a API fica sem modelo, como sem a chave do provedor), e o servidor MCP
     que o assistente chama, com `endereco_do_mcp=` (sem ele, o serviço `mcp` do compose), e os
     tetos da pergunta, com `limites=` (sem ele, os padrões), e o histórico das conversas, com
-    `historico=` (sem ele, o banco `historico` do compose). A origem do frontend liberada pelo
-    CORS é a do ambiente.
+    `historico=` (sem ele, o banco `historico` do compose), e a pasta da execução de aceite, com
+    `execucao_de_aceite=` (sem ela, o interruptor de demonstração desligado). A origem do
+    frontend liberada pelo CORS é a do ambiente.
     """
 
     def criar(
@@ -123,6 +125,7 @@ def criar_api(executor_de_consultas, historico_local) -> Callable[..., TestClien
         endereco_do_mcp: str = MCP_DO_AMBIENTE + CAMINHO_DO_MCP,
         limites: Limites | None = None,
         historico: Historico | None = None,
+        execucao_de_aceite: Path | None = None,
         **sobreposicoes,
     ) -> TestClient:
         configuracao = ConfiguracaoDeAcesso(
@@ -138,6 +141,7 @@ def criar_api(executor_de_consultas, historico_local) -> Callable[..., TestClien
             endereco_do_mcp=endereco_do_mcp,
             limites=limites or Limites(),
             historico=historico or historico_local,
+            execucao_de_aceite=execucao_de_aceite,
         )
         return TestClient(aplicacao)
 
