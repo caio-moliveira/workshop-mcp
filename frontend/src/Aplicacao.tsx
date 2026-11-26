@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
 
+import { PainelDoComercial } from "./comercial/PainelDoComercial";
 import { AppShell } from "./componentes/AppShell";
 import { EmptyState } from "./componentes/EmptyState";
 import { ErrorState } from "./componentes/ErrorState";
@@ -45,6 +46,8 @@ export function Aplicacao({ sessao }: { sessao: Sessao }) {
             <PainelDeVendas fonte={sessao} primeiroNome={primeiroNome} />
           ) : usuario.perfil === "produtos" ? (
             <PainelDeProdutos fonte={sessao} primeiroNome={primeiroNome} />
+          ) : usuario.perfil === "comercial" ? (
+            <PainelDoComercial fonte={sessao} primeiroNome={primeiroNome} />
           ) : (
             <>
               <PageHeading
