@@ -259,4 +259,4 @@ Lacunas que os PRDs não listam:
 | Lacuna | Bloqueia |
 | --- | --- |
 | ~~Definição dos indicadores da Diretoria (recompra, retenção, satisfação, fatores correlacionados à recompra). O PRD de dados diz que derivam das três áreas, mas não define cada um.~~ | Decidida na 10: taxa de recompra, retenção e satisfação no `GLOSSARY.md` (seção Diretoria), os fatores de recompra e o resumo por canal na spec (#96), e a forma da camada no ADR 0011. |
-| Painel de segurança: de onde vêm os resultados (execução ao vivo ou último resultado dos testes) e quem pode acessá-lo. | 11 |
+| ~~Painel de segurança: de onde vêm os resultados (execução ao vivo ou último resultado dos testes) e quem pode acessá-lo.~~ | Decidida na 11: da última execução de aceite, um comando próprio rodado no terminal contra o ambiente no ar, que grava o resultado num arquivo lido pela API (spec #104). Os quatro perfis o acessam, só com o interruptor de demonstração ligado (`PAINEL_DE_SEGURANCA`), que o compose liga. |
