@@ -8,6 +8,7 @@ import {
   CURSOR,
   EIXO,
   GRADE_VERTICAL,
+  type LinhaDaDica,
   SEM_ANIMACAO,
   type SerieDoGrafico,
 } from "../componentes/graficos";
@@ -21,7 +22,6 @@ import {
   linhasDaDicaDeSatisfacao,
   SATISFACAO,
   TAXA_DE_RECOMPRA,
-  type LinhaDaDica,
 } from "./dicaDosFatores";
 import {
   eFatoresDeRecompra,
