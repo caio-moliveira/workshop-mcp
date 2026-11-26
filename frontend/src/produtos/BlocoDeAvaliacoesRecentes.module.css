@@ -1,0 +1,18 @@
+.nota {
+  font-weight: var(--peso-medio);
+  font-variant-numeric: tabular-nums;
+}
+
+.secundario {
+  color: var(--text-secondary);
+}
+
+/* O comentário quebra linha dentro da célula, com largura de leitura; a tabela rola no celular. */
+.comentario {
+  display: block;
+  min-width: 320px;
+  max-width: 560px;
+  padding-block: var(--espaco-2);
+  white-space: normal;
+  overflow-wrap: anywhere;
+}

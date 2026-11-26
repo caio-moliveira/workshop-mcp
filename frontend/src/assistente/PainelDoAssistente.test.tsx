@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
+import type { Perfil } from "../perfis";
 import type { Conversa } from "./conversa";
 import { PainelDoAssistente } from "./PainelDoAssistente";
 import type { FonteDoAssistente } from "./useConversa";
@@ -35,10 +36,14 @@ const CONVERSA: Conversa = {
 
 const SEM_ACAO = () => {};
 
-function desenhar(modo: { expandido: boolean; podeExpandir: boolean }, conversa = CONVERSA) {
+function desenhar(
+  modo: { expandido: boolean; podeExpandir: boolean },
+  conversa = CONVERSA,
+  usuario: { nome: string; perfil: Perfil } = { nome: "Ana", perfil: "vendas" },
+) {
   return renderToStaticMarkup(
     <PainelDoAssistente
-      usuario={{ nome: "Ana", perfil: "vendas" }}
+      usuario={usuario}
       fonte={FONTE}
       conversa={conversa}
       abertura={{ situacao: "pronta" }}
@@ -91,6 +96,15 @@ describe("painel do assistente", () => {
 
     expect(html).toMatch(/<ul[^>]*aria-label="Sugestões"/);
     expect(html).toContain('id="pergunta-ao-assistente"');
+  });
+
+  it("vazio, o assistente de Produtos sugere a pergunta das categorias de piores notas", () => {
+    const html = desenhar({ expandido: false, podeExpandir: true }, { perguntasERespostas: [] }, {
+      nome: "Bruno",
+      perfil: "produtos",
+    });
+
+    expect(html).toContain("Quais categorias concentram as piores notas?");
   });
 
   it("uma resposta chegando mostra o indicador discreto com o texto de estado", () => {

@@ -18,6 +18,17 @@ export const GRADE = {
   strokeWidth: 1,
 } as const;
 
+/** Para barras horizontais: a grade fina acompanha o eixo dos valores, que aí é o horizontal. */
+export const GRADE_VERTICAL = {
+  horizontal: false,
+  vertical: true,
+  stroke: "var(--grade-do-grafico)",
+  strokeWidth: 1,
+} as const;
+
+/** A marca de uma medida que só aparece na dica: sem cor de série própria. */
+export const SO_NA_DICA = { cor: "transparent", forma: "barra" } as const;
+
 /** Eixos sem linha nem marcação, rótulos em cinza secundário de 12 px. */
 export const EIXO = {
   axisLine: false,

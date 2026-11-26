@@ -12,7 +12,7 @@ interface DescricaoDoPerfil {
   cor: string;
   /** Rótulo do painel do perfil, na sidebar e no cabeçalho. */
   rotuloDoPainel: string;
-  /** A pergunta sugerida no painel do assistente (FE §6); só Vendas tem uma nesta entrega. */
+  /** A pergunta sugerida no painel do assistente (FE §6); só os perfis com ferramentas têm uma. */
   perguntaSugerida?: string;
 }
 
@@ -27,11 +27,13 @@ export const DESCRICAO_DOS_PERFIS: Record<Perfil, DescricaoDoPerfil> = {
     nome: "Produtos",
     cor: "var(--perfil-produtos)",
     rotuloDoPainel: "Painel de Produtos",
+    perguntaSugerida: "Quais categorias concentram as piores notas?",
   },
   comercial: {
     nome: "Comercial",
     cor: "var(--perfil-comercial)",
     rotuloDoPainel: "Painel Comercial",
+    perguntaSugerida: "Qual canal traz os leads que mais convertem?",
   },
   diretoria: {
     nome: "Diretoria",

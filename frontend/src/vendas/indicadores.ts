@@ -1,12 +1,13 @@
 /** O contrato de `GET /vendas/indicadores`: números crus e datas ISO. */
 
-import { type DatasDoPeriodo, eDatasDoPeriodo, eNumero, eObjeto } from "./contrato";
-
-/** O valor do período e o do anterior de mesmo tamanho (`null` quando não há anterior). */
-export interface Comparacao<T> {
-  atual: T;
-  anterior: T | null;
-}
+import {
+  type Comparacao,
+  type DatasDoPeriodo,
+  eComparacao,
+  eDatasDoPeriodo,
+  eNumero,
+  eObjeto,
+} from "../painel/contrato";
 
 export interface IndicadoresDeVendas {
   periodo: DatasDoPeriodo;
@@ -15,16 +16,6 @@ export interface IndicadoresDeVendas {
   /** Taxas são frações de 0 a 1; `null` quando o período não tem denominador. */
   taxa_de_atraso: Comparacao<number | null> & { atrasos: number };
   taxa_de_aprovacao: Comparacao<number | null>;
-}
-
-function eNumeroOuNulo(valor: unknown): valor is number | null {
-  return valor === null || eNumero(valor);
-}
-
-function eComparacao(valor: unknown, atualPodeSerNulo: boolean): boolean {
-  if (!eObjeto(valor) || !("anterior" in valor)) return false;
-  const atualValido = atualPodeSerNulo ? eNumeroOuNulo(valor.atual) : eNumero(valor.atual);
-  return atualValido && eNumeroOuNulo(valor.anterior);
 }
 
 export function eIndicadoresDeVendas(valor: unknown): valor is IndicadoresDeVendas {

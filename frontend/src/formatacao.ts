@@ -10,6 +10,11 @@ const PERCENTUAL_COM_SINAL = new Intl.NumberFormat("pt-BR", {
   ...UMA_CASA,
 });
 const PONTOS_COM_SINAL = new Intl.NumberFormat("pt-BR", { signDisplay: "exceptZero", ...UMA_CASA });
+const DIFERENCA_DE_NOTA = new Intl.NumberFormat("pt-BR", {
+  signDisplay: "exceptZero",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
 
 export function formatarMoeda(valor: number): string {
   return MOEDA.format(valor);
@@ -50,6 +55,18 @@ export function formatarVariacaoRelativa(fracao: number): string {
 /** A diferença entre duas taxas (0,012) em pontos percentuais, com sinal ("+1,2 p.p."). */
 export function formatarPontosPercentuais(diferenca: number): string {
   return `${PONTOS_COM_SINAL.format(diferenca * 100)} p.p.`;
+}
+
+const NOTA = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+/** Uma nota média de 1 a 5 com duas casas ("4,12"), na mesma precisão da sua variação. */
+export function formatarNota(nota: number): string {
+  return NOTA.format(nota);
+}
+
+/** A diferença entre duas notas médias (0,07), em pontos da nota, com sinal ("+0,07"). */
+export function formatarDiferencaDeNota(diferenca: number): string {
+  return DIFERENCA_DE_NOTA.format(diferenca);
 }
 
 // O fuso do negócio: os dias do painel são os de Brasília, não os do navegador.

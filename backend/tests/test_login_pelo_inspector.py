@@ -35,9 +35,9 @@ from provedor import (
 )
 from recusa import assert_recusado as assert_recusado_pela_api
 from recusa import pedir_eu
+from registros import ferramentas_de
 
 from acesso import Perfil
-from servidor_mcp.ferramentas import FERRAMENTAS
 from token_de_demonstracao import Aplicacao, fluxo_de_codigo
 
 CLIENTE_DO_INSPECTOR = INSPECTOR
@@ -130,17 +130,21 @@ def test_o_inspector_pede_os_escopos_anunciados_e_recebe_o_mesmo_token():
     do_token = conteudo(token)
     assert do_token["perfil"] == "vendas"
     assert destinatarios(do_token) == [DESTINATARIO_DO_MCP]
-    assert sorted(f.name for f in listar_ferramentas(MCP_DO_AMBIENTE, token)) == sorted(FERRAMENTAS)
+    assert sorted(f.name for f in listar_ferramentas(MCP_DO_AMBIENTE, token)) == ferramentas_de(
+        Perfil.VENDAS
+    )
 
 
 def test_token_do_inspector_e_aceito_pelo_servidor_mcp():
     token = login_pelo_inspector()["access_token"]
 
-    assert sorted(f.name for f in listar_ferramentas(MCP_DO_AMBIENTE, token)) == sorted(FERRAMENTAS)
+    assert sorted(f.name for f in listar_ferramentas(MCP_DO_AMBIENTE, token)) == ferramentas_de(
+        Perfil.VENDAS
+    )
 
 
 def test_token_do_inspector_de_outro_perfil_recebe_a_lista_vazia():
-    token = login_pelo_inspector(Perfil.PRODUTOS)["access_token"]
+    token = login_pelo_inspector(Perfil.DIRETORIA)["access_token"]
 
     assert listar_ferramentas(MCP_DO_AMBIENTE, token) == []
 

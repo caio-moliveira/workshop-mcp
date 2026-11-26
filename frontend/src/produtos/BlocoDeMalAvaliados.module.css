@@ -1,0 +1,8 @@
+.nota {
+  font-weight: var(--peso-medio);
+  font-variant-numeric: tabular-nums;
+}
+
+.secundario {
+  color: var(--text-secondary);
+}

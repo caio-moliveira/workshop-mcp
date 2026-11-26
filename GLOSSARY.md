@@ -144,6 +144,14 @@ _Avoid_: Retorno, fidelização, retenção (que é um indicador da Diretoria)
 
 ### Produtos
 
+**Produto**:
+Um item que um lojista oferece no marketplace, com nome, preço e uma categoria.
+_Avoid_: Item (que é a linha de um pedido), SKU, mercadoria
+
+**Catálogo**:
+O conjunto de todos os produtos do marketplace. Não depende do período.
+_Avoid_: Produtos ativos, estoque, portfólio
+
 **Avaliação**:
 A nota de 1 a 5, com ou sem comentário, que um cliente dá a um produto de um pedido que recebeu. Há no máximo uma por pedido.
 _Avoid_: Review, feedback, comentário (que é só o texto)
@@ -152,10 +160,22 @@ _Avoid_: Review, feedback, comentário (que é só o texto)
 A única avaliação cujo comentário tenta dar instruções a um agente de IA. Existe para o teste de segurança.
 _Avoid_: Avaliação envenenada, injeção, avaliação de teste
 
+**Reclamação**:
+Uma avaliação com nota 1 ou 2, com ou sem comentário.
+_Avoid_: Avaliação negativa, crítica, queixa
+
+**Taxa de reclamação**:
+A parte das avaliações de um período que são reclamações.
+_Avoid_: Índice de reclamação, reclamações (sozinho, que é a contagem)
+
+**Produto mal avaliado**:
+Um produto cuja nota média, nas avaliações de um período, fica abaixo de 3,0, desde que tenha recebido pelo menos 3 avaliações nesse período.
+_Avoid_: Produto ruim, produto problemático, produto com reclamação
+
 ### Comercial
 
 **Lead**:
-Uma empresa em negociação para se tornar lojista.
+Uma empresa que entrou no funil para se tornar lojista, esteja em negociação, fechada ou perdida.
 _Avoid_: Prospecto, oportunidade, contato
 
 **Canal**:
@@ -165,3 +185,19 @@ _Avoid_: Origem, origem do lojista, fonte
 **Etapa do funil**:
 A posição de um lead na negociação: Novo, Contatado, Qualificado, Proposta, Fechado ou Perdido.
 _Avoid_: Status do lead, fase, estágio
+
+**Lead em negociação**:
+Um lead que ainda não fechou nem foi perdido: está em Novo, Contatado, Qualificado ou Proposta.
+_Avoid_: Lead aberto, lead ativo, oportunidade
+
+**Lead perdido**:
+Um lead na etapa Perdido, cuja negociação terminou sem ele virar lojista.
+_Avoid_: Lead descartado, lead inativo, churn
+
+**Novo lojista**:
+Um lead que fechou, contado no dia do fechamento.
+_Avoid_: Lead convertido, lojista ativo, cliente novo
+
+**Conversão**:
+O número de novos lojistas de um período dividido pelo número de leads criados no mesmo período, no total ou por canal. É uma razão entre dois movimentos do período, não a parte de um conjunto: um lead criado antes do período pode fechar dentro dele.
+_Avoid_: Taxa de fechamento, taxa de aprovação (que é de Vendas), aproveitamento

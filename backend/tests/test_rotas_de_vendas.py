@@ -1,10 +1,11 @@
-"""As rotas do painel de Vendas: só o perfil Vendas lê, os outros recebem a mesma negação.
+"""As rotas do painel de Vendas. Quem lê cada rota está na matriz de isolamento
+(test_matriz_de_isolamento.py) e o tempo de resposta, em test_tempo_das_rotas.py; aqui ficam os
+parâmetros e as falhas.
 
 A ordem das verificações é fixa: token (401), perfil (403), parâmetros (400), consulta (RS-08).
 """
 
 import os
-import time
 
 import httpx
 import pytest
@@ -36,27 +37,8 @@ def executor_sem_banco():
 
 
 @pytest.mark.parametrize("rota", ROTAS_DE_VENDAS)
-def test_vendas_le_cada_rota_de_vendas(api, token_de, rota):
-    resposta = pedir(api, rota, token_de(Perfil.VENDAS))
-
-    assert resposta.status_code == 200
-
-
-@pytest.mark.parametrize("rota", ROTAS_DE_VENDAS)
-@pytest.mark.parametrize("perfil", OUTROS_PERFIS, ids=str)
-def test_outros_perfis_recebem_a_mesma_negacao_em_toda_rota_de_vendas(api, token_de, rota, perfil):
-    assert_negado(pedir(api, rota, token_de(perfil)))
-
-
-@pytest.mark.parametrize("rota", ROTAS_DE_VENDAS)
 def test_sem_token_e_recusado_mesmo_com_parametro_invalido(api, rota):
     assert_recusado(pedir(api, rota, periodo="7d"))
-
-
-@pytest.mark.parametrize("rota", ROTAS_DE_VENDAS)
-@pytest.mark.parametrize("perfil", OUTROS_PERFIS, ids=str)
-def test_outro_perfil_e_negado_antes_de_validar_o_parametro(api, token_de, rota, perfil):
-    assert_negado(pedir(api, rota, token_de(perfil), periodo="7d", filtro="x"))
 
 
 PARAMETROS_INVALIDOS = [
@@ -90,20 +72,6 @@ def test_a_api_do_ambiente_serve_vendas_e_nega_os_outros(token_de, rota):
     with httpx.Client(base_url=API_DO_AMBIENTE, timeout=10) as api:
         assert pedir(api, rota, token_de(Perfil.VENDAS)).status_code == 200
         assert_negado(pedir(api, rota, token_de(Perfil.DIRETORIA)))
-
-
-@pytest.mark.parametrize("rota", ROTAS_DE_VENDAS)
-def test_cada_rota_responde_em_menos_de_3_segundos_em_24_meses(api, token_de, rota):
-    """RNF-05, com a API de verdade: token validado, conexão do pool e consulta no banco."""
-    token = token_de(Perfil.VENDAS)
-    pedir(api, rota, token, periodo="24m")  # Aquece o pool e o cache de chaves.
-
-    inicio = time.perf_counter()
-    resposta = pedir(api, rota, token, periodo="24m")
-    duracao = time.perf_counter() - inicio
-
-    assert resposta.status_code == 200
-    assert duracao < 3, f"{rota} levou {duracao:.2f} s"
 
 
 @pytest.mark.parametrize("perfil", OUTROS_PERFIS, ids=str)

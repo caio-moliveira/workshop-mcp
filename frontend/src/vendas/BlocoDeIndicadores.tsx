@@ -2,52 +2,17 @@ import { EmptyState } from "../componentes/EmptyState";
 import { AnuncioDeCarregamento, EstadosDoBloco } from "../componentes/EstadosDoBloco";
 import { KpiCard } from "../componentes/KpiCard";
 import { LoadingSkeleton } from "../componentes/LoadingSkeleton";
-import { TrendBadge } from "../componentes/TrendBadge";
-import {
-  formatarMoeda,
-  formatarNumero,
-  formatarPercentual,
-  formatarPontosPercentuais,
-  formatarVariacaoRelativa,
-} from "../formatacao";
+import { formatarMoeda, formatarNumero, formatarPercentual } from "../formatacao";
+import estilos from "../painel/GradeDeIndicadores.module.css";
+import type { Periodo } from "../painel/periodo";
+import { variacaoDoIndicador } from "../painel/variacao";
+import { VariacaoDoCartao } from "../painel/VariacaoDoCartao";
 import { useBloco, type FonteDeDados } from "../useBloco";
-import estilos from "./BlocoDeIndicadores.module.css";
 import { eIndicadoresDeVendas, type IndicadoresDeVendas } from "./indicadores";
-import { ROTULO_DO_PERIODO, type Periodo } from "./periodo";
-import {
-  sentidoDaVariacao,
-  tomDaVariacao,
-  variacaoEmPontos,
-  variacaoRelativa,
-  type Melhora,
-} from "./variacao";
 
 interface Propriedades {
   fonte: FonteDeDados;
   periodo: Periodo;
-}
-
-/** A variação de um indicador, ou nada quando não há período anterior com que comparar. */
-function Variacao({
-  variacao,
-  formatar,
-  melhora,
-  periodo,
-}: {
-  variacao: number | null;
-  formatar: (valor: number) => string;
-  melhora: Melhora;
-  periodo: Periodo;
-}) {
-  if (variacao === null) return null;
-  return (
-    <TrendBadge
-      texto={formatar(variacao)}
-      sentido={sentidoDaVariacao(variacao)}
-      tom={tomDaVariacao(variacao, melhora)}
-      comparacao={`em relação aos ${ROTULO_DO_PERIODO[periodo]} anteriores`}
-    />
-  );
 }
 
 function Indicadores({ dados, periodo }: { dados: IndicadoresDeVendas; periodo: Periodo }) {
@@ -62,10 +27,8 @@ function Indicadores({ dados, periodo }: { dados: IndicadoresDeVendas; periodo: 
         valor={formatarNumero(pedidos.atual)}
         legenda="Inclui pagamentos recusados"
         variacao={
-          <Variacao
-            variacao={variacaoRelativa(pedidos.atual, pedidos.anterior)}
-            formatar={formatarVariacaoRelativa}
-            melhora="sobe"
+          <VariacaoDoCartao
+            variacao={variacaoDoIndicador(pedidos.atual, pedidos.anterior, "relativa", "sobe")}
             periodo={periodo}
           />
         }
@@ -75,10 +38,8 @@ function Indicadores({ dados, periodo }: { dados: IndicadoresDeVendas; periodo: 
         valor={formatarMoeda(receita.atual)}
         legenda="Pagamentos aprovados, com frete"
         variacao={
-          <Variacao
-            variacao={variacaoRelativa(receita.atual, receita.anterior)}
-            formatar={formatarVariacaoRelativa}
-            melhora="sobe"
+          <VariacaoDoCartao
+            variacao={variacaoDoIndicador(receita.atual, receita.anterior, "relativa", "sobe")}
             periodo={periodo}
           />
         }
@@ -88,10 +49,13 @@ function Indicadores({ dados, periodo }: { dados: IndicadoresDeVendas; periodo: 
         valor={taxa(atraso.atual)}
         legenda={`${atrasos} entre os pedidos entregues`}
         variacao={
-          <Variacao
-            variacao={variacaoEmPontos(atraso.atual, atraso.anterior)}
-            formatar={formatarPontosPercentuais}
-            melhora="desce"
+          <VariacaoDoCartao
+            variacao={variacaoDoIndicador(
+              atraso.atual,
+              atraso.anterior,
+              "pontos_percentuais",
+              "desce",
+            )}
             periodo={periodo}
           />
         }
@@ -101,10 +65,13 @@ function Indicadores({ dados, periodo }: { dados: IndicadoresDeVendas; periodo: 
         valor={taxa(aprovacao.atual)}
         legenda="Pedidos com pagamento aprovado"
         variacao={
-          <Variacao
-            variacao={variacaoEmPontos(aprovacao.atual, aprovacao.anterior)}
-            formatar={formatarPontosPercentuais}
-            melhora="sobe"
+          <VariacaoDoCartao
+            variacao={variacaoDoIndicador(
+              aprovacao.atual,
+              aprovacao.anterior,
+              "pontos_percentuais",
+              "sobe",
+            )}
             periodo={periodo}
           />
         }

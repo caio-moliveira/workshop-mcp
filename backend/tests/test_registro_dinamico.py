@@ -29,9 +29,9 @@ from provedor import (
 )
 from recusa import assert_recusado as assert_recusado_pela_api
 from recusa import pedir_eu
+from registros import ferramentas_de
 
 from acesso import Perfil
-from servidor_mcp.ferramentas import FERRAMENTAS
 from token_de_demonstracao import Aplicacao, fluxo_de_codigo
 
 RETORNO_DO_CLAUDE = "https://claude.ai/api/mcp/auth_callback"
@@ -137,7 +137,9 @@ def test_o_token_do_assistente_traz_o_perfil_e_so_o_destinatario_do_mcp():
 def test_vendas_lista_as_cinco_ferramentas_e_chama_uma(retorno):
     token = _token(_assistente(retorno))
 
-    assert sorted(f.name for f in listar_ferramentas(MCP_DO_AMBIENTE, token)) == sorted(FERRAMENTAS)
+    assert sorted(f.name for f in listar_ferramentas(MCP_DO_AMBIENTE, token)) == ferramentas_de(
+        Perfil.VENDAS
+    )
     resultado = chamar(MCP_DO_AMBIENTE, token, "vendas_indicadores", {"periodo": "12m"})
     assert not resultado.is_error
     assert resultado.structured_content

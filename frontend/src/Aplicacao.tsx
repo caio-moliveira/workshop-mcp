@@ -1,11 +1,13 @@
 import { useSyncExternalStore } from "react";
 
+import { PainelDoComercial } from "./comercial/PainelDoComercial";
 import { AppShell } from "./componentes/AppShell";
 import { EmptyState } from "./componentes/EmptyState";
 import { ErrorState } from "./componentes/ErrorState";
 import { LoadingSkeleton } from "./componentes/LoadingSkeleton";
 import { PageHeading } from "./componentes/PageHeading";
 import { DESCRICAO_DOS_PERFIS } from "./perfis";
+import { PainelDeProdutos } from "./produtos/PainelDeProdutos";
 import type { Sessao } from "./sessao/sessao";
 import { PainelDeVendas } from "./vendas/PainelDeVendas";
 
@@ -42,6 +44,10 @@ export function Aplicacao({ sessao }: { sessao: Sessao }) {
         <AppShell usuario={usuario} assistente={sessao} aoSair={() => void sessao.sair()}>
           {usuario.perfil === "vendas" ? (
             <PainelDeVendas fonte={sessao} primeiroNome={primeiroNome} />
+          ) : usuario.perfil === "produtos" ? (
+            <PainelDeProdutos fonte={sessao} primeiroNome={primeiroNome} />
+          ) : usuario.perfil === "comercial" ? (
+            <PainelDoComercial fonte={sessao} primeiroNome={primeiroNome} />
           ) : (
             <>
               <PageHeading
