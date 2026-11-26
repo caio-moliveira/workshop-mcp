@@ -7,6 +7,7 @@ import type { FonteDeDados } from "../useBloco";
 import { BlocoDeDesempenhoDosCanais } from "./BlocoDeDesempenhoDosCanais";
 import { BlocoDeIndicadores } from "./BlocoDeIndicadores";
 import { BlocoDeNovosLojistasPorCanal } from "./BlocoDeNovosLojistasPorCanal";
+import { BlocoDoFunil } from "./BlocoDoFunil";
 
 interface Propriedades {
   fonte: FonteDeDados;
@@ -30,6 +31,9 @@ export function PainelDoComercial({ fonte, primeiroNome }: Propriedades) {
       />
       <BlocoDeIndicadores fonte={fonte} periodo={periodo} />
       <div className={linha.linhaAnalitica}>
+        <div className={linha.principal}>
+          <BlocoDoFunil fonte={fonte} periodo={periodo} />
+        </div>
         <div className={linha.complementar}>
           <BlocoDeNovosLojistasPorCanal fonte={fonte} periodo={periodo} />
         </div>
