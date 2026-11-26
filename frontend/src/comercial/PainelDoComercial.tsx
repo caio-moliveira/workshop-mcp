@@ -8,6 +8,7 @@ import { BlocoDeDesempenhoDosCanais } from "./BlocoDeDesempenhoDosCanais";
 import { BlocoDeIndicadores } from "./BlocoDeIndicadores";
 import { BlocoDeNovosLojistasPorCanal } from "./BlocoDeNovosLojistasPorCanal";
 import { BlocoDoFunil } from "./BlocoDoFunil";
+import { BlocoDeLeadsRecentes } from "./BlocoDeLeadsRecentes";
 
 interface Propriedades {
   fonte: FonteDeDados;
@@ -39,6 +40,7 @@ export function PainelDoComercial({ fonte, primeiroNome }: Propriedades) {
         </div>
       </div>
       <BlocoDeDesempenhoDosCanais fonte={fonte} periodo={periodo} />
+      <BlocoDeLeadsRecentes fonte={fonte} periodo={periodo} />
     </>
   );
 }
