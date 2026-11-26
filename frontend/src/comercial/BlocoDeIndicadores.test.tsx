@@ -72,6 +72,22 @@ describe("cartões do Comercial em 12 meses", () => {
   });
 });
 
+describe("cartões do Comercial com mais novos lojistas do que leads no período", () => {
+  const dados = dozeMeses();
+  dados.leads = { atual: 4, anterior: 8 };
+  dados.novos_lojistas = { atual: 6, anterior: 6 };
+  dados.conversao = { atual: 1.5, anterior: 0.75 };
+  const porRotulo = cartoes(
+    renderToStaticMarkup(<CartoesDeIndicadores dados={dados} periodo="30d" />),
+  );
+
+  it("a conversão passa de 100% e continua formatada, com a variação em pontos percentuais", () => {
+    expect(Object.keys(porRotulo)).toHaveLength(4);
+    expect(porRotulo["Conversão"]).toContain(">150,0%<");
+    expect(porRotulo["Conversão"]).toContain("+75,0 p.p.");
+  });
+});
+
 describe("cartões do Comercial em 24 meses", () => {
   const dados = dozeMeses();
   dados.leads.anterior = null;
