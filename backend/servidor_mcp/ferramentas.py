@@ -10,7 +10,15 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
 
-from consultas import PERIODO_PADRAO, Consulta, ParametroInvalido, Periodo, produtos, vendas
+from consultas import (
+    PERIODO_PADRAO,
+    Consulta,
+    ParametroInvalido,
+    Periodo,
+    comercial,
+    produtos,
+    vendas,
+)
 
 
 @dataclass(frozen=True)
@@ -348,5 +356,32 @@ FERRAMENTAS: dict[str, Ferramenta] = {
             "vazia. 'periodo' traz as datas de início e fim usadas, em formato ISO."
         ),
         parametros=(PERIODO, PRODUTO),
+    ),
+    "comercial_indicadores": Ferramenta(
+        consulta=comercial.indicadores,
+        titulo="Indicadores do Comercial",
+        descricao=(
+            "Indicadores gerais do Comercial do marketplace em um período: leads criados, leads "
+            "em negociação, novos lojistas, dias até fechar, conversão e principal canal. Use "
+            "para saber quantos leads chegaram, quantos viraram lojistas e se o resultado "
+            "melhorou ou piorou. Cada número usa a data do próprio fato: 'leads' são os leads "
+            "criados no período, e 'leads_em_negociacao' são quantos deles ainda estão nas "
+            "etapas Novo, Contatado, Qualificado ou Proposta (não fecharam nem foram perdidos); "
+            "'novos_lojistas' são os leads que fecharam no período, contados pela data de "
+            "fechamento, mesmo que tenham sido criados antes dele; 'dias_ate_fechar' é a média "
+            "de dias entre a criação e o fechamento desses novos lojistas (nulo se nenhum lead "
+            "fechou no período). 'conversao' já vem calculada, não refaça a conta: novos "
+            "lojistas do período ÷ leads criados no mesmo período, de 0 a 1 (nula sem lead no "
+            "período). É uma razão entre dois movimentos do período, não a parcela dos leads do "
+            "período que fecharam. 'principal_canal' é o nome do canal que trouxe mais leads "
+            "criados no período (Indicação, Orgânico, Mídia paga, Eventos ou Prospecção ativa; "
+            "no empate, o de mais novos lojistas e, depois, a ordem alfabética), e "
+            "'parcela_do_principal_canal' é a parte dele nos leads do período, de 0 a 1; os "
+            "dois são nulos sem lead no período. 'leads', 'novos_lojistas' e 'conversao' trazem "
+            "'atual' (o valor do período) e 'anterior' (o valor do período imediatamente "
+            "anterior, de mesmo tamanho; nulo no período de 24 meses, que não tem anterior "
+            "completo). 'periodo' traz as datas de início e fim usadas, em formato ISO."
+        ),
+        parametros=(PERIODO,),
     ),
 }
