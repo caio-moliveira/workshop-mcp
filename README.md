@@ -215,7 +215,7 @@ uv run ruff format --check
 
 Os testes rodam contra o Postgres e o Keycloak reais, sem mocks. Os da API criam a aplicação dentro do processo e obtêm tokens pelo mesmo fluxo de login do navegador (código + PKCE). Os do servidor MCP falam o protocolo MCP por HTTP, contra o serviço `mcp` do compose ou contra o servidor criado dentro do processo; por isso o ambiente inteiro, com o serviço `mcp`, precisa estar no ar.
 
-A suíte leva cerca de 18 minutos, recarrega o banco e reinicia o Keycloak. O ambiente de testes é um compose por máquina: não rode duas suítes ao mesmo tempo.
+A suíte leva cerca de 30 minutos, recarrega o banco e reinicia o Keycloak. O ambiente de testes é um compose por máquina: não rode duas suítes ao mesmo tempo.
 
 ## Demonstração
 
