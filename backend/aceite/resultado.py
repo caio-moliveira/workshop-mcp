@@ -8,6 +8,7 @@ o status e a quantidade de linhas.
 
 import os
 import tempfile
+from collections.abc import Iterable
 from datetime import date, datetime
 from pathlib import Path
 from typing import Annotated, Any, Literal, get_args
@@ -44,25 +45,38 @@ Desfecho = Literal["permitido", "negado"]
 Horario = Annotated[datetime, PlainSerializer(datetime.isoformat, return_type=str)]
 
 
-class Contagem(BaseModel):
-    """O resumo de uma execução: os cenários executados, os permitidos, os negados e quantos
-    deram um resultado diferente do esperado."""
+class ContagemDeDesfechos(BaseModel):
+    """Quantos foram permitidos, quantos negados e quantos deram um resultado diferente do
+    esperado."""
 
-    executados: int
     permitidos: int
     negados: int
     divergencias: int
 
+    @staticmethod
+    def contar(desfechos: Iterable[tuple[Desfecho, bool]]) -> dict[str, int]:
+        """Os três campos, contados dos pares (obtido, divergência)."""
+        lidos = list(desfechos)
+        return {
+            "permitidos": sum(obtido == "permitido" for obtido, _ in lidos),
+            "negados": sum(obtido == "negado" for obtido, _ in lidos),
+            "divergencias": sum(divergencia for _, divergencia in lidos),
+        }
 
-class MatrizCompleta(BaseModel):
+
+class Contagem(ContagemDeDesfechos):
+    """O resumo de uma execução: os cenários executados, os permitidos, os negados e as
+    divergências."""
+
+    executados: int
+
+
+class MatrizCompleta(ContagemDeDesfechos):
     """Todos os pares de rotas e de ferramentas contra os quatro perfis, com a data própria: ela
     pode ter rodado numa execução anterior."""
 
     executada_em: Horario
     pares: int
-    permitidos: int
-    negados: int
-    divergencias: int
 
 
 class ConferenciaDaCarga(BaseModel):
@@ -118,8 +132,9 @@ class LinhaDaAuditoria(BaseModel):
     resultado: str
 
 
-class Cenario(BaseModel):
-    """Um cenário de segurança executado, com o esperado, o obtido e a divergência."""
+class CenarioDeSeguranca(BaseModel):
+    """Um cenário de segurança executado, como fica gravado: o esperado, o obtido e a
+    divergência."""
 
     id: str
     descricao: str
@@ -136,7 +151,7 @@ class Cenario(BaseModel):
     duracao_em_ms: int
 
     @model_validator(mode="after")
-    def _permitido_sem_mensagem(self) -> "Cenario":
+    def _permitido_sem_mensagem(self) -> "CenarioDeSeguranca":
         if self.obtido == "permitido":
             self.resposta.mensagem = None
         return self
@@ -150,22 +165,20 @@ class ExecucaoDeAceite(BaseModel):
     resumo: Contagem
     matriz_completa: MatrizCompleta | None = None
     carga: ConferenciaDaCarga | None = None
-    cenarios: list[Cenario]
+    cenarios: list[CenarioDeSeguranca]
 
     @classmethod
     def dos_cenarios(
         cls,
         executada_em: datetime,
-        cenarios: list[Cenario],
+        cenarios: list[CenarioDeSeguranca],
         matriz_completa: MatrizCompleta | None = None,
         carga: ConferenciaDaCarga | None = None,
     ) -> "ExecucaoDeAceite":
         """A execução com o resumo contado dos cenários."""
         resumo = Contagem(
             executados=len(cenarios),
-            permitidos=sum(c.obtido == "permitido" for c in cenarios),
-            negados=sum(c.obtido == "negado" for c in cenarios),
-            divergencias=sum(c.divergencia for c in cenarios),
+            **Contagem.contar((c.obtido, c.divergencia) for c in cenarios),
         )
         return cls(
             executada_em=executada_em,
