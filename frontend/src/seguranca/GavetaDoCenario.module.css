@@ -1,0 +1,178 @@
+/*
+ * A gaveta lateral do detalhe de um cenário (FE §9): à direita, abaixo da barra superior, sem
+ * cobrir a página; tela cheia no celular (FE §11). Fica abaixo do painel do assistente.
+ */
+.gaveta {
+  position: fixed;
+  top: var(--altura-topbar);
+  right: 0;
+  bottom: 0;
+  z-index: 25;
+  display: flex;
+  flex-direction: column;
+  width: min(440px, 100vw);
+  border-left: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--sombra-flutuante);
+  animation: entrada 200ms ease both;
+}
+
+.gaveta:focus-visible {
+  outline: 2px solid var(--brand-ink);
+  outline-offset: -2px;
+}
+
+@keyframes entrada {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gaveta {
+    animation: none;
+  }
+}
+
+.cabecalho {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--espaco-3);
+  padding: var(--espaco-4) var(--espaco-4) var(--espaco-4) var(--espaco-6);
+  border-bottom: 1px solid var(--border);
+}
+
+.titulos {
+  flex: 1;
+  min-width: 0;
+}
+
+.contexto {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--texto-label);
+}
+
+.titulo {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: var(--texto-titulo-card);
+  font-weight: var(--peso-semibold);
+}
+
+.fechar {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: var(--altura-botao);
+  height: var(--altura-botao);
+  border: 0;
+  border-radius: var(--raio-botao);
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background var(--transicao-rapida);
+}
+
+.fechar:hover {
+  background: var(--surface-muted);
+}
+
+.corpo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco-6);
+  min-height: 0;
+  padding: var(--espaco-6);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.secao {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco-2);
+}
+
+.tituloDaSecao {
+  margin: 0;
+  color: var(--brand-ink);
+  font-size: var(--texto-label);
+  font-weight: var(--peso-semibold);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.lista {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+
+.item {
+  display: grid;
+  grid-template-columns: 112px 1fr;
+  gap: var(--espaco-3);
+  padding: var(--espaco-2) 0;
+  border-bottom: 1px solid var(--border);
+  font-size: var(--texto-corpo);
+}
+
+.item dt {
+  color: var(--text-secondary);
+}
+
+.item dd {
+  margin: 0;
+  min-width: 0;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+
+.item code {
+  font-size: 0.92em;
+}
+
+.nota {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--texto-label);
+}
+
+.camadas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espaco-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.camada {
+  padding: 2px var(--espaco-3);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-primary);
+  font-size: var(--texto-label);
+  font-weight: var(--peso-medio);
+}
+
+.camada[data-barrou="true"] {
+  border-color: var(--erro);
+  color: var(--erro);
+}
+
+.duracao {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--texto-label);
+  font-variant-numeric: tabular-nums;
+}
+
+.duracao strong {
+  color: var(--text-primary);
+  font-weight: var(--peso-semibold);
+}

@@ -109,6 +109,41 @@
   box-shadow: inset 3px 0 0 var(--erro);
 }
 
+/* O cenário da linha abre a gaveta lateral: um botão com a aparência do texto da célula. */
+.abrirCenario {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.abrirCenario > span > span:first-child {
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 3px;
+  transition: text-decoration-color var(--transicao-rapida);
+}
+
+.abrirCenario:hover > span > span:first-child,
+.abrirCenario:focus-visible > span > span:first-child {
+  text-decoration-color: currentColor;
+}
+
+.abrirCenario:focus-visible {
+  outline: 2px solid var(--brand-ink);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+.tabela tr[data-escolhido="true"] td {
+  background: var(--surface-muted);
+}
+
 .empilhado {
   display: flex;
   flex-direction: column;
