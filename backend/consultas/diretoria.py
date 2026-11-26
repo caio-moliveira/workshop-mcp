@@ -96,3 +96,55 @@ def indicadores(conexao: psycopg.Connection, periodo: Periodo) -> dict:
             "clientes_do_periodo_anterior": clientes_antes,
         },
     }
+
+
+@consulta(Perfil.DIRETORIA)
+def resumo(conexao: psycopg.Connection, periodo: Periodo) -> dict:
+    """Os cinco canais do lojista, do de maior taxa de atraso do período para o de menor.
+
+    O canal é o do lead que originou o lojista. De cada um: os pedidos, a receita e a taxa de
+    atraso dos pedidos dos lojistas do canal, com as regras de Vendas; a satisfação das avaliações
+    desses pedidos, com a regra de data de Produtos; e a taxa de recompra dos clientes que contam
+    no canal, o do lojista do primeiro pedido aprovado de cada um. As contagens vão ao lado das
+    taxas. Uma taxa é `None` quando a contagem de que ela depende é zero, e o canal de taxa de
+    atraso vazia vai para o fim; no empate, vem antes o de mais pedidos e depois o de nome menor.
+    """
+    linhas = conexao.execute(
+        """
+        select canal, contagem, receita, entregues, atrasos, avaliacoes, satisfacao, clientes,
+               clientes_com_recompra
+        from diretoria.resumo
+        where periodo = %s
+        order by atrasos::float / nullif(entregues, 0) desc nulls last, contagem desc, canal
+        """,
+        (periodo.value,),
+    ).fetchall()
+    return {
+        "periodo": _datas_do(periodo, conexao).como_json(),
+        "canais": [
+            {
+                "canal": canal,
+                "pedidos": pedidos,
+                "receita": float(receita),
+                "taxa_de_atraso": _razao(atrasos, entregues),
+                "entregues": entregues,
+                "atrasos": atrasos,
+                "satisfacao": satisfacao,
+                "avaliacoes": avaliacoes,
+                "taxa_de_recompra": _razao(com_recompra, clientes),
+                "clientes": clientes,
+                "clientes_com_recompra": com_recompra,
+            }
+            for (
+                canal,
+                pedidos,
+                receita,
+                entregues,
+                atrasos,
+                avaliacoes,
+                satisfacao,
+                clientes,
+                com_recompra,
+            ) in linhas
+        ],
+    }
