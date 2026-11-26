@@ -19,6 +19,7 @@ from consultas import (
     produtos,
     vendas,
 )
+from consultas.lead import Canal, Etapa
 
 
 @dataclass(frozen=True)
@@ -26,17 +27,19 @@ class Parametro:
     """Um parâmetro de ferramenta que é uma enumeração fechada do domínio (RF-23).
 
     A enumeração valida o valor recebido com o próprio `ler`, que levanta `ParametroInvalido`.
-    Sem `padrao`, o parâmetro é obrigatório.
+    Sem `padrao`, o parâmetro é obrigatório, a não ser que seja `opcional`: um filtro, que
+    ausente vale `None`.
     """
 
     nome: str
     enumeracao: type[StrEnum]
     descricao: str
     padrao: StrEnum | None = None
+    opcional: bool = False
 
     @property
     def obrigatorio(self) -> bool:
-        return self.padrao is None
+        return self.padrao is None and not self.opcional
 
     def esquema(self) -> dict[str, Any]:
         esquema = {
@@ -48,8 +51,10 @@ class Parametro:
             esquema["default"] = self.padrao.value
         return esquema
 
-    def ler(self, argumentos: Mapping[str, Any]) -> StrEnum:
+    def ler(self, argumentos: Mapping[str, Any]) -> StrEnum | None:
         if self.nome not in argumentos:
+            if self.opcional:
+                return None
             if self.padrao is None:
                 raise ParametroInvalido("parâmetro obrigatório ausente")
             return self.padrao
@@ -157,6 +162,28 @@ PRODUTO = ParametroInteiro(
         "Identificador do produto, um inteiro positivo, como as ferramentas de Produtos o "
         "devolvem. Opcional: se omitido, considera todas as avaliações do período."
     ),
+)
+
+CANAL_DO_LEAD = Parametro(
+    nome="canal",
+    enumeracao=Canal,
+    descricao=(
+        "Canal pelo qual o lead chegou, com a grafia exata, incluindo acentos: 'Indicação', "
+        "'Orgânico', 'Mídia paga', 'Eventos' ou 'Prospecção ativa'. Opcional: se omitido, "
+        "considera os leads de todos os canais."
+    ),
+    opcional=True,
+)
+
+ETAPA_DO_LEAD = Parametro(
+    nome="etapa",
+    enumeracao=Etapa,
+    descricao=(
+        "Etapa atual do lead no funil, com a grafia exata: 'Novo', 'Contatado', 'Qualificado', "
+        "'Proposta', 'Fechado' (virou lojista) ou 'Perdido'. Opcional: se omitido, considera os "
+        "leads de todas as etapas."
+    ),
+    opcional=True,
 )
 
 # Cada ferramenta e a consulta que ela serve. O nome começa pelo perfil (ADR 0005). Uma
@@ -383,5 +410,27 @@ FERRAMENTAS: dict[str, Ferramenta] = {
             "completo). 'periodo' traz as datas de início e fim usadas, em formato ISO."
         ),
         parametros=(PERIODO,),
+    ),
+    "comercial_leads": Ferramenta(
+        consulta=comercial.leads,
+        titulo="Leads recentes",
+        descricao=(
+            "Os leads mais recentes de um período, do mais novo para o mais antigo pela data de "
+            "criação. Use para ver exemplos concretos de leads: quais empresas chegaram por "
+            "último, por qual canal e em que etapa do funil estão. A lista é limitada aos 20 "
+            "leads mais recentes e não é o total do período: não some nem conte a partir dela; "
+            "para totais, conversão e principal canal, use comercial_indicadores. Informe "
+            "'canal', 'etapa' ou os dois para listar só os leads de um recorte, ainda dentro do "
+            "período: por exemplo, canal 'Indicação' com etapa 'Proposta' responde quais leads "
+            "de Indicação estão em Proposta. Um recorte sem leads dá lista vazia. Cada item de "
+            "'leads' traz 'lead' (identificador do lead), 'empresa' (nome da empresa), 'canal' "
+            "(Indicação, Orgânico, Mídia paga, Eventos ou Prospecção ativa), 'etapa' (a etapa "
+            "atual do funil: Novo, Contatado, Qualificado, Proposta, Fechado ou Perdido; não há "
+            "histórico de etapas), 'data_criacao' (data ISO em que o lead entrou no funil) e "
+            "'data_fechamento' (data ISO em que virou lojista; nula em quem não fechou, e só a "
+            "etapa Fechado a tem). 'periodo' traz as datas de início e fim usadas, em formato "
+            "ISO."
+        ),
+        parametros=(PERIODO, CANAL_DO_LEAD, ETAPA_DO_LEAD),
     ),
 }
