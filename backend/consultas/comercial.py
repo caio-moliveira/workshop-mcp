@@ -17,6 +17,8 @@ from consultas.registro import consulta
 
 # Lead em negociação: ainda não fechou nem foi perdido (glossário).
 ETAPAS_EM_NEGOCIACAO = ["Novo", "Contatado", "Qualificado", "Proposta"]
+# As seis etapas na ordem do funil, com Perdido por último (glossário).
+ETAPAS_DO_FUNIL = [*ETAPAS_EM_NEGOCIACAO, "Fechado", "Perdido"]
 
 
 @dataclass(frozen=True)
@@ -123,6 +125,31 @@ def indicadores(conexao: psycopg.Connection, periodo: Periodo) -> dict:
         "conversao": comparacao("conversao"),
         "principal_canal": None if principal is None else principal[0],
         "parcela_do_principal_canal": None if principal is None else principal[1] / agora.leads,
+    }
+
+
+@consulta(Perfil.COMERCIAL)
+def funil(conexao: psycopg.Connection, periodo: Periodo) -> dict:
+    """Quantos leads criados no período há em cada etapa do funil, na ordem do funil e com Perdido
+    por último, com zero na etapa sem lead.
+
+    A etapa é a atual de cada lead: não há histórico de etapas, e por isso não há funil acumulado.
+    """
+    datas = _datas_do(periodo, conexao)
+    linhas = conexao.execute(
+        """
+        select e.etapa, count(l.etapa)
+        from unnest(%(etapas)s::text[]) with ordinality as e(etapa, ordem)
+        left join comercial.lead l
+            on l.etapa = e.etapa and l.data_criacao between %(inicio)s and %(fim)s
+        group by e.etapa, e.ordem
+        order by e.ordem
+        """,
+        {"inicio": datas.inicio, "fim": datas.fim, "etapas": ETAPAS_DO_FUNIL},
+    ).fetchall()
+    return {
+        "periodo": datas.como_json(),
+        "etapas": [{"etapa": etapa, "leads": leads} for etapa, leads in linhas],
     }
 
 

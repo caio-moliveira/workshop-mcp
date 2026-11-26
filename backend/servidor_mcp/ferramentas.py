@@ -411,6 +411,24 @@ FERRAMENTAS: dict[str, Ferramenta] = {
         ),
         parametros=(PERIODO,),
     ),
+    "comercial_funil": Ferramenta(
+        consulta=comercial.funil,
+        titulo="Leads por etapa do funil",
+        descricao=(
+            "Quantos leads há em cada etapa do funil do Comercial em um período. Use para saber "
+            "quantos leads estão em cada etapa, quantos fecharam e quantos foram perdidos; para "
+            "a conversão e a comparação com o período anterior, use comercial_indicadores. O "
+            "período filtra pela data de criação do lead: entram os leads criados no período, "
+            "cada um contado na etapa atual dele, e não na etapa em que estava no fim do "
+            "período. Não há histórico de etapas: o funil não é acumulado (um lead em Proposta "
+            "não é contado também em Novo, Contatado e Qualificado) e não se sabe em que etapa "
+            "um lead perdido parou. 'etapas' traz sempre as seis etapas, na ordem do funil e "
+            "com Perdido por último (Novo, Contatado, Qualificado, Proposta, Fechado, Perdido), "
+            "cada uma com 'leads' (quantos leads criados no período estão naquela etapa, zero "
+            "quando nenhum). 'periodo' traz as datas de início e fim usadas, em formato ISO."
+        ),
+        parametros=(PERIODO,),
+    ),
     "comercial_leads": Ferramenta(
         consulta=comercial.leads,
         titulo="Leads recentes",
