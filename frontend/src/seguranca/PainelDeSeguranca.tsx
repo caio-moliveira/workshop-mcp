@@ -2,26 +2,27 @@ import { useState } from "react";
 
 import { AnuncioDeCarregamento, EstadosDoBloco } from "../componentes/EstadosDoBloco";
 import { EmptyState } from "../componentes/EmptyState";
-import { IconeAviso, IconeCadeado, IconeCheck } from "../componentes/icones";
+import { IconeAviso, IconeCheck } from "../componentes/icones";
 import { KpiCard } from "../componentes/KpiCard";
 import { LoadingSkeleton } from "../componentes/LoadingSkeleton";
 import { PageHeading } from "../componentes/PageHeading";
 import { formatarDataHora, formatarNumero } from "../formatacao";
 import grade from "../painel/GradeDeIndicadores.module.css";
 import { MolduraDeTabela } from "../painel/MolduraDeTabela";
-import { DESCRICAO_DOS_PERFIS } from "../perfis";
 import { useBloco, type EstadoDoBloco, type FonteDeDados } from "../useBloco";
 import {
-  agruparPorCamada,
+  agruparPorGrupo,
   ePainelDeSeguranca,
-  ROTULO_DA_CAMADA,
-  type CenarioExecutado,
+  ROTULO_DO_GRUPO,
+  type CenarioDeSeguranca,
   type ExecucaoDeAceite,
   type MatrizCompleta,
   type PainelDeSeguranca as Painel,
 } from "./contrato";
 import { GavetaDoCenario } from "./GavetaDoCenario";
 import estilos from "./PainelDeSeguranca.module.css";
+import { nomeDoPerfil, quantidadePorExtenso } from "./porExtenso";
+import { ResultadoDoCenario } from "./ResultadoDoCenario";
 
 /** O comando que grava a execução de aceite, rodado dentro de `backend/`. */
 export const COMANDO_DA_EXECUCAO_DE_ACEITE = "uv run python tests/execucao_de_aceite.py";
@@ -105,48 +106,25 @@ function CartoesDaMatrizCompleta({ matriz }: { matriz: MatrizCompleta }) {
   );
 }
 
-/** O resultado com ícone e texto, nunca só a cor (FE §9). */
-function Resultado({ cenario }: { cenario: CenarioExecutado }) {
-  const permitido = cenario.obtido === "permitido";
-  return (
-    <span className={estilos.resultado}>
-      <span className={estilos.desfecho} data-desfecho={cenario.obtido}>
-        {permitido ? <IconeCheck /> : <IconeCadeado />}
-        {permitido ? "Permitido" : "Negado"}
-      </span>
-      {cenario.divergencia && (
-        <span className={estilos.divergencia}>
-          <IconeAviso />
-          Divergência: esperado {cenario.esperado}
-        </span>
-      )}
-    </span>
-  );
-}
-
-function linhasPorExtenso(linhas: number): string {
-  return linhas === 1 ? "1 linha" : `${formatarNumero(linhas)} linhas`;
-}
-
 /** O status e, no negado, a mensagem genérica; no permitido, a quantidade de linhas. */
-function detalhe({ resposta, obtido }: CenarioExecutado): string {
+function detalhe(cenario: CenarioDeSeguranca): string {
+  const { resposta, obtido } = cenario;
   const partes: string[] = [];
   if (resposta.status !== null) partes.push(String(resposta.status));
   if (obtido === "permitido" && resposta.linhas !== null) {
-    partes.push(linhasPorExtenso(resposta.linhas));
+    partes.push(quantidadePorExtenso(cenario, resposta.linhas));
   } else if (resposta.mensagem) {
     partes.push(resposta.mensagem);
   }
   return partes.join(" · ") || "—";
 }
 
-function Perfil({ cenario }: { cenario: CenarioExecutado }) {
+/** Quem pediu e o perfil dele. */
+function QuemPediu({ cenario }: { cenario: CenarioDeSeguranca }) {
   return (
     <span className={estilos.empilhado}>
       <span>{cenario.quem.nome}</span>
-      <span className={estilos.secundario}>
-        {cenario.perfil ? DESCRICAO_DOS_PERFIS[cenario.perfil].nome : "Sem perfil"}
-      </span>
+      <span className={estilos.secundario}>{nomeDoPerfil(cenario.perfil)}</span>
     </span>
   );
 }
@@ -154,18 +132,18 @@ function Perfil({ cenario }: { cenario: CenarioExecutado }) {
 interface Escolha {
   /** O cenário aberto na gaveta lateral. */
   escolhido?: string;
-  aoEscolher?: (cenario: CenarioExecutado, origem: HTMLElement) => void;
+  aoEscolher?: (cenario: CenarioDeSeguranca, origem: HTMLElement) => void;
 }
 
 /**
- * A matriz dos cenários, um grupo por camada de defesa, rolando dentro da moldura (FE §11). O
+ * A matriz dos cenários, por grupo (uma camada de defesa ou o assistente), rolando dentro da moldura (FE §11). O
  * cenário de cada linha é um botão que abre a gaveta lateral, alcançável pelo teclado.
  */
 export function MatrizDeCenarios({
   cenarios,
   escolhido,
   aoEscolher,
-}: { cenarios: CenarioExecutado[] } & Escolha) {
+}: { cenarios: CenarioDeSeguranca[] } & Escolha) {
   return (
     <div
       className={estilos.rolagem}
@@ -183,11 +161,11 @@ export function MatrizDeCenarios({
             <th scope="col">Detalhes</th>
           </tr>
         </thead>
-        {agruparPorCamada(cenarios).map(({ grupo, cenarios: doGrupo }) => (
+        {agruparPorGrupo(cenarios).map(({ grupo, cenarios: doGrupo }) => (
           <tbody key={grupo}>
             <tr className={estilos.linhaDoGrupo}>
               <th scope="rowgroup" colSpan={4}>
-                {ROTULO_DA_CAMADA[grupo]}
+                {ROTULO_DO_GRUPO[grupo]}
               </th>
             </tr>
             {doGrupo.map((cenario) => (
@@ -211,10 +189,10 @@ export function MatrizDeCenarios({
                   </button>
                 </td>
                 <td>
-                  <Perfil cenario={cenario} />
+                  <QuemPediu cenario={cenario} />
                 </td>
                 <td>
-                  <Resultado cenario={cenario} />
+                  <ResultadoDoCenario cenario={cenario} />
                 </td>
                 <td>
                   <span className={estilos.empilhado}>

@@ -407,9 +407,10 @@ def criar_aplicacao(
 
     @aplicacao.get("/eu")
     def eu(usuario: Autenticado) -> dict:
-        if execucao_de_aceite is None:
-            return {"nome": usuario.nome, "perfil": usuario.perfil}
-        return {"nome": usuario.nome, "perfil": usuario.perfil, "painel_de_seguranca": True}
+        eu = {"nome": usuario.nome, "perfil": usuario.perfil}
+        if execucao_de_aceite is not None:
+            eu["painel_de_seguranca"] = True
+        return eu
 
     if execucao_de_aceite is not None:
 

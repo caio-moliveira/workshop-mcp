@@ -5,7 +5,7 @@ import { AppShell } from "./componentes/AppShell";
 import { ErrorState } from "./componentes/ErrorState";
 import { LoadingSkeleton } from "./componentes/LoadingSkeleton";
 import { PainelDaDiretoria } from "./diretoria/PainelDaDiretoria";
-import { PAGINA_DE_SEGURANCA, usePagina } from "./navegacao";
+import { naPaginaDeSeguranca, usePagina } from "./navegacao";
 import { PainelDeProdutos } from "./produtos/PainelDeProdutos";
 import { PainelDeSeguranca } from "./seguranca/PainelDeSeguranca";
 import type { Sessao } from "./sessao/sessao";
@@ -40,9 +40,7 @@ export function Aplicacao({ sessao }: { sessao: Sessao }) {
     case "pronta": {
       const { usuario } = estado;
       const primeiroNome = usuario.nome.split(" ")[0] ?? usuario.nome;
-      // Sem o interruptor de demonstração, /seguranca mostra o painel do perfil, como qualquer
-      // outro caminho.
-      const naSeguranca = usuario.painel_de_seguranca === true && pagina === PAGINA_DE_SEGURANCA;
+      const naSeguranca = naPaginaDeSeguranca(usuario, pagina);
       return (
         <AppShell usuario={usuario} assistente={sessao} aoSair={() => void sessao.sair()}>
           {naSeguranca ? (

@@ -1,7 +1,7 @@
 /** Exemplos do contrato do painel de segurança, para os testes. */
-import type { CenarioExecutado, ExecucaoDeAceite } from "./contrato";
+import type { CenarioDeSeguranca, ExecucaoDeAceite } from "./contrato";
 
-export function cenario(alteracoes: Partial<CenarioExecutado> = {}): CenarioExecutado {
+export function cenario(alteracoes: Partial<CenarioDeSeguranca> = {}): CenarioDeSeguranca {
   return {
     id: "api-vendas-le-rota-da-diretoria",
     descricao: "Vendas lê uma rota da Diretoria",
@@ -31,7 +31,7 @@ export const PERMITIDO = cenario({
 });
 
 /** Uma execução com o resumo contado dos cenários dados. */
-export function execucao(cenarios: CenarioExecutado[] = [cenario()]): ExecucaoDeAceite {
+export function execucao(cenarios: CenarioDeSeguranca[] = [cenario()]): ExecucaoDeAceite {
   return {
     executada_em: "2026-11-26T14:03:12+00:00",
     resumo: {

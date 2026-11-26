@@ -20,7 +20,8 @@ export type CamadaDeDefesa = (typeof CAMADAS_DE_DEFESA)[number];
 export const GRUPOS = [...CAMADAS_DE_DEFESA, "assistente"] as const;
 export type Grupo = (typeof GRUPOS)[number];
 
-export const ROTULO_DA_CAMADA: Record<Grupo, string> = {
+/** O rótulo de cada grupo da matriz; o de uma camada de defesa é o do grupo dela. */
+export const ROTULO_DO_GRUPO: Record<Grupo, string> = {
   token: "Token",
   lista_de_ferramentas: "Lista de ferramentas",
   chamada: "Chamada",
@@ -44,19 +45,20 @@ const TIPOS_DE_ALVO = [
   "assistente",
 ] as const;
 
-export interface Contagem {
-  executados: number;
+/** Quantos foram permitidos, quantos negados e quantos divergiram do esperado. */
+export interface ContagemDeDesfechos {
   permitidos: number;
   negados: number;
   divergencias: number;
 }
 
-export interface MatrizCompleta {
+export interface Contagem extends ContagemDeDesfechos {
+  executados: number;
+}
+
+export interface MatrizCompleta extends ContagemDeDesfechos {
   executada_em: string;
   pares: number;
-  permitidos: number;
-  negados: number;
-  divergencias: number;
 }
 
 export interface ConferenciaDaCarga {
@@ -92,7 +94,7 @@ export interface LinhaDaAuditoria {
   resultado: string;
 }
 
-export interface CenarioExecutado {
+export interface CenarioDeSeguranca {
   id: string;
   descricao: string;
   grupo: Grupo;
@@ -113,7 +115,7 @@ export interface ExecucaoDeAceite {
   resumo: Contagem;
   matriz_completa: MatrizCompleta | null;
   carga: ConferenciaDaCarga | null;
-  cenarios: CenarioExecutado[];
+  cenarios: CenarioDeSeguranca[];
 }
 
 /** A resposta da rota: `execucao` é `null` enquanto nenhuma execução foi gravada. */
@@ -138,30 +140,29 @@ function eContagemOuNula(valor: unknown): valor is number | null {
   return valor === null || eContagem(valor);
 }
 
-export function eContagemDoResumo(valor: unknown): valor is Contagem {
-  if (!eObjeto(valor)) return false;
-  const { executados, permitidos, negados, divergencias } = valor;
+/**
+ * Uma contagem de permitidos, negados e divergências sobre `total`: cada um é permitido ou
+ * negado, e só diverge o que foi contado.
+ */
+function eContagemDeDesfechos(valor: Record<string, unknown>, total: unknown): total is number {
+  const { permitidos, negados, divergencias } = valor;
   return (
-    eContagem(executados) &&
+    eContagem(total) &&
     eContagem(permitidos) &&
     eContagem(negados) &&
     eContagem(divergencias) &&
-    permitidos + negados === executados &&
-    divergencias <= executados
+    permitidos + negados === total &&
+    divergencias <= total
   );
 }
 
+export function eContagemDoResumo(valor: unknown): valor is Contagem {
+  return eObjeto(valor) && eContagemDeDesfechos(valor, valor.executados);
+}
+
 export function eMatrizCompleta(valor: unknown): valor is MatrizCompleta {
-  if (!eObjeto(valor)) return false;
-  const { executada_em, pares, permitidos, negados, divergencias } = valor;
   return (
-    eInstante(executada_em) &&
-    eContagem(pares) &&
-    eContagem(permitidos) &&
-    eContagem(negados) &&
-    eContagem(divergencias) &&
-    permitidos + negados === pares &&
-    divergencias <= pares
+    eObjeto(valor) && eInstante(valor.executada_em) && eContagemDeDesfechos(valor, valor.pares)
   );
 }
 
@@ -208,7 +209,7 @@ export function eLinhaDaAuditoria(valor: unknown): valor is LinhaDaAuditoria {
   );
 }
 
-export function eCenarioExecutado(valor: unknown): valor is CenarioExecutado {
+export function eCenarioDeSeguranca(valor: unknown): valor is CenarioDeSeguranca {
   if (!eObjeto(valor)) return false;
   const { camadas_de_defesa: camadas, obtido } = valor;
   return (
@@ -239,7 +240,7 @@ export function eExecucaoDeAceite(valor: unknown): valor is ExecucaoDeAceite {
     (valor.matriz_completa === null || eMatrizCompleta(valor.matriz_completa)) &&
     (valor.carga === null || eConferenciaDaCarga(valor.carga)) &&
     Array.isArray(cenarios) &&
-    cenarios.every(eCenarioExecutado) &&
+    cenarios.every(eCenarioDeSeguranca) &&
     resumo.executados === cenarios.length
   );
 }
@@ -248,10 +249,10 @@ export function ePainelDeSeguranca(valor: unknown): valor is PainelDeSeguranca {
   return eObjeto(valor) && (valor.execucao === null || eExecucaoDeAceite(valor.execucao));
 }
 
-/** Os cenários agrupados pela camada de defesa, na ordem dos grupos; grupo vazio fica de fora. */
-export function agruparPorCamada(
-  cenarios: readonly CenarioExecutado[],
-): { grupo: Grupo; cenarios: CenarioExecutado[] }[] {
+/** Os cenários agrupados pelo grupo da matriz, na ordem dos grupos; grupo vazio fica de fora. */
+export function agruparPorGrupo(
+  cenarios: readonly CenarioDeSeguranca[],
+): { grupo: Grupo; cenarios: CenarioDeSeguranca[] }[] {
   return GRUPOS.map((grupo) => ({
     grupo,
     cenarios: cenarios.filter((cenario) => cenario.grupo === grupo),

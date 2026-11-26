@@ -20,6 +20,7 @@ from execucao_de_aceite import (
     executar_matriz_completa,
     leitura_de_rota,
     pares_da_matriz_completa,
+    pergunta_ao_assistente,
     principal,
 )
 from provedor import USUARIOS_DE_DEMONSTRACAO
@@ -280,6 +281,41 @@ def test_o_assistente_chama_o_mcp_com_o_token_do_usuario(execucao):
     assert permitido.auditoria.ferramenta == "produtos_indicadores"
     assert negado.auditoria is None
     assert negado.camadas_de_defesa == ["lista_de_ferramentas", "chamada"]
+    # A recusa que o assistente devolveu ao modelo cita as ferramentas do perfil: fica gravada a
+    # mensagem genérica, a mesma do servidor MCP para a ferramenta desconhecida.
+    assert negado.resposta.mensagem == mensagens.FERRAMENTA_DESCONHECIDA
+
+
+def test_no_assistente_so_a_recusa_da_ferramenta_desconhecida_e_negada():
+    """A própria ferramenta com um argumento inválido também falha, mas não pela recusa da
+    ferramenta desconhecida: mesmo esperando negado, é divergência."""
+    propria_com_erro = pergunta_ao_assistente(
+        "teste",
+        "A própria ferramenta com um período inválido",
+        "bruno.produtos",
+        "produtos_indicadores",
+        {"periodo": "7d"},
+    )
+    esperando_negacao = replace(propria_com_erro, esperado="negado")
+
+    with Contexto() as contexto:
+        executado = executar_cenario(esperando_negacao, contexto)
+
+    assert executado.obtido == "negado"
+    assert executado.divergencia is True
+
+
+def test_no_assistente_o_servidor_mcp_fora_do_ar_e_divergencia():
+    """Sem o servidor MCP, nada chega a recusar a ferramenta de outro perfil: o negado esperado
+    não pode ser confundido com essa falha."""
+    de_outro_perfil = next(c for c in cenarios() if c.id == "assistente-ferramenta-de-outro-perfil")
+
+    # Nenhum serviço escuta na porta 9 da máquina local.
+    with Contexto(endereco_do_mcp="http://127.0.0.1:9") as contexto:
+        executado = executar_cenario(de_outro_perfil, contexto)
+
+    assert executado.obtido == "negado"
+    assert executado.divergencia is True
 
 
 def test_a_execucao_confere_e_registra_o_estado_da_carga(execucao):

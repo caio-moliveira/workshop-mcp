@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  agruparPorCamada,
-  eCenarioExecutado,
+  agruparPorGrupo,
+  eCenarioDeSeguranca,
   eExecucaoDeAceite,
   eInstante,
   eMatrizCompleta,
@@ -60,7 +60,7 @@ describe("eExecucaoDeAceite", () => {
   });
 });
 
-describe("eCenarioExecutado", () => {
+describe("eCenarioDeSeguranca", () => {
   it("aceita um cenário com a linha da auditoria", () => {
     const auditoria = {
       id: 812,
@@ -70,23 +70,23 @@ describe("eCenarioExecutado", () => {
       argumentos: { periodo: "12m" },
       resultado: "negada",
     };
-    expect(eCenarioExecutado(cenario({ auditoria, camadas_de_defesa: ["lista_de_ferramentas", "chamada"], grupo: "chamada" }))).toBe(true);
+    expect(eCenarioDeSeguranca(cenario({ auditoria, camadas_de_defesa: ["lista_de_ferramentas", "chamada"], grupo: "chamada" }))).toBe(true);
   });
 
   it("recusa um permitido com mensagem: ela poderia ser dado de negócio", () => {
     const comMensagem = { ...PERMITIDO, resposta: { status: 200, mensagem: "R$ 1.000", linhas: 1 } };
-    expect(eCenarioExecutado(comMensagem)).toBe(false);
+    expect(eCenarioDeSeguranca(comMensagem)).toBe(false);
   });
 
   it("recusa uma camada de defesa desconhecida ou nenhuma camada", () => {
-    expect(eCenarioExecutado({ ...cenario(), camadas_de_defesa: ["firewall"] })).toBe(false);
-    expect(eCenarioExecutado({ ...cenario(), camadas_de_defesa: [] })).toBe(false);
+    expect(eCenarioDeSeguranca({ ...cenario(), camadas_de_defesa: ["firewall"] })).toBe(false);
+    expect(eCenarioDeSeguranca({ ...cenario(), camadas_de_defesa: [] })).toBe(false);
   });
 
   it("recusa um grupo, um desfecho ou um perfil fora dos previstos", () => {
-    expect(eCenarioExecutado({ ...cenario(), grupo: "rede" })).toBe(false);
-    expect(eCenarioExecutado({ ...cenario(), obtido: "talvez" })).toBe(false);
-    expect(eCenarioExecutado({ ...cenario(), perfil: "rh" })).toBe(false);
+    expect(eCenarioDeSeguranca({ ...cenario(), grupo: "rede" })).toBe(false);
+    expect(eCenarioDeSeguranca({ ...cenario(), obtido: "talvez" })).toBe(false);
+    expect(eCenarioDeSeguranca({ ...cenario(), perfil: "rh" })).toBe(false);
   });
 
   it("aceita um cenário sem perfil, de um token sem usuário", () => {
@@ -97,7 +97,7 @@ describe("eCenarioExecutado", () => {
       quem: { tipo: "token", nome: "sem token" },
       resposta: { status: 401, mensagem: null, linhas: null },
     });
-    expect(eCenarioExecutado(semToken)).toBe(true);
+    expect(eCenarioDeSeguranca(semToken)).toBe(true);
   });
 });
 
@@ -109,13 +109,13 @@ describe("eInstante", () => {
   });
 });
 
-describe("agruparPorCamada", () => {
+describe("agruparPorGrupo", () => {
   it("agrupa na ordem das camadas de defesa e deixa fora os grupos vazios", () => {
     const assistente = cenario({ id: "a", grupo: "assistente", camadas_de_defesa: ["chamada"] });
     const token = cenario({ id: "t", grupo: "token", camadas_de_defesa: ["token"] });
     const api = cenario({ id: "p" });
 
-    const grupos = agruparPorCamada([assistente, api, token]);
+    const grupos = agruparPorGrupo([assistente, api, token]);
 
     expect(grupos.map((g) => g.grupo)).toEqual(["token", "api", "assistente"]);
     expect(grupos[1]?.cenarios.map((c) => c.id)).toEqual(["p"]);

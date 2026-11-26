@@ -1,7 +1,7 @@
 import type { CSSProperties, MouseEvent, ReactNode } from "react";
 
 import type { UsuarioAutenticado } from "../api";
-import { irPara, PAGINA_DE_SEGURANCA, usePagina } from "../navegacao";
+import { irPara, naPaginaDeSeguranca, PAGINA_DE_SEGURANCA, usePagina } from "../navegacao";
 import { corDoPerfil, DESCRICAO_DOS_PERFIS } from "../perfis";
 import { IconeEscudo, IconeFechar, IconePainel } from "./icones";
 import { Marca } from "./Marca";
@@ -54,7 +54,7 @@ export function Sidebar({ usuario, aberta, aoFechar }: Propriedades) {
   const perfil = DESCRICAO_DOS_PERFIS[usuario.perfil];
   const pagina = usePagina();
   const comSeguranca = usuario.painel_de_seguranca === true;
-  const naSeguranca = comSeguranca && pagina === PAGINA_DE_SEGURANCA;
+  const naSeguranca = naPaginaDeSeguranca(usuario, pagina);
   return (
     <aside
       id="sidebar"

@@ -7,7 +7,6 @@ import threading
 import time
 from collections.abc import Callable, Iterator
 from dataclasses import replace
-from pathlib import Path
 
 import psycopg
 import pytest
@@ -21,23 +20,18 @@ from apoio import (
     limite_que_nao_barra,
     variavel,
 )
-from cliente_mcp import CAMINHO as CAMINHO_DO_MCP
-from cliente_mcp import MCP_DO_AMBIENTE
+from fabricas import api_no_processo
 from fastapi.testclient import TestClient
 from provedor import (
-    DESTINATARIO_DA_API,
     DESTINATARIO_DO_MCP,
     USUARIOS_DE_DEMONSTRACAO,
     emissor,
     token_pelo_fluxo_de_codigo,
     url_das_chaves,
 )
-from pydantic_ai.models import Model
 from starlette.applications import Starlette
 
 from acesso import ChavesDoProvedor, ConfiguracaoDeAcesso, Perfil
-from api import criar_aplicacao
-from assistente import Limites
 from auditoria import PAPEL as PAPEL_DA_AUDITORIA
 from auditoria import Auditoria, AuditoriaNoBanco
 from consultas import Credencial, ExecutorDeConsultas, credenciais_do_ambiente
@@ -121,29 +115,12 @@ def criar_api(executor_de_consultas, historico_local) -> Callable[..., TestClien
 
     def criar(
         consultas: ExecutorDeConsultas | None = None,
-        modelo: Model | None = None,
-        endereco_do_mcp: str = MCP_DO_AMBIENTE + CAMINHO_DO_MCP,
-        limites: Limites | None = None,
         historico: Historico | None = None,
-        execucao_de_aceite: Path | None = None,
-        **sobreposicoes,
+        **opcoes,
     ) -> TestClient:
-        configuracao = ConfiguracaoDeAcesso(
-            emissor=emissor(),
-            destinatario=DESTINATARIO_DA_API,
-            chaves=ChavesDoProvedor(url_das_chaves()),
+        return api_no_processo(
+            consultas or executor_de_consultas, historico or historico_local, **opcoes
         )
-        aplicacao = criar_aplicacao(
-            replace(configuracao, **sobreposicoes),
-            origem_do_frontend=variavel("ENDERECO_DO_FRONTEND"),
-            consultas=consultas or executor_de_consultas,
-            modelo=modelo,
-            endereco_do_mcp=endereco_do_mcp,
-            limites=limites or Limites(),
-            historico=historico or historico_local,
-            execucao_de_aceite=execucao_de_aceite,
-        )
-        return TestClient(aplicacao)
 
     return criar
 

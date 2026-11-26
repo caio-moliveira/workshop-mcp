@@ -1,11 +1,11 @@
 import { useEffect, useEffectEvent, useId, useRef, type ReactNode } from "react";
 
-import { IconeAviso, IconeCadeado, IconeCheck, IconeFechar } from "../componentes/icones";
+import { IconeFechar } from "../componentes/icones";
 import { formatarDataHora, formatarNumero } from "../formatacao";
-import { DESCRICAO_DOS_PERFIS } from "../perfis";
-import { ROTULO_DA_CAMADA, type Alvo, type CenarioExecutado, type Quem } from "./contrato";
+import { ROTULO_DO_GRUPO, type Alvo, type CenarioDeSeguranca, type Quem } from "./contrato";
 import estilos from "./GavetaDoCenario.module.css";
-import painel from "./PainelDeSeguranca.module.css";
+import { nomeDoPerfil, quantidadePorExtenso, unidadeDaQuantidade } from "./porExtenso";
+import { ResultadoDoCenario } from "./ResultadoDoCenario";
 import { abrirGaveta } from "./teclado";
 
 const ROTULO_DE_QUEM: Record<Quem["tipo"], string> = {
@@ -43,25 +43,7 @@ function parametrosPorExtenso(parametros: Record<string, unknown>): string {
     .join(", ");
 }
 
-function Desfecho({ cenario }: { cenario: CenarioExecutado }) {
-  const permitido = cenario.obtido === "permitido";
-  return (
-    <span className={painel.resultado}>
-      <span className={painel.desfecho} data-desfecho={cenario.obtido}>
-        {permitido ? <IconeCheck /> : <IconeCadeado />}
-        {permitido ? "Permitido" : "Negado"}
-      </span>
-      {cenario.divergencia && (
-        <span className={painel.divergencia}>
-          <IconeAviso />
-          Divergência: esperado {cenario.esperado}
-        </span>
-      )}
-    </span>
-  );
-}
-
-function Pedido({ cenario }: { cenario: CenarioExecutado }) {
+function Pedido({ cenario }: { cenario: CenarioDeSeguranca }) {
   const { quem, perfil, alvo } = cenario;
   return (
     <section className={estilos.secao} aria-labelledby={`${cenario.id}-pedido`}>
@@ -70,7 +52,7 @@ function Pedido({ cenario }: { cenario: CenarioExecutado }) {
       </h3>
       <dl className={estilos.lista}>
         <Item rotulo={ROTULO_DE_QUEM[quem.tipo]}>{quem.nome}</Item>
-        <Item rotulo="Perfil">{perfil ? DESCRICAO_DOS_PERFIS[perfil].nome : "Sem perfil"}</Item>
+        <Item rotulo="Perfil">{nomeDoPerfil(perfil)}</Item>
         <Item rotulo={ROTULO_DO_ALVO[alvo.tipo]}>
           <code>{alvo.nome}</code>
         </Item>
@@ -80,7 +62,7 @@ function Pedido({ cenario }: { cenario: CenarioExecutado }) {
   );
 }
 
-function RespostaObtida({ cenario }: { cenario: CenarioExecutado }) {
+function RespostaObtida({ cenario }: { cenario: CenarioDeSeguranca }) {
   const { resposta, obtido } = cenario;
   return (
     <section className={estilos.secao} aria-labelledby={`${cenario.id}-resposta`}>
@@ -89,13 +71,13 @@ function RespostaObtida({ cenario }: { cenario: CenarioExecutado }) {
       </h3>
       <dl className={estilos.lista}>
         <Item rotulo="Resultado">
-          <Desfecho cenario={cenario} />
+          <ResultadoDoCenario cenario={cenario} />
         </Item>
         <Item rotulo="Status">{resposta.status ?? "Sem status"}</Item>
         {obtido === "permitido" ? (
           resposta.linhas !== null && (
-            <Item rotulo="Linhas">
-              {resposta.linhas === 1 ? "1 linha" : `${formatarNumero(resposta.linhas)} linhas`}
+            <Item rotulo={unidadeDaQuantidade(cenario)}>
+              {quantidadePorExtenso(cenario, resposta.linhas)}
             </Item>
           )
         ) : (
@@ -106,7 +88,7 @@ function RespostaObtida({ cenario }: { cenario: CenarioExecutado }) {
   );
 }
 
-function CamadasDeDefesa({ cenario }: { cenario: CenarioExecutado }) {
+function CamadasDeDefesa({ cenario }: { cenario: CenarioDeSeguranca }) {
   const barrado = cenario.obtido === "negado";
   return (
     <section className={estilos.secao} aria-labelledby={`${cenario.id}-camadas`}>
@@ -119,7 +101,7 @@ function CamadasDeDefesa({ cenario }: { cenario: CenarioExecutado }) {
       <ul className={estilos.camadas} aria-label="Camadas de defesa">
         {cenario.camadas_de_defesa.map((camada) => (
           <li key={camada} className={estilos.camada} data-barrou={barrado || undefined}>
-            {ROTULO_DA_CAMADA[camada]}
+            {ROTULO_DO_GRUPO[camada]}
           </li>
         ))}
       </ul>
@@ -127,7 +109,13 @@ function CamadasDeDefesa({ cenario }: { cenario: CenarioExecutado }) {
   );
 }
 
-function Auditoria({ cenario }: { cenario: CenarioExecutado }) {
+function semLinhaNaAuditoria({ grupo }: CenarioDeSeguranca): string {
+  return grupo === "assistente"
+    ? "Sem linha na auditoria: a recusa aconteceu no assistente, antes de chegar ao servidor MCP, por isso não há chamada registrada."
+    : "Sem linha na auditoria: só as chamadas de ferramenta ficam registradas nela.";
+}
+
+function Auditoria({ cenario }: { cenario: CenarioDeSeguranca }) {
   const { auditoria } = cenario;
   return (
     <section className={estilos.secao} aria-labelledby={`${cenario.id}-auditoria`}>
@@ -148,16 +136,14 @@ function Auditoria({ cenario }: { cenario: CenarioExecutado }) {
           <Item rotulo="Desfecho">{auditoria.resultado}</Item>
         </dl>
       ) : (
-        <p className={estilos.nota}>
-          Sem linha na auditoria: só as chamadas de ferramenta ficam registradas nela.
-        </p>
+        <p className={estilos.nota}>{semLinhaNaAuditoria(cenario)}</p>
       )}
     </section>
   );
 }
 
 interface Propriedades {
-  cenario: CenarioExecutado;
+  cenario: CenarioDeSeguranca;
   aoFechar: () => void;
   /** A linha que abriu a gaveta: recebe o foco de volta ao fechar. */
   origem?: HTMLElement | null;
