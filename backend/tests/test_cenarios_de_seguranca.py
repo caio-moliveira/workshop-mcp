@@ -1,7 +1,7 @@
 """A lista de cenários da execução de aceite, sem ambiente: o esperado bate com os registros de
 donos, os grupos previstos estão cobertos e os identificadores são únicos."""
 
-from execucao_de_aceite import cenarios
+from execucao_de_aceite import cenarios, pares_da_matriz_completa
 from registros import DONO_DA_FERRAMENTA, DONO_DA_ROTA
 
 from aceite import CAMADAS_DE_DEFESA, GRUPOS
@@ -126,3 +126,24 @@ def test_a_ferramenta_de_outro_perfil_declara_as_duas_camadas_de_defesa():
     assert len(negadas) == 2
     for cenario in negadas:
         assert cenario.camadas_de_defesa == ("lista_de_ferramentas", "chamada"), cenario.id
+
+
+# --- A matriz completa ---
+
+
+def test_a_matriz_completa_tem_cada_rota_e_cada_ferramenta_contra_os_quatro_perfis():
+    pares = pares_da_matriz_completa()
+    rotas = [(p.nome, p.perfil) for p in pares if p.tipo == "rota"]
+    ferramentas = [(p.nome, p.perfil) for p in pares if p.tipo == "ferramenta"]
+    assert sorted(rotas) == sorted((rota, perfil) for rota in DONO_DA_ROTA for perfil in Perfil)
+    assert sorted(ferramentas) == sorted(
+        (nome, perfil) for nome in DONO_DA_FERRAMENTA for perfil in Perfil
+    )
+    # 17 rotas e 18 ferramentas hoje: 140 pares.
+    assert len(pares) == (len(DONO_DA_ROTA) + len(DONO_DA_FERRAMENTA)) * 4
+
+
+def test_na_matriz_completa_so_o_dono_e_permitido():
+    for par in pares_da_matriz_completa():
+        dono = (DONO_DA_ROTA if par.tipo == "rota" else DONO_DA_FERRAMENTA)[par.nome]
+        assert par.esperado == ("permitido" if par.perfil is dono else "negado"), par

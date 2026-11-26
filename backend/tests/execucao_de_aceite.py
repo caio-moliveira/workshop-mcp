@@ -18,6 +18,7 @@ Os cenários ficam agrupados pela camada de defesa: cada grupo tem a sua funçã
 """
 
 import argparse
+import asyncio
 import os
 import sys
 import time
@@ -26,6 +27,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Literal
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -34,13 +36,22 @@ import httpx  # noqa: E402
 import jwt  # noqa: E402
 from apoio import BANCO_DA_AUDITORIA, banco_local, conectar_como_dono, variavel  # noqa: E402
 from chaves_locais import nova_chave  # noqa: E402
-from cliente_mcp import FERRAMENTA_DESCONHECIDA, MCP_DO_AMBIENTE, pedir_ao_protocolo  # noqa: E402
+from cliente_mcp import (  # noqa: E402
+    CAMINHO,
+    FERRAMENTA_DESCONHECIDA,
+    MCP_DO_AMBIENTE,
+    pedir_ao_protocolo,
+)
+from fastmcp import Client  # noqa: E402
+from fastmcp.client.client import CallToolResult  # noqa: E402
+from fastmcp.client.transports import StreamableHttpTransport  # noqa: E402
 from provedor import (  # noqa: E402
     APLICACAO,
     OUTRA_APLICACAO,
     USUARIOS_DE_DEMONSTRACAO,
     conteudo,
     token_pelo_fluxo_de_codigo,
+    usuario_de,
 )
 from registros import (  # noqa: E402
     DONO_DA_FERRAMENTA,
@@ -58,6 +69,7 @@ from aceite import (  # noqa: E402
     ExecucaoDeAceite,
     Grupo,
     LinhaDaAuditoria,
+    MatrizCompleta,
     Quem,
     Resposta,
     gravar_execucao,
@@ -599,6 +611,118 @@ def cenarios() -> list[CenarioDeSeguranca]:
     ]
 
 
+# --- A matriz completa ---
+
+
+@dataclass(frozen=True)
+class ParDaMatriz:
+    """Um par da matriz completa: uma rota ou ferramenta contra um perfil, com o esperado do
+    registro de donos."""
+
+    tipo: Literal["rota", "ferramenta"]
+    nome: str
+    perfil: Perfil
+    esperado: Desfecho
+
+
+def pares_da_matriz_completa() -> list[ParDaMatriz]:
+    """Todas as rotas e todas as ferramentas contra os quatro perfis, lidas dos registros de
+    donos: só o dono é permitido. Uma rota ou ferramenta nova entra sem mudar o comando."""
+
+    def pares(tipo, donos: dict[str, Perfil]) -> list[ParDaMatriz]:
+        return [
+            ParDaMatriz(tipo, nome, perfil, "permitido" if donos[nome] is perfil else "negado")
+            for nome in sorted(donos)
+            for perfil in Perfil
+        ]
+
+    return pares("rota", DONO_DA_ROTA) + pares("ferramenta", DONO_DA_FERRAMENTA)
+
+
+def _observar_ferramenta(resultado: CallToolResult) -> Observado:
+    """O desfecho de uma chamada: sem erro é permitido; com erro é negado, e confere só se for a
+    resposta de ferramenta inexistente, a mesma para quem não é dono (RS-08)."""
+    if not resultado.is_error:
+        return Observado("permitido", Resposta(status=None))
+    mensagem = resultado.content[0].text if resultado.content else None
+    return Observado(
+        "negado",
+        Resposta(status=None, mensagem=mensagem),
+        confere=mensagem == FERRAMENTA_DESCONHECIDA,
+    )
+
+
+async def _chamadas_do_perfil(token: str, pares: list[ParDaMatriz]) -> list[Observado]:
+    """As ferramentas dos pares chamadas numa sessão só do cliente MCP, com o token do perfil."""
+    falha = Observado("negado", Resposta(status=None, mensagem="Falha ao chamar."), confere=False)
+    try:
+        async with Client(
+            StreamableHttpTransport(MCP_DO_AMBIENTE + CAMINHO, auth=token)
+        ) as cliente:
+            observados = []
+            for par in pares:
+                try:
+                    resultado = await cliente.call_tool(
+                        par.nome, argumentos_minimos(par.nome), raise_on_error=False
+                    )
+                    observados.append(_observar_ferramenta(resultado))
+                except Exception:
+                    observados.append(falha)
+            return observados
+    except Exception:
+        return [falha] * len(pares)
+
+
+def _observar_par_de_rota(par: ParDaMatriz, contexto: Contexto) -> Observado:
+    token = contexto.token_de(usuario_de(par.perfil).nome_de_usuario)
+    try:
+        resposta = contexto.api.get(par.nome, headers={"Authorization": f"Bearer {token}"})
+    except httpx.HTTPError:
+        return Observado("negado", Resposta(status=None), confere=False)
+    return _observar_resposta(resposta, NEGACAO_DA_ROTA)
+
+
+def executar_matriz_completa(
+    contexto: Contexto,
+    pares: list[ParDaMatriz] | None = None,
+    andamento: Callable[[str], None] = print,
+) -> MatrizCompleta:
+    """Executa os pares, com os tokens e as sessões do cliente MCP reaproveitados (uma sessão por
+    perfil), e conta os permitidos, os negados e as divergências. Um par divergente aparece no
+    andamento; os demais, só na contagem."""
+    pares = pares_da_matriz_completa() if pares is None else pares
+    executada_em = datetime.now(UTC)
+    observados: dict[ParDaMatriz, Observado] = {}
+    for par in pares:
+        if par.tipo == "rota":
+            observados[par] = _observar_par_de_rota(par, contexto)
+    for perfil in Perfil:
+        do_perfil = [p for p in pares if p.tipo == "ferramenta" and p.perfil is perfil]
+        if do_perfil:
+            token = contexto.token_de(usuario_de(perfil).nome_de_usuario)
+            chamadas = asyncio.run(_chamadas_do_perfil(token, do_perfil))
+            observados |= zip(do_perfil, chamadas, strict=True)
+    divergentes = [
+        par
+        for par, observado in observados.items()
+        if observado.obtido != par.esperado or not observado.confere
+    ]
+    for par in divergentes:
+        obtido = observados[par]
+        andamento(
+            f"  DIVERGÊNCIA na matriz: {par.perfil.value:<10} {par.nome:<32} "
+            f"{obtido.obtido} ({obtido.resposta.status or '-'} {obtido.resposta.mensagem or ''}) "
+            f"esperado {par.esperado}"
+        )
+    return MatrizCompleta(
+        executada_em=executada_em,
+        pares=len(observados),
+        permitidos=sum(o.obtido == "permitido" for o in observados.values()),
+        negados=sum(o.obtido == "negado" for o in observados.values()),
+        divergencias=len(divergentes),
+    )
+
+
 # --- Execução ---
 
 
@@ -664,6 +788,13 @@ def _resumo(execucao: ExecucaoDeAceite, duracao: float) -> str:
     )
 
 
+def _resumo_da_matriz(matriz: MatrizCompleta) -> str:
+    return (
+        f"Matriz completa: {matriz.pares} pares, {matriz.permitidos} permitidos, "
+        f"{matriz.negados} negados, {matriz.divergencias} divergências"
+    )
+
+
 def principal(
     argumentos: list[str] | None = None,
     lista: list[CenarioDeSeguranca] | None = None,
@@ -684,10 +815,14 @@ def principal(
     escrever(f"Execução de aceite: {len(lista)} cenários de segurança contra {API}")
     with Contexto() as contexto:
         execucao = executar_aceite(lista, contexto, escrever)
+        # A matriz completa cabe nos 2 minutos (medido no README): roda sempre, com a data dela.
+        matriz = executar_matriz_completa(contexto, andamento=escrever)
+    execucao = execucao.model_copy(update={"matriz_completa": matriz})
+    escrever(_resumo_da_matriz(matriz))
     destino = gravar_execucao(execucao, opcoes.pasta)
     escrever(_resumo(execucao, time.perf_counter() - inicio))
     escrever(f"Resultado gravado em {destino}; recarregue o painel de segurança.")
-    return 1 if execucao.resumo.divergencias else 0
+    return 1 if execucao.resumo.divergencias or matriz.divergencias else 0
 
 
 if __name__ == "__main__":
