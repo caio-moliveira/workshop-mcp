@@ -1,0 +1,163 @@
+"""A execução de aceite contra o compose: o comando roda os cenários, mostra o andamento e o
+resumo, e grava o resultado na forma prevista, sem divergência e sem token nem segredo.
+
+O cenário do limite de frequência fica de fora: a suíte roda com o servidor MCP no limite alto,
+e ele é executado no roteiro, com o limite padrão.
+"""
+
+import json
+from dataclasses import replace
+
+import pytest
+from apoio import variavel
+from execucao_de_aceite import (
+    Contexto,
+    cenarios,
+    executar_cenario,
+    leitura_de_rota,
+    principal,
+)
+
+from aceite import ARQUIVO_DA_ULTIMA_EXECUCAO, ExecucaoDeAceite, ler_ultima_execucao
+
+SENHAS_DO_AMBIENTE = [
+    "POSTGRES_PASSWORD",
+    "SENHA_DO_PAPEL_VENDAS",
+    "SENHA_DO_PAPEL_PRODUTOS",
+    "SENHA_DO_PAPEL_COMERCIAL",
+    "SENHA_DO_PAPEL_DIRETORIA",
+    "SENHA_DO_PAPEL_AUDITORIA",
+    "SENHA_DO_PAPEL_HISTORICO",
+    "SENHA_DO_USUARIO_VENDAS",
+    "SENHA_DO_USUARIO_VENDAS_VITOR",
+    "SENHA_DO_USUARIO_PRODUTOS",
+    "SENHA_DO_USUARIO_COMERCIAL",
+    "SENHA_DO_USUARIO_DIRETORIA",
+]
+
+
+@pytest.fixture(scope="module")
+def sem_o_limite():
+    """Os cenários sem o do limite de frequência, que exige o servidor MCP no limite padrão."""
+    return [c for c in cenarios() if not c.exige_limite_padrao]
+
+
+@pytest.fixture(scope="module")
+def execucao(sem_o_limite, tmp_path_factory):
+    """O comando rodado uma vez, gravando numa pasta temporária, com a saída do terminal."""
+    pasta = tmp_path_factory.mktemp("execucao-de-aceite")
+    linhas: list[str] = []
+    codigo = principal(["--pasta", str(pasta)], sem_o_limite, linhas.append)
+    return {"codigo": codigo, "pasta": pasta, "saida": linhas}
+
+
+def test_o_comando_termina_sem_divergencia(execucao):
+    gravada = ler_ultima_execucao(execucao["pasta"])
+    divergentes = [(c.id, c.obtido, c.resposta) for c in gravada.cenarios if c.divergencia]
+    assert divergentes == []
+    assert gravada.resumo.divergencias == 0
+    assert execucao["codigo"] == 0
+
+
+def test_cada_cenario_foi_executado_com_o_esperado(execucao, sem_o_limite):
+    gravada = ler_ultima_execucao(execucao["pasta"])
+    assert [(c.id, c.esperado) for c in gravada.cenarios] == [
+        (c.id, c.esperado) for c in sem_o_limite
+    ]
+    assert gravada.resumo.executados == len(sem_o_limite)
+    assert gravada.resumo.permitidos + gravada.resumo.negados == len(sem_o_limite)
+
+
+def test_o_terminal_mostra_o_andamento_e_o_resumo(execucao, sem_o_limite):
+    saida = execucao["saida"]
+    andamento = [linha for linha in saida if linha.startswith("[")]
+    assert len(andamento) == len(sem_o_limite)
+    assert any("executados" in linha and "divergências" in linha for linha in saida)
+
+
+def test_o_resultado_tem_a_forma_prevista(execucao):
+    bruto = json.loads((execucao["pasta"] / ARQUIVO_DA_ULTIMA_EXECUCAO).read_text("utf-8"))
+    assert set(bruto) == {"executada_em", "resumo", "matriz_completa", "carga", "cenarios"}
+    for cenario in bruto["cenarios"]:
+        assert set(cenario) == {
+            "id",
+            "descricao",
+            "grupo",
+            "quem",
+            "perfil",
+            "alvo",
+            "camadas_de_defesa",
+            "esperado",
+            "obtido",
+            "divergencia",
+            "resposta",
+            "auditoria",
+            "duracao_em_ms",
+        }
+    # A forma lida de volta é a mesma gravada.
+    assert ExecucaoDeAceite.model_validate(bruto).model_dump(mode="json") == bruto
+
+
+def test_cada_chamada_traz_a_linha_da_auditoria(execucao):
+    gravada = ler_ultima_execucao(execucao["pasta"])
+    for cenario in gravada.cenarios:
+        if cenario.alvo.tipo in {"ferramenta", "assistente"}:
+            assert cenario.auditoria is not None, cenario.id
+
+
+def test_um_cenario_permitido_traz_so_o_status_e_as_linhas(execucao):
+    bruto = json.loads((execucao["pasta"] / ARQUIVO_DA_ULTIMA_EXECUCAO).read_text("utf-8"))
+    permitidos = [c for c in bruto["cenarios"] if c["obtido"] == "permitido"]
+    assert permitidos
+    for cenario in permitidos:
+        assert cenario["resposta"]["mensagem"] is None
+        assert cenario["resposta"]["status"] == 200
+        assert isinstance(cenario["resposta"]["linhas"], int)
+
+
+def test_o_resultado_nao_tem_token_nem_segredo(execucao):
+    texto = (execucao["pasta"] / ARQUIVO_DA_ULTIMA_EXECUCAO).read_text("utf-8")
+    # Todo token do provedor é um JWT, que começa pelo cabeçalho codificado.
+    assert "eyJ" not in texto
+    for nome in SENHAS_DO_AMBIENTE:
+        assert variavel(nome) not in texto, nome
+
+
+def test_uma_nova_execucao_substitui_a_anterior(execucao, sem_o_limite):
+    anterior = ler_ultima_execucao(execucao["pasta"])
+    principal(["--pasta", str(execucao["pasta"])], sem_o_limite, lambda _: None)
+
+    nova = ler_ultima_execucao(execucao["pasta"])
+
+    assert nova.executada_em > anterior.executada_em
+    assert list(execucao["pasta"].iterdir()) == [execucao["pasta"] / ARQUIVO_DA_ULTIMA_EXECUCAO]
+
+
+def test_um_resultado_diferente_do_esperado_e_gravado_como_divergencia(sem_o_limite):
+    """Com o esperado trocado, o mesmo pedido diverge: a execução não esconde o resultado."""
+    negado = next(c for c in sem_o_limite if c.esperado == "negado")
+    trocado = replace(negado, esperado="permitido")
+
+    with Contexto() as contexto:
+        executado = executar_cenario(trocado, contexto)
+
+    assert executado.obtido == "negado"
+    assert executado.divergencia is True
+
+
+def test_uma_negacao_com_outra_resposta_tambem_e_divergencia():
+    """Negado, mas pela validação (400) e não pelo perfil (403): também diverge."""
+    na_propria_rota = leitura_de_rota(
+        "teste",
+        "Período inválido na própria rota",
+        "ana.vendas",
+        "/vendas/indicadores",
+        {"periodo": "7d"},
+    )
+    esperando_negacao = replace(na_propria_rota, esperado="negado")
+
+    with Contexto() as contexto:
+        executado = executar_cenario(esperando_negacao, contexto)
+
+    assert (executado.obtido, executado.resposta.status) == ("negado", 400)
+    assert executado.divergencia is True
