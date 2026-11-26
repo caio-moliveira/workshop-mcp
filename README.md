@@ -186,6 +186,19 @@ uv run python tests/execucao_de_aceite.py
 
 Ela mostra o andamento e o resumo e grava o resultado em `backend/execucao-de-aceite/ultima-execucao.json`, no lugar do anterior; a pasta não é versionada e o contêiner da API a monta só para leitura. Recarregue o painel para ver a nova execução. O comando termina com código 1 se algum cenário divergiu. O esperado de cada cenário vem dos registros de donos das rotas e das ferramentas; um resultado diferente é gravado como divergência, nunca escondido. Rode o comando a partir do checkout em que o compose foi subido: é a pasta dele que a API lê.
 
+**Banco, limite de frequência e assistente.** Os cenários do Banco conectam ao Postgres com a credencial de cada papel, lida do `backend/.env`, e nenhuma senha vai para o resultado. O do assistente cria a API dentro do processo com um modelo roteirizado, que chama o serviço `mcp` do compose com o token do usuário; a ferramenta de outro perfil é recusada dentro da API, sem chegar ao servidor MCP, e por isso não deixa linha na auditoria. A execução também confere que o banco está no estado da carga (a data de referência da configuração da carga e as contagens de referência de cada tabela dos dados de origem) e avisa no terminal e no painel quando não está; nesse caso, rode a recarga.
+
+**O limite padrão e o limite alto.** O cenário do limite de frequência faz `vitor.vendas` passar de 30 chamadas por minuto e mostra `ana.vendas` passando logo depois. Ele exige o servidor MCP no limite padrão, o da execução de aceite e do workshop; a suíte precisa do limite alto. Na raiz do projeto, a partir do checkout principal:
+
+```
+# limite padrão (execução de aceite e workshop)
+docker compose up -d --wait mcp
+# limite alto (suíte)
+LIMITE_DE_CHAMADAS_POR_USUARIO=100000 docker compose up -d --wait mcp
+```
+
+Com o limite alto, o cenário do limite aparece como divergência, e o comando termina com código 1: é o comportamento certo. Depois de rodar a execução de aceite no limite padrão, espere um minuto antes de demonstrar o `vitor.vendas`, que fica barrado até a janela passar.
+
 **O interruptor de demonstração.** A variável `PAINEL_DE_SEGURANCA=ligado` liga o painel; o `compose.yaml` a define no serviço `api`, porque o ambiente local é o do workshop. Desligado, o padrão fora do compose, a rota `/seguranca` responde exatamente como uma rota inexistente (`404`), o `GET /eu` não diz nada sobre ela e o frontend não mostra o item **Segurança**.
 
 **Ressalva.** O painel revela a qualquer usuário logado os nomes das rotas e das ferramentas de todos os perfis, o que o resto do projeto esconde de propósito (RF-11, RS-08). É um recurso de demonstração e não existiria em produção. Ele nunca mostra token, segredo nem dado de negócio: um cenário permitido traz só o status e a quantidade de linhas.
