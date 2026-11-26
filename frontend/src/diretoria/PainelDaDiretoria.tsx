@@ -4,6 +4,7 @@ import { usePeriodoDaUrl } from "../painel/usePeriodoDaUrl";
 import { DESCRICAO_DOS_PERFIS } from "../perfis";
 import type { FonteDeDados } from "../useBloco";
 import { BlocoDeIndicadores } from "./BlocoDeIndicadores";
+import { BlocoDosFatoresDeRecompra } from "./BlocoDosFatoresDeRecompra";
 
 interface Propriedades {
   fonte: FonteDeDados;
@@ -27,6 +28,7 @@ export function PainelDaDiretoria({ fonte, primeiroNome }: Propriedades) {
         controles={<PeriodFilter periodo={periodo} aoMudar={mudarPeriodo} />}
       />
       <BlocoDeIndicadores fonte={fonte} periodo={periodo} />
+      <BlocoDosFatoresDeRecompra fonte={fonte} periodo={periodo} />
     </>
   );
 }
