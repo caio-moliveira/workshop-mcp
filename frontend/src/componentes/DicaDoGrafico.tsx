@@ -1,12 +1,12 @@
 import { MarcaDaSerie } from "./ChartPanel";
 import estilos from "./DicaDoGrafico.module.css";
-import type { SerieDoGrafico } from "./graficos";
+import type { LinhaDaDica } from "./graficos";
 
 interface Propriedades {
   /** O ponto ou a categoria sob o ponteiro, por extenso. */
   titulo: string;
   /** Uma linha por série, com o valor já formatado. */
-  linhas: (SerieDoGrafico & { valor: string })[];
+  linhas: LinhaDaDica[];
 }
 
 /** A dica de um gráfico: branca, raio 10 px, sombra suave e valores alinhados (FE §7). */

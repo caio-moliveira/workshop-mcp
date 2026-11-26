@@ -201,3 +201,21 @@ _Avoid_: Lead convertido, lojista ativo, cliente novo
 **Conversão**:
 O número de novos lojistas de um período dividido pelo número de leads criados no mesmo período, no total ou por canal. É uma razão entre dois movimentos do período, não a parte de um conjunto: um lead criado antes do período pode fechar dentro dele.
 _Avoid_: Taxa de fechamento, taxa de aprovação (que é de Vendas), aproveitamento
+
+### Diretoria
+
+**Indicador consolidado**:
+Um número calculado sobre um grupo de registros, por dia, semana, mês, canal ou outra dimensão fechada. É a única coisa que a Diretoria consulta: nunca um cliente, pedido, lead, avaliação, lojista ou produto individual.
+_Avoid_: Indicador agregado, KPI, métrica
+
+**Taxa de recompra**:
+A parte dos clientes com pedido aprovado num período que fez uma recompra nesse período. Em períodos curtos ela é maior, porque quem compra de novo pesa mais entre os poucos clientes do período.
+_Avoid_: Recompra (sozinho, que é o fato), fidelização, retenção
+
+**Retenção**:
+A parte dos clientes com pedido aprovado no período anterior, de mesmo tamanho, que teve outro pedido aprovado no período. Não existe quando não há período anterior nos dados.
+_Avoid_: Taxa de recompra (que olha quem comprou agora, não quem comprou antes), churn, fidelização
+
+**Satisfação**:
+A nota média das avaliações de um período. É o mesmo número que Produtos vê como nota média.
+_Avoid_: NPS, índice de satisfação, CSAT

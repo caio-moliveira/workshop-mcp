@@ -143,10 +143,16 @@ def test_token_do_inspector_e_aceito_pelo_servidor_mcp():
     )
 
 
-def test_token_do_inspector_de_outro_perfil_recebe_a_lista_vazia():
-    token = login_pelo_inspector(Perfil.DIRETORIA)["access_token"]
+@pytest.mark.parametrize("perfil", list(Perfil), ids=str)
+def test_o_token_do_inspector_de_cada_perfil_lista_exatamente_as_ferramentas_do_perfil(perfil):
+    """Nenhum perfil fica sem ferramenta; a lista vazia é a do perfil sem credencial configurada
+    (test_tokens_forjados_no_mcp.py)."""
+    token = login_pelo_inspector(perfil)["access_token"]
 
-    assert listar_ferramentas(MCP_DO_AMBIENTE, token) == []
+    listadas = sorted(f.name for f in listar_ferramentas(MCP_DO_AMBIENTE, token))
+
+    assert listadas
+    assert listadas == ferramentas_de(perfil)
 
 
 def test_token_do_inspector_e_recusado_pela_api(api):

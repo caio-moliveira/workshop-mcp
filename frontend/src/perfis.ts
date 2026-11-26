@@ -39,6 +39,7 @@ export const DESCRICAO_DOS_PERFIS: Record<Perfil, DescricaoDoPerfil> = {
     nome: "Diretoria",
     cor: "var(--perfil-diretoria)",
     rotuloDoPainel: "Painel da Diretoria",
+    perguntaSugerida: "Por que os clientes compram uma vez e não voltam?",
   },
 };
 

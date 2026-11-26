@@ -16,6 +16,7 @@ from consultas import (
     ParametroInvalido,
     Periodo,
     comercial,
+    diretoria,
     produtos,
     vendas,
 )
@@ -489,5 +490,120 @@ FERRAMENTAS: dict[str, Ferramenta] = {
             "ISO."
         ),
         parametros=(PERIODO, CANAL_DO_LEAD, ETAPA_DO_LEAD),
+    ),
+    "diretoria_indicadores": Ferramenta(
+        consulta=diretoria.indicadores,
+        titulo="Indicadores da Diretoria",
+        descricao=(
+            "Indicadores consolidados do marketplace em um período, que cruzam vendas, "
+            "avaliações e clientes: receita, taxa de recompra, satisfação e retenção. Use para "
+            "saber quanto o marketplace vendeu, se os clientes voltam a comprar e se estão "
+            "satisfeitos, e se isso melhorou ou piorou. Todos os números já vêm calculados, não "
+            "refaça a conta. 'receita' é a soma dos pagamentos aprovados dos pedidos do período, "
+            "com itens e frete, contados pelo dia da compra no horário de Brasília (o mesmo valor "
+            "que Vendas vê). 'taxa_de_recompra' é, de 0 a 1, a parte dos clientes com pedido "
+            "aprovado no período ('clientes') que fez uma recompra nele, isto é, um pedido "
+            "aprovado que não é o primeiro do cliente ('clientes_com_recompra'). Ela é maior em "
+            "períodos curtos, porque quem compra de novo pesa mais entre os poucos clientes de "
+            "um período curto: a taxa de 30 dias acima da de 12 meses não é melhora. "
+            "'satisfacao' é a nota média, de 1 a 5, das avaliações feitas no período "
+            "('avaliacoes'), o mesmo número que Produtos vê como nota média. 'retencao' é, de 0 "
+            "a 1, a parte dos clientes com pedido aprovado no período anterior de mesmo tamanho "
+            "('clientes_do_periodo_anterior') que teve outro pedido aprovado no período "
+            "('retidos'); é nula em 24 meses, que não tem período anterior nos dados. Cada "
+            "indicador traz 'atual' (o valor do período) e 'anterior' (o valor do período "
+            "imediatamente anterior, de mesmo tamanho), para a variação: 'anterior' é nulo em "
+            "todos no período de 24 meses e, na retenção, também em 12 meses, porque a retenção "
+            "do período anterior precisaria de dois períodos para trás. Nenhum número é de um "
+            "cliente, pedido ou avaliação individual. 'periodo' traz as datas de início e fim "
+            "usadas, em formato ISO."
+        ),
+        parametros=(PERIODO,),
+    ),
+    "diretoria_fatores_de_recompra": Ferramenta(
+        consulta=diretoria.fatores_de_recompra,
+        titulo="Fatores de recompra da Diretoria",
+        descricao=(
+            "O que acompanha a recompra no marketplace em um período, em três blocos devolvidos "
+            "numa só chamada, cada grupo com o tamanho dele. Use para saber por que os clientes "
+            "compram uma vez e não voltam: se a entrega e a nota do primeiro pedido pesam na "
+            "volta do cliente, e se o atraso derruba a nota. Todos os números já vêm calculados, "
+            "não refaça a conta. Nos blocos 'primeira_entrega' e 'primeira_nota', a conta é a "
+            "mesma taxa de recompra de diretoria_indicadores (dos clientes com pedido aprovado no "
+            "período, a parte que fez uma recompra nele), repartida por uma característica do "
+            "primeiro pedido aprovado do cliente, qualquer que seja a data dele: cada grupo traz "
+            "'clientes', 'clientes_com_recompra' e 'taxa_de_recompra', de 0 a 1. "
+            "'primeira_entrega' reparte pela entrega do primeiro pedido: 'No prazo' ou 'Com "
+            "atraso' (entregue depois da data prometida); os clientes cujo primeiro pedido está "
+            "em trânsito ou com prazo vencido ficam de fora. 'primeira_nota' reparte pela nota "
+            "que o cliente deu ao primeiro pedido: '1 ou 2', '3' ou '4 ou 5'; os clientes que "
+            "não avaliaram o primeiro pedido ficam de fora. Por isso a soma dos clientes de um "
+            "bloco fica abaixo do total de clientes do período: não tire conclusão sobre os "
+            "grupos que ficaram de fora. 'faixa_de_atraso' traz a satisfação (a nota média, de 1 "
+            "a 5) das avaliações feitas no período ('avaliacoes'), conforme a entrega do pedido "
+            "avaliado: 'No prazo', 'Até 7 dias' de atraso ou 'Mais de 7 dias' de atraso. Um grupo "
+            "pequeno pesa pouco: compare a taxa junto com o tamanho do grupo. Nenhum número é de "
+            "um cliente, pedido ou avaliação individual. 'periodo' traz as datas de início e fim "
+            "usadas, em formato ISO."
+        ),
+        parametros=(PERIODO,),
+    ),
+    "diretoria_resumo": Ferramenta(
+        consulta=diretoria.resumo,
+        titulo="Resumo por canal do lojista",
+        descricao=(
+            f"Os cinco canais de lojista ({_enumerados(Canal, 'e')}) em um período, cada um com "
+            "pedidos, receita, taxa de atraso, satisfação e taxa de recompra, já ordenados da "
+            "maior taxa de atraso para a menor. Use para saber qual canal tem os lojistas que "
+            "mais atrasam, qual tem a pior satisfação e como o canal se liga aos atrasos e à "
+            "recompra; o primeiro da lista é o de maior taxa de atraso. O canal de um lojista é o "
+            "do lead que originou o lojista. Todos os números já vêm calculados, não refaça a "
+            "conta. 'pedidos', 'receita' (soma dos pagamentos aprovados, com frete) e "
+            "'taxa_de_atraso' são dos pedidos dos lojistas do canal feitos no período, pelo dia "
+            "da compra no horário de Brasília, com as regras de Vendas: 'taxa_de_atraso' é, de 0 "
+            "a 1, 'atrasos' ÷ 'entregues' (pedidos já entregues; em trânsito e prazo vencido não "
+            "entram). 'satisfacao' é a nota média, de 1 a 5, das 'avaliacoes' feitas no período "
+            "sobre pedidos dos lojistas do canal. 'taxa_de_recompra' é, de 0 a 1, "
+            "'clientes_com_recompra' ÷ 'clientes', e o cliente com pedido aprovado no período "
+            "conta no canal do lojista do primeiro pedido aprovado dele, mesmo que as compras "
+            "seguintes sejam de lojistas de outro canal: cada cliente conta num canal só. Uma "
+            "taxa é nula quando a contagem dela é zero, e o canal sem pedido entregue fica no fim "
+            "da lista. Somados, os canais dão o total do marketplace no período. Nenhum número "
+            "é de um lojista, cliente ou "
+            "pedido individual, e não há recorte por lojista, produto, categoria ou rota. "
+            "'periodo' traz as datas de início e fim usadas, em formato ISO."
+        ),
+        parametros=(PERIODO,),
+    ),
+    "diretoria_tendencia": Ferramenta(
+        consulta=diretoria.tendencia,
+        titulo="Tendência da Diretoria",
+        descricao=(
+            "Série temporal dos indicadores consolidados do marketplace em um período: receita, "
+            "taxa de recompra, satisfação e taxa de atraso de cada dia, semana ou mês, em ordem "
+            "cronológica. Use para saber como esses indicadores evoluíram, quando subiram ou "
+            "caíram; para o total do período e a comparação com o anterior, use "
+            "diretoria_indicadores. Todos os números já vêm calculados, não refaça a conta. O "
+            "agrupamento vem em 'agrupamento' e é o mesmo da evolução de Vendas: dia em 30 dias "
+            "('dia'), semana em 90 dias ('semana', começando na segunda) e mês em 12 e 24 meses "
+            "('mes'). Cada item de 'pontos' traz 'inicio' (data ISO do primeiro dia do ponto no "
+            "calendário) e os quatro indicadores, cada um com as contagens de que saiu: "
+            "'receita' é a soma dos pagamentos aprovados dos pedidos comprados no ponto, pelo dia "
+            "da compra no horário de Brasília (a mesma de Vendas; a soma dos pontos é a receita "
+            "do período). 'taxa_de_recompra' é calculada dentro do ponto, de 0 a 1: dos clientes "
+            "com pedido aprovado no ponto ('clientes'), a parte que fez nele uma recompra, um "
+            "pedido aprovado que não é o primeiro do cliente ('clientes_com_recompra'); por ser "
+            "de um ponto curto, ela não é comparável à taxa do período inteiro. 'satisfacao' é a "
+            "nota média, de 1 a 5, das avaliações feitas no ponto ('avaliacoes'). "
+            "'taxa_de_atraso' é, de 0 a 1, a parte dos pedidos do ponto já entregues "
+            "('entregues') que foi entregue com atraso ('atrasos'), a regra de Vendas: em "
+            "trânsito e prazo vencido não entram, por isso os últimos dias têm poucos ou nenhum "
+            "entregue. Um indicador vem nulo no ponto em que a base dele é zero (sem cliente, "
+            "sem avaliação ou sem entrega), sem que o ponto falte na série. Quando o período "
+            "começa no meio de uma semana ou de um mês, o primeiro ponto é parcial. A retenção "
+            "não entra na série: por dia ela é ruído; ela está em diretoria_indicadores. Nenhum "
+            "número é de um cliente, pedido ou avaliação individual."
+        ),
+        parametros=(PERIODO,),
     ),
 }
