@@ -520,4 +520,32 @@ FERRAMENTAS: dict[str, Ferramenta] = {
         ),
         parametros=(PERIODO,),
     ),
+    "diretoria_fatores_de_recompra": Ferramenta(
+        consulta=diretoria.fatores_de_recompra,
+        titulo="Fatores de recompra da Diretoria",
+        descricao=(
+            "O que acompanha a recompra no marketplace em um período, em três blocos devolvidos "
+            "numa só chamada, cada grupo com o tamanho dele. Use para saber por que os clientes "
+            "compram uma vez e não voltam: se a entrega e a nota do primeiro pedido pesam na "
+            "volta do cliente, e se o atraso derruba a nota. Todos os números já vêm calculados, "
+            "não refaça a conta. Nos blocos 'primeira_entrega' e 'primeira_nota', a conta é a "
+            "mesma taxa de recompra de diretoria_indicadores (dos clientes com pedido aprovado no "
+            "período, a parte que fez uma recompra nele), repartida por uma característica do "
+            "primeiro pedido aprovado do cliente, qualquer que seja a data dele: cada grupo traz "
+            "'clientes', 'clientes_com_recompra' e 'taxa_de_recompra', de 0 a 1. "
+            "'primeira_entrega' reparte pela entrega do primeiro pedido: 'No prazo' ou 'Com "
+            "atraso' (entregue depois da data prometida); os clientes cujo primeiro pedido está "
+            "em trânsito ou com prazo vencido ficam de fora. 'primeira_nota' reparte pela nota "
+            "que o cliente deu ao primeiro pedido: '1 ou 2', '3' ou '4 ou 5'; os clientes que "
+            "não avaliaram o primeiro pedido ficam de fora. Por isso a soma dos clientes de um "
+            "bloco fica abaixo do total de clientes do período: não tire conclusão sobre os "
+            "grupos que ficaram de fora. 'faixa_de_atraso' traz a satisfação (a nota média, de 1 "
+            "a 5) das avaliações feitas no período ('avaliacoes'), conforme a entrega do pedido "
+            "avaliado: 'No prazo', 'Até 7 dias' de atraso ou 'Mais de 7 dias' de atraso. Um grupo "
+            "pequeno pesa pouco: compare a taxa junto com o tamanho do grupo. Nenhum número é de "
+            "um cliente, pedido ou avaliação individual. 'periodo' traz as datas de início e fim "
+            "usadas, em formato ISO."
+        ),
+        parametros=(PERIODO,),
+    ),
 }

@@ -153,3 +153,94 @@ from dados_de_origem.referencia;
 
 grant usage on schema diretoria to diretoria;
 grant select on all tables in schema diretoria to diretoria;
+
+-- Fatores de recompra -------------------------------------------------------------------------
+
+-- O primeiro pedido aprovado de cada cliente, qualquer que seja a data dele, com o desfecho da
+-- entrega e a nota que o cliente deu a ele. Sem desfecho, o grupo fica nulo: a entrega em trânsito
+-- ou com prazo vencido, e o pedido sem avaliação. Nos dados gerados, quem faz recompra sempre
+-- avalia o primeiro pedido, e um grupo "sem avaliação" apareceria com 0% por artefato da carga.
+create view base_da_diretoria.primeiro_pedido as
+select
+    a.cliente,
+    case e.situacao
+        when 'Entregue no prazo' then 'No prazo'
+        when 'Entregue com atraso' then 'Com atraso'
+    end as entrega,
+    case
+        when v.nota <= 2 then '1 ou 2'
+        when v.nota = 3 then '3'
+        when v.nota >= 4 then '4 ou 5'
+    end as nota
+from base_da_diretoria.pedido_aprovado a
+left join dados_de_origem.entrega e on e.pedido_id = a.pedido
+left join dados_de_origem.avaliacao v on v.pedido_id = a.pedido
+where not a.recompra;
+
+-- Os clientes com pedido aprovado em cada período e se fizeram uma recompra nele: a base da taxa
+-- de recompra do cartão.
+create view base_da_diretoria.cliente_do_periodo as
+select pe.periodo, a.cliente, bool_or(a.recompra) as fez_recompra
+from base_da_diretoria.periodo pe
+join base_da_diretoria.pedido_aprovado a on a.dia between pe.inicio and pe.fim
+group by pe.periodo, a.cliente;
+
+-- Os fatores de recompra, uma linha por período, bloco e grupo, com todos os grupos de todos os
+-- blocos em todo período. Nos blocos da primeira entrega e da primeira nota, a contagem é a dos
+-- clientes do período cujo primeiro pedido caiu no grupo, e `clientes_com_recompra` os que deles
+-- fizeram recompra no período. No da faixa de atraso, a contagem é a das avaliações do período
+-- (pela data da avaliação, como em Produtos) cujo pedido foi entregue na faixa, e `satisfacao` a
+-- nota média delas.
+create view diretoria.fatores_de_recompra as
+with grupo (bloco, grupo) as (
+    values
+        ('primeira_entrega', 'No prazo'),
+        ('primeira_entrega', 'Com atraso'),
+        ('primeira_nota', '1 ou 2'),
+        ('primeira_nota', '3'),
+        ('primeira_nota', '4 ou 5'),
+        ('faixa_de_atraso', 'No prazo'),
+        ('faixa_de_atraso', 'Até 7 dias'),
+        ('faixa_de_atraso', 'Mais de 7 dias')
+),
+recompra as (
+    select c.periodo, b.bloco, b.grupo, count(*) as clientes,
+           count(*) filter (where c.fez_recompra) as clientes_com_recompra
+    from base_da_diretoria.cliente_do_periodo c
+    join base_da_diretoria.primeiro_pedido p on p.cliente = c.cliente
+    cross join lateral (
+        values ('primeira_entrega', p.entrega), ('primeira_nota', p.nota)
+    ) b (bloco, grupo)
+    where b.grupo is not null
+    group by c.periodo, b.bloco, b.grupo
+),
+satisfacao as (
+    select pe.periodo, 'faixa_de_atraso' as bloco, f.faixa as grupo, count(*) as avaliacoes,
+           avg(v.nota)::float as satisfacao
+    from base_da_diretoria.periodo pe
+    join dados_de_origem.avaliacao v on v.data_avaliacao between pe.inicio and pe.fim
+    join dados_de_origem.entrega e on e.pedido_id = v.pedido_id
+    cross join lateral (
+        select case
+            when e.data_entrega <= e.data_prometida then 'No prazo'
+            when e.data_entrega - e.data_prometida <= 7 then 'Até 7 dias'
+            else 'Mais de 7 dias'
+        end
+    ) f (faixa)
+    where e.data_entrega is not null
+    group by pe.periodo, f.faixa
+)
+select
+    pe.periodo,
+    g.bloco,
+    g.grupo,
+    coalesce(r.clientes, s.avaliacoes, 0) as contagem,
+    case when g.bloco <> 'faixa_de_atraso' then coalesce(r.clientes_com_recompra, 0)
+        end as clientes_com_recompra,
+    s.satisfacao
+from base_da_diretoria.periodo pe
+cross join grupo g
+left join recompra r on r.periodo = pe.periodo and r.bloco = g.bloco and r.grupo = g.grupo
+left join satisfacao s on s.periodo = pe.periodo and s.bloco = g.bloco and s.grupo = g.grupo;
+
+grant select on diretoria.fatores_de_recompra to diretoria;
