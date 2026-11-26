@@ -153,3 +153,84 @@ from dados_de_origem.referencia;
 
 grant usage on schema diretoria to diretoria;
 grant select on all tables in schema diretoria to diretoria;
+
+-- Resumo por canal do lojista ---------------------------------------------------------------------
+
+-- O canal de cada lojista: o do lead que o originou. Todo lojista vem de um lead fechado.
+create view base_da_diretoria.canal_do_lojista as
+select l.lojista_id as lojista, l.canal
+from dados_de_origem.lead l
+where l.lojista_id is not null;
+
+-- O resumo por canal do lojista, uma linha por período e canal, sempre com os cinco canais. A
+-- contagem são os pedidos dos lojistas do canal no período, com a regra de Vendas: todo pedido,
+-- aprovado ou não, pelo dia da compra no horário de Brasília. Desses pedidos vêm a receita (os
+-- pagamentos aprovados) e os entregues e atrasos da taxa de atraso (prazo vencido e em trânsito
+-- não entram). A satisfação é a nota média das avaliações feitas no período sobre pedidos dos
+-- lojistas do canal, pela data da avaliação, como em Produtos. Na taxa de recompra, o cliente com
+-- pedido aprovado no período conta no canal do lojista do primeiro pedido aprovado dele, qualquer
+-- que seja a data desse pedido: cada cliente conta num canal só.
+create view diretoria.resumo as
+with canal (canal) as (
+    values ('Indicação'), ('Orgânico'), ('Mídia paga'), ('Eventos'), ('Prospecção ativa')
+),
+pedidos as (
+    select
+        pe.periodo,
+        c.canal,
+        count(*) as pedidos,
+        coalesce(sum(g.valor) filter (where g.situacao = 'Aprovado'), 0) as receita,
+        count(*) filter (where e.situacao in ('Entregue no prazo', 'Entregue com atraso'))
+            as entregues,
+        count(*) filter (where e.situacao = 'Entregue com atraso') as atrasos
+    from base_da_diretoria.periodo pe
+    join dados_de_origem.pedido p
+        on (p.momento_compra at time zone 'America/Sao_Paulo')::date between pe.inicio and pe.fim
+    join dados_de_origem.pagamento g on g.pedido_id = p.id
+    left join dados_de_origem.entrega e on e.pedido_id = p.id
+    join base_da_diretoria.canal_do_lojista c on c.lojista = p.lojista_id
+    group by pe.periodo, c.canal
+),
+avaliacoes as (
+    select pe.periodo, c.canal, count(*) as avaliacoes, avg(v.nota)::float as satisfacao
+    from base_da_diretoria.periodo pe
+    join dados_de_origem.avaliacao v on v.data_avaliacao between pe.inicio and pe.fim
+    join dados_de_origem.pedido p on p.id = v.pedido_id
+    join base_da_diretoria.canal_do_lojista c on c.lojista = p.lojista_id
+    group by pe.periodo, c.canal
+),
+canal_do_cliente as (
+    select a.cliente, c.canal
+    from base_da_diretoria.pedido_aprovado a
+    join base_da_diretoria.canal_do_lojista c on c.lojista = a.lojista
+    where not a.recompra
+),
+clientes as (
+    select
+        pe.periodo,
+        k.canal,
+        count(distinct a.cliente) as clientes,
+        count(distinct a.cliente) filter (where a.recompra) as clientes_com_recompra
+    from base_da_diretoria.periodo pe
+    join base_da_diretoria.pedido_aprovado a on a.dia between pe.inicio and pe.fim
+    join canal_do_cliente k on k.cliente = a.cliente
+    group by pe.periodo, k.canal
+)
+select
+    pe.periodo,
+    c.canal,
+    coalesce(d.pedidos, 0) as contagem,
+    coalesce(d.receita, 0) as receita,
+    coalesce(d.entregues, 0) as entregues,
+    coalesce(d.atrasos, 0) as atrasos,
+    coalesce(v.avaliacoes, 0) as avaliacoes,
+    v.satisfacao,
+    coalesce(k.clientes, 0) as clientes,
+    coalesce(k.clientes_com_recompra, 0) as clientes_com_recompra
+from base_da_diretoria.periodo pe
+cross join canal c
+left join pedidos d on d.periodo = pe.periodo and d.canal = c.canal
+left join avaliacoes v on v.periodo = pe.periodo and v.canal = c.canal
+left join clientes k on k.periodo = pe.periodo and k.canal = c.canal;
+
+grant select on diretoria.resumo to diretoria;

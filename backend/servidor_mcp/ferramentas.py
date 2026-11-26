@@ -520,4 +520,31 @@ FERRAMENTAS: dict[str, Ferramenta] = {
         ),
         parametros=(PERIODO,),
     ),
+    "diretoria_resumo": Ferramenta(
+        consulta=diretoria.resumo,
+        titulo="Resumo por canal do lojista",
+        descricao=(
+            f"Os cinco canais de lojista ({_enumerados(Canal, 'e')}) em um período, cada um com "
+            "pedidos, receita, taxa de atraso, satisfação e taxa de recompra, já ordenados da "
+            "maior taxa de atraso para a menor. Use para saber qual canal tem os lojistas que "
+            "mais atrasam, qual tem a pior satisfação e como o canal se liga aos atrasos e à "
+            "recompra; o primeiro da lista é o de maior taxa de atraso. O canal de um lojista é o "
+            "do lead que originou o lojista. Todos os números já vêm calculados, não refaça a "
+            "conta. 'pedidos', 'receita' (soma dos pagamentos aprovados, com frete) e "
+            "'taxa_de_atraso' são dos pedidos dos lojistas do canal feitos no período, pelo dia "
+            "da compra no horário de Brasília, com as regras de Vendas: 'taxa_de_atraso' é, de 0 "
+            "a 1, 'atrasos' ÷ 'entregues' (pedidos já entregues; em trânsito e prazo vencido não "
+            "entram). 'satisfacao' é a nota média, de 1 a 5, das 'avaliacoes' feitas no período "
+            "sobre pedidos dos lojistas do canal. 'taxa_de_recompra' é, de 0 a 1, "
+            "'clientes_com_recompra' ÷ 'clientes', e o cliente com pedido aprovado no período "
+            "conta no canal do lojista do primeiro pedido aprovado dele, mesmo que as compras "
+            "seguintes sejam de lojistas de outro canal: cada cliente conta num canal só. Uma "
+            "taxa é nula quando a contagem dela é zero, e o canal sem pedido entregue fica no fim "
+            "da lista. Somados, os canais dão o total do marketplace no período. Ao responder, "
+            "diga as contagens ao lado das taxas. Nenhum número é de um lojista, cliente ou "
+            "pedido individual, e não há recorte por lojista, produto, categoria ou rota. "
+            "'periodo' traz as datas de início e fim usadas, em formato ISO."
+        ),
+        parametros=(PERIODO,),
+    ),
 }
