@@ -18,7 +18,7 @@ import { LoadingSkeleton } from "../componentes/LoadingSkeleton";
 import { formatarNumero, formatarNumeroCompacto } from "../formatacao";
 import type { Periodo } from "../painel/periodo";
 import { useBloco, type FonteDeDados } from "../useBloco";
-import type { Etapa } from "./etapas";
+import { PERDIDO, type Etapa } from "./etapas";
 import { eFunilDoComercial, semLeads, type FunilDoComercial, type LeadsNaEtapa } from "./funil";
 
 interface Propriedades {
@@ -30,17 +30,17 @@ const TITULO = "Leads por etapa do funil";
 const NOTA = "Leads criados no período, na etapa atual de cada um.";
 const NO_FUNIL: SerieDoGrafico = { rotulo: "Etapas do funil", cor: "var(--serie-1)", forma: "barra" };
 // Perdido não é uma etapa seguinte a Fechado: fica por último, com outra cor (glossário).
-const PERDIDO: SerieDoGrafico = { rotulo: "Perdido", cor: "var(--serie-4)", forma: "barra" };
+const FORA_DO_FUNIL: SerieDoGrafico = { rotulo: PERDIDO, cor: "var(--serie-4)", forma: "barra" };
 
 function serieDa(etapa: Etapa): SerieDoGrafico {
-  return etapa === "Perdido" ? PERDIDO : NO_FUNIL;
+  return etapa === PERDIDO ? FORA_DO_FUNIL : NO_FUNIL;
 }
 
 /** As barras por extenso, para quem não vê o gráfico: a ordem do funil e Perdido à parte. */
 function descricaoDasBarras(dados: FunilDoComercial): string {
   const porExtenso = ({ etapa, leads }: LeadsNaEtapa) => `${etapa}, ${formatarNumero(leads)}`;
-  const noFunil = dados.etapas.filter((item) => item.etapa !== "Perdido").map(porExtenso);
-  const perdidos = dados.etapas.filter((item) => item.etapa === "Perdido").map(porExtenso);
+  const noFunil = dados.etapas.filter((item) => item.etapa !== PERDIDO).map(porExtenso);
+  const perdidos = dados.etapas.filter((item) => item.etapa === PERDIDO).map(porExtenso);
   return `Leads criados no período, pela etapa atual: ${noFunil.join("; ")}. À parte, ${perdidos.join("; ")}.`;
 }
 
@@ -51,7 +51,7 @@ function descricaoDasBarras(dados: FunilDoComercial): string {
  */
 export function GraficoDoFunil({ dados }: { dados: FunilDoComercial }) {
   return (
-    <ChartPanel titulo={TITULO} descricao={NOTA} series={[NO_FUNIL, PERDIDO]}>
+    <ChartPanel titulo={TITULO} descricao={NOTA} series={[NO_FUNIL, FORA_DO_FUNIL]}>
       <p className="visualmente-oculto">{descricaoDasBarras(dados)}</p>
       <BarChart
         responsive

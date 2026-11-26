@@ -9,7 +9,7 @@ import {
   eUmDe,
 } from "../painel/contrato";
 import { CANAIS, type Canal } from "./canais";
-import { ETAPAS, type Etapa } from "./etapas";
+import { ETAPAS, FECHADO, type Etapa } from "./etapas";
 
 export const LIMITE_DE_LEADS_RECENTES = 20;
 
@@ -35,7 +35,7 @@ export interface LeadsRecentes {
 
 /** Só o lead na etapa Fechado tem data de fechamento, e ele sempre a tem. */
 function eFechamentoDaEtapa(etapa: Etapa, fechamento: unknown): boolean {
-  return etapa === "Fechado" ? eDataIso(fechamento) : fechamento === null;
+  return etapa === FECHADO ? eDataIso(fechamento) : fechamento === null;
 }
 
 function eLeadRecente(valor: unknown): valor is LeadRecente {

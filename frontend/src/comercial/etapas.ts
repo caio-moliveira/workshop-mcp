@@ -9,3 +9,8 @@ export const ETAPAS = [
 ] as const;
 
 export type Etapa = (typeof ETAPAS)[number];
+
+/** O lead que virou lojista: a única etapa com data de fechamento. */
+export const FECHADO = "Fechado" satisfies Etapa;
+/** Não é uma etapa seguinte a Fechado: fica por último no funil. */
+export const PERDIDO = "Perdido" satisfies Etapa;
