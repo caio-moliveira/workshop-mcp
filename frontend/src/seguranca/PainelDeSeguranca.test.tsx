@@ -199,6 +199,45 @@ describe("painel de segurança com a conferência da carga", () => {
   });
 });
 
+describe("cartões da matriz completa", () => {
+  const MATRIZ = {
+    executada_em: "2026-11-26T14:03:40+00:00",
+    pares: 140,
+    permitidos: 35,
+    negados: 105,
+    divergencias: 0,
+  };
+
+  function comMatriz(alteracoes: Partial<typeof MATRIZ> = {}): string {
+    return pronto({ execucao: { ...execucao(), matriz_completa: { ...MATRIZ, ...alteracoes } } });
+  }
+
+  it("mostram os pares executados, os permitidos, os negados e as divergências", () => {
+    const porRotulo = cartoes(comMatriz());
+    expect(porRotulo["Pares executados"]).toContain(">140<");
+    expect(porRotulo["Pares permitidos"]).toContain(">35<");
+    expect(porRotulo["Pares negados"]).toContain(">105<");
+    expect(porRotulo["Divergências na matriz"]).toContain(">0<");
+    expect(porRotulo["Divergências na matriz"]).not.toContain('data-destaque="true"');
+  });
+
+  it("mostram a data própria da matriz", () => {
+    expect(comMatriz()).toContain('dateTime="2026-11-26T14:03:40+00:00"');
+  });
+
+  it("com divergência na matriz, o cartão dela fica em destaque", () => {
+    const porRotulo = cartoes(comMatriz({ permitidos: 36, divergencias: 1 }));
+    expect(porRotulo["Divergências na matriz"]).toContain(">1<");
+    expect(porRotulo["Divergências na matriz"]).toContain('data-destaque="true"');
+  });
+
+  it("sem a matriz gravada, os cartões dela não aparecem", () => {
+    expect(Object.keys(cartoes(pronto({ execucao: execucao() })))).not.toContain(
+      "Pares executados",
+    );
+  });
+});
+
 describe("estados do painel de segurança", () => {
   it("sem execução gravada, mostra o estado vazio com o comando a rodar", () => {
     const marcacao = pronto({ execucao: null });
