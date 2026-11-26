@@ -7,6 +7,8 @@ import {
   eDatasDoPeriodo,
   eNumero,
   eObjeto,
+  eSatisfacaoContada,
+  eTaxaContada,
   eUmDe,
 } from "../painel/contrato";
 
@@ -40,29 +42,6 @@ export interface ResumoPorCanal {
   canais: ResumoDoCanal[];
 }
 
-const NOTA_MINIMA = 1;
-const NOTA_MAXIMA = 5;
-
-function eFracao(valor: unknown): boolean {
-  return eNumero(valor) && valor >= 0 && valor <= 1;
-}
-
-/** Uma taxa com a parte e o todo contados: vazia exatamente quando o todo é zero. */
-function eTaxaContada(taxa: unknown, parte: unknown, todo: unknown): boolean {
-  return (
-    eContagem(parte) &&
-    eContagem(todo) &&
-    parte <= todo &&
-    (todo === 0 ? taxa === null : eFracao(taxa))
-  );
-}
-
-function eSatisfacao(satisfacao: unknown, avaliacoes: unknown): boolean {
-  if (!eContagem(avaliacoes)) return false;
-  if (avaliacoes === 0) return satisfacao === null;
-  return eNumero(satisfacao) && satisfacao >= NOTA_MINIMA && satisfacao <= NOTA_MAXIMA;
-}
-
 function eResumoDoCanal(valor: unknown): valor is ResumoDoCanal {
   return (
     eObjeto(valor) &&
@@ -71,7 +50,7 @@ function eResumoDoCanal(valor: unknown): valor is ResumoDoCanal {
     eNumero(valor.receita) &&
     valor.receita >= 0 &&
     eTaxaContada(valor.taxa_de_atraso, valor.atrasos, valor.entregues) &&
-    eSatisfacao(valor.satisfacao, valor.avaliacoes) &&
+    eSatisfacaoContada(valor.satisfacao, valor.avaliacoes) &&
     eTaxaContada(valor.taxa_de_recompra, valor.clientes_com_recompra, valor.clientes)
   );
 }

@@ -104,6 +104,18 @@ describe("validação da resposta de indicadores da Diretoria", () => {
       "taxa de recompra vazia com clientes",
       { ...trintaDias(), taxa_de_recompra: { atual: null, anterior: 0.12, clientes_com_recompra: 3, clientes: 20 } },
     ],
+    [
+      "taxa de recompra acima de 1",
+      { ...trintaDias(), taxa_de_recompra: { atual: 1.5, anterior: 0.12, clientes_com_recompra: 3, clientes: 20 } },
+    ],
+    [
+      "taxa de recompra negativa",
+      { ...trintaDias(), taxa_de_recompra: { atual: -0.1, anterior: 0.12, clientes_com_recompra: 3, clientes: 20 } },
+    ],
+    [
+      "retenção acima de 1",
+      retencaoDe({ atual: 2, anterior: null, retidos: 11, clientes_do_periodo_anterior: 1296 }),
+    ],
     ["satisfação sem a contagem", { ...trintaDias(), satisfacao: { atual: 4.1, anterior: 4.0 } }],
     ["satisfação fora da nota", { ...trintaDias(), satisfacao: { atual: 6, anterior: 4.0, avaliacoes: 10 } }],
     ["satisfação vazia com avaliações", { ...trintaDias(), satisfacao: { atual: null, anterior: 4.0, avaliacoes: 10 } }],

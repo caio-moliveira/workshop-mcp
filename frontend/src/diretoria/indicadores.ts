@@ -4,10 +4,11 @@ import {
   type Comparacao,
   type DatasDoPeriodo,
   eComparacao,
-  eContagem,
   eDatasDoPeriodo,
-  eNumero,
+  eNotaOuNula,
   eObjeto,
+  eSatisfacaoContada,
+  eTaxaContada,
 } from "../painel/contrato";
 
 export interface IndicadoresDaDiretoria {
@@ -34,20 +35,6 @@ export interface IndicadoresDaDiretoria {
   };
 }
 
-const NOTA_MINIMA = 1;
-const NOTA_MAXIMA = 5;
-
-function eNota(valor: unknown): boolean {
-  return valor === null || (eNumero(valor) && valor >= NOTA_MINIMA && valor <= NOTA_MAXIMA);
-}
-
-/** Uma taxa com a parte e o todo contados: vazia só quando o todo é zero. */
-function eTaxaContada(atual: unknown, parte: unknown, todo: unknown): boolean {
-  return (
-    eContagem(parte) && eContagem(todo) && parte <= todo && (atual === null) === (todo === 0)
-  );
-}
-
 function eTaxaDeRecompra(valor: unknown): boolean {
   return (
     eObjeto(valor) &&
@@ -60,10 +47,8 @@ function eSatisfacao(valor: unknown): boolean {
   return (
     eObjeto(valor) &&
     eComparacao(valor, true) &&
-    eNota(valor.atual) &&
-    eNota(valor.anterior) &&
-    eContagem(valor.avaliacoes) &&
-    (valor.atual === null) === (valor.avaliacoes === 0)
+    eSatisfacaoContada(valor.atual, valor.avaliacoes) &&
+    eNotaOuNula(valor.anterior)
   );
 }
 

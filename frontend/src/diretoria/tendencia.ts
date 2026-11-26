@@ -2,12 +2,12 @@
 
 import {
   type DatasDoPeriodo,
-  eContagem,
   eDataIso,
   eDatasDoPeriodo,
   eNumero,
-  eNumeroOuNulo,
   eObjeto,
+  eSatisfacaoContada,
+  eTaxaContada,
   eUmDe,
 } from "../painel/contrato";
 import { AGRUPAMENTOS, type Agrupamento } from "../vendas/evolucao";
@@ -38,22 +38,6 @@ export interface TendenciaDaDiretoria {
   pontos: PontoDaTendencia[];
 }
 
-const NOTA_MINIMA = 1;
-const NOTA_MAXIMA = 5;
-
-/** Uma taxa de 0 a 1 com a parte e o todo contados: vazia só quando o todo é zero. */
-function eTaxaContada(taxa: unknown, parte: unknown, todo: unknown): boolean {
-  if (!eContagem(parte) || !eContagem(todo) || parte > todo) return false;
-  if (todo === 0) return taxa === null;
-  return eNumero(taxa) && taxa >= 0 && taxa <= 1;
-}
-
-function eSatisfacao(nota: unknown, avaliacoes: unknown): boolean {
-  if (!eContagem(avaliacoes) || !eNumeroOuNulo(nota)) return false;
-  if (avaliacoes === 0) return nota === null;
-  return nota !== null && nota >= NOTA_MINIMA && nota <= NOTA_MAXIMA;
-}
-
 function ePonto(valor: unknown): valor is PontoDaTendencia {
   return (
     eObjeto(valor) &&
@@ -61,7 +45,7 @@ function ePonto(valor: unknown): valor is PontoDaTendencia {
     eNumero(valor.receita) &&
     valor.receita >= 0 &&
     eTaxaContada(valor.taxa_de_recompra, valor.clientes_com_recompra, valor.clientes) &&
-    eSatisfacao(valor.satisfacao, valor.avaliacoes) &&
+    eSatisfacaoContada(valor.satisfacao, valor.avaliacoes) &&
     eTaxaContada(valor.taxa_de_atraso, valor.atrasos, valor.entregues)
   );
 }
