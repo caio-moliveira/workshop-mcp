@@ -4,7 +4,14 @@ import { ChartPanel } from "../componentes/ChartPanel";
 import { DicaDoGrafico } from "../componentes/DicaDoGrafico";
 import { EmptyState } from "../componentes/EmptyState";
 import { AnuncioDeCarregamento, EstadosDoBloco } from "../componentes/EstadosDoBloco";
-import { CURSOR, EIXO, SEM_ANIMACAO, type SerieDoGrafico } from "../componentes/graficos";
+import {
+  CURSOR,
+  EIXO,
+  GRADE_VERTICAL,
+  SEM_ANIMACAO,
+  SO_NA_DICA,
+  type SerieDoGrafico,
+} from "../componentes/graficos";
 import { LoadingSkeleton } from "../componentes/LoadingSkeleton";
 import { formatarNumero, formatarNumeroCompacto, formatarPercentual } from "../formatacao";
 import type { Periodo } from "../painel/periodo";
@@ -29,15 +36,7 @@ const RECLAMACOES: SerieDoGrafico = {
   forma: "barra",
 };
 // A taxa só aparece na dica: a mesma marca, sem cor de série própria.
-const TAXA: SerieDoGrafico = { rotulo: "Taxa de reclamação", cor: "transparent", forma: "barra" };
-
-// Barras horizontais: a grade fina acompanha o eixo dos valores, que aqui é o horizontal.
-const GRADE_VERTICAL = {
-  horizontal: false,
-  vertical: true,
-  stroke: "var(--grade-do-grafico)",
-  strokeWidth: 1,
-} as const;
+const TAXA: SerieDoGrafico = { ...SO_NA_DICA, rotulo: "Taxa de reclamação" };
 
 function Grafico({ categorias }: { categorias: CategoriaDeProdutos[] }) {
   return (

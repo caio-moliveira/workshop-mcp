@@ -16,6 +16,11 @@ export function eNumero(valor: unknown): valor is number {
   return typeof valor === "number" && Number.isFinite(valor);
 }
 
+/** Uma contagem: um inteiro de zero em diante. */
+export function eContagem(valor: unknown): valor is number {
+  return Number.isInteger(valor) && (valor as number) >= 0;
+}
+
 /** Um texto não vazio. */
 export function eTexto(valor: unknown): valor is string {
   return typeof valor === "string" && valor !== "";

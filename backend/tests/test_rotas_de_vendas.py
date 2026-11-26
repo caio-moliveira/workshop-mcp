@@ -1,11 +1,11 @@
 """As rotas do painel de Vendas. Quem lê cada rota está na matriz de isolamento
-(test_matriz_de_isolamento.py); aqui ficam os parâmetros, as falhas e o tempo de resposta.
+(test_matriz_de_isolamento.py) e o tempo de resposta, em test_tempo_das_rotas.py; aqui ficam os
+parâmetros e as falhas.
 
 A ordem das verificações é fixa: token (401), perfil (403), parâmetros (400), consulta (RS-08).
 """
 
 import os
-import time
 
 import httpx
 import pytest
@@ -72,20 +72,6 @@ def test_a_api_do_ambiente_serve_vendas_e_nega_os_outros(token_de, rota):
     with httpx.Client(base_url=API_DO_AMBIENTE, timeout=10) as api:
         assert pedir(api, rota, token_de(Perfil.VENDAS)).status_code == 200
         assert_negado(pedir(api, rota, token_de(Perfil.DIRETORIA)))
-
-
-@pytest.mark.parametrize("rota", ROTAS_DE_VENDAS)
-def test_cada_rota_responde_em_menos_de_3_segundos_em_24_meses(api, token_de, rota):
-    """RNF-05, com a API de verdade: token validado, conexão do pool e consulta no banco."""
-    token = token_de(Perfil.VENDAS)
-    pedir(api, rota, token, periodo="24m")  # Aquece o pool e o cache de chaves.
-
-    inicio = time.perf_counter()
-    resposta = pedir(api, rota, token, periodo="24m")
-    duracao = time.perf_counter() - inicio
-
-    assert resposta.status_code == 200
-    assert duracao < 3, f"{rota} levou {duracao:.2f} s"
 
 
 @pytest.mark.parametrize("perfil", OUTROS_PERFIS, ids=str)

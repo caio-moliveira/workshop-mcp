@@ -1,6 +1,12 @@
 /** O contrato de `GET /produtos/categorias`: números crus e datas ISO. */
 
-import { type DatasDoPeriodo, eDatasDoPeriodo, eNumero, eObjeto } from "../painel/contrato";
+import {
+  type DatasDoPeriodo,
+  eContagem,
+  eDatasDoPeriodo,
+  eNumero,
+  eObjeto,
+} from "../painel/contrato";
 
 export interface CategoriaDeProdutos {
   categoria: string;
@@ -23,10 +29,6 @@ export interface CategoriasDeProdutos {
 
 /** Quantas categorias o gráfico de reclamações mostra (FE §6). */
 export const CATEGORIAS_NO_GRAFICO = 8;
-
-function eContagem(valor: unknown): valor is number {
-  return Number.isInteger(valor) && (valor as number) >= 0;
-}
 
 function eNaFaixa(valor: unknown, minimo: number, maximo: number): boolean {
   return eNumero(valor) && valor >= minimo && valor <= maximo;

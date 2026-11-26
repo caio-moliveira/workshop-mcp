@@ -38,11 +38,17 @@ PARAMETROS_PREVISTOS = {
     "produtos_categorias": {"periodo"},
     "produtos_mal_avaliados": {"periodo"},
     "produtos_avaliacoes": {"periodo", "produto"},
+    "comercial_indicadores": {"periodo"},
+    "comercial_funil": {"periodo"},
+    "comercial_canais": {"periodo"},
+    "comercial_leads": {"periodo", "canal", "etapa"},
 }
 # Os valores de cada parâmetro, também repetidos: a enumeração é fechada.
 VALORES_PREVISTOS = {
     "periodo": ["30d", "90d", "12m", "24m"],
     "agrupamento": ["rota", "lojista"],
+    "canal": ["Indicação", "Orgânico", "Mídia paga", "Eventos", "Prospecção ativa"],
+    "etapa": ["Novo", "Contatado", "Qualificado", "Proposta", "Fechado", "Perdido"],
 }
 # Os parâmetros inteiros e a faixa de cada um, também repetidos.
 FAIXAS_PREVISTAS = {"produto": (1, 2_147_483_647)}

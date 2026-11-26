@@ -5,12 +5,21 @@ outro lugar para declará-lo (RS-05). As descrições são escritas para o model
 escolhe a ferramenta e preenche os parâmetros a partir delas (RF-24).
 """
 
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
 
-from consultas import PERIODO_PADRAO, Consulta, ParametroInvalido, Periodo, produtos, vendas
+from consultas import (
+    PERIODO_PADRAO,
+    Consulta,
+    ParametroInvalido,
+    Periodo,
+    comercial,
+    produtos,
+    vendas,
+)
+from consultas.lead import ETAPAS_EM_NEGOCIACAO, Canal, Etapa
 
 
 @dataclass(frozen=True)
@@ -18,17 +27,19 @@ class Parametro:
     """Um parâmetro de ferramenta que é uma enumeração fechada do domínio (RF-23).
 
     A enumeração valida o valor recebido com o próprio `ler`, que levanta `ParametroInvalido`.
-    Sem `padrao`, o parâmetro é obrigatório.
+    Sem `padrao`, o parâmetro é obrigatório, a não ser que seja `opcional`: um filtro, que
+    ausente vale `None`.
     """
 
     nome: str
     enumeracao: type[StrEnum]
     descricao: str
     padrao: StrEnum | None = None
+    opcional: bool = False
 
     @property
     def obrigatorio(self) -> bool:
-        return self.padrao is None
+        return self.padrao is None and not self.opcional
 
     def esquema(self) -> dict[str, Any]:
         esquema = {
@@ -40,8 +51,10 @@ class Parametro:
             esquema["default"] = self.padrao.value
         return esquema
 
-    def ler(self, argumentos: Mapping[str, Any]) -> StrEnum:
+    def ler(self, argumentos: Mapping[str, Any]) -> StrEnum | None:
         if self.nome not in argumentos:
+            if self.opcional:
+                return None
             if self.padrao is None:
                 raise ParametroInvalido("parâmetro obrigatório ausente")
             return self.padrao
@@ -149,6 +162,40 @@ PRODUTO = ParametroInteiro(
         "Identificador do produto, um inteiro positivo, como as ferramentas de Produtos o "
         "devolvem. Opcional: se omitido, considera todas as avaliações do período."
     ),
+)
+
+
+def _enumerados(valores: Iterable[str], antes_do_ultimo: str = "ou", aspas: bool = False) -> str:
+    """Os valores de uma enumeração do domínio escritos numa descrição: 'a, b ou c'."""
+    textos = [f"'{valor}'" if aspas else str(valor) for valor in valores]
+    return f"{', '.join(textos[:-1])} {antes_do_ultimo} {textos[-1]}"
+
+
+# Os canais e as etapas, como as descrições os citam: sempre a partir das enumerações do lead.
+_CANAIS = _enumerados(Canal)
+_ETAPAS = _enumerados(Etapa)
+
+CANAL_DO_LEAD = Parametro(
+    nome="canal",
+    enumeracao=Canal,
+    descricao=(
+        "Canal pelo qual o lead chegou, com a grafia exata, incluindo acentos: "
+        f"{_enumerados(Canal, aspas=True)}. Opcional: se omitido, considera os leads de todos "
+        "os canais."
+    ),
+    opcional=True,
+)
+
+ETAPA_DO_LEAD = Parametro(
+    nome="etapa",
+    enumeracao=Etapa,
+    descricao=(
+        "Etapa atual do lead no funil, com a grafia exata: "
+        f"{', '.join(repr(etapa.value) for etapa in ETAPAS_EM_NEGOCIACAO)}, "
+        f"'{Etapa.FECHADO}' (virou lojista) ou '{Etapa.PERDIDO}'. Opcional: se omitido, "
+        "considera os leads de todas as etapas."
+    ),
+    opcional=True,
 )
 
 # Cada ferramenta e a consulta que ela serve. O nome começa pelo perfil (ADR 0005). Uma
@@ -348,5 +395,99 @@ FERRAMENTAS: dict[str, Ferramenta] = {
             "vazia. 'periodo' traz as datas de início e fim usadas, em formato ISO."
         ),
         parametros=(PERIODO, PRODUTO),
+    ),
+    "comercial_indicadores": Ferramenta(
+        consulta=comercial.indicadores,
+        titulo="Indicadores do Comercial",
+        descricao=(
+            "Indicadores gerais do Comercial do marketplace em um período: leads criados, leads "
+            "em negociação, novos lojistas, dias até fechar, conversão e principal canal. Use "
+            "para saber quantos leads chegaram, quantos viraram lojistas e se o resultado "
+            "melhorou ou piorou. Cada número usa a data do próprio fato: 'leads' são os leads "
+            "criados no período, e 'leads_em_negociacao' são quantos deles ainda estão nas "
+            f"etapas {_enumerados(ETAPAS_EM_NEGOCIACAO)} (não fecharam nem foram perdidos); "
+            "'novos_lojistas' são os leads que fecharam no período, contados pela data de "
+            "fechamento, mesmo que tenham sido criados antes dele; 'dias_ate_fechar' é a média "
+            "de dias entre a criação e o fechamento desses novos lojistas (nulo se nenhum lead "
+            "fechou no período). 'conversao' já vem calculada, não refaça a conta: novos "
+            "lojistas do período ÷ leads criados no mesmo período, de 0 em diante (nula sem lead "
+            "no período). É uma razão entre dois movimentos do período, não a parcela dos leads do "
+            "período que fecharam. 'principal_canal' é o nome do canal que trouxe mais leads "
+            f"criados no período ({_CANAIS}; "
+            "no empate, o de mais novos lojistas e, depois, a ordem alfabética), e "
+            "'parcela_do_principal_canal' é a parte dele nos leads do período, de 0 a 1; os "
+            "dois são nulos sem lead no período. 'leads', 'novos_lojistas' e 'conversao' trazem "
+            "'atual' (o valor do período) e 'anterior' (o valor do período imediatamente "
+            "anterior, de mesmo tamanho; nulo no período de 24 meses, que não tem anterior "
+            "completo). 'periodo' traz as datas de início e fim usadas, em formato ISO."
+        ),
+        parametros=(PERIODO,),
+    ),
+    "comercial_funil": Ferramenta(
+        consulta=comercial.funil,
+        titulo="Leads por etapa do funil",
+        descricao=(
+            "Quantos leads há em cada etapa do funil do Comercial em um período. Use para saber "
+            "quantos leads estão em cada etapa, quantos fecharam e quantos foram perdidos; para "
+            "a conversão e a comparação com o período anterior, use comercial_indicadores. O "
+            "período filtra pela data de criação do lead: entram os leads criados no período, "
+            "cada um contado na etapa atual dele, e não na etapa em que estava no fim do "
+            "período. Não há histórico de etapas: o funil não é acumulado (um lead em Proposta "
+            "não é contado também em Novo, Contatado e Qualificado) e não se sabe em que etapa "
+            "um lead perdido parou. 'etapas' traz sempre as seis etapas, na ordem do funil e "
+            f"com Perdido por último ({', '.join(Etapa)}), "
+            "cada uma com 'leads' (quantos leads criados no período estão naquela etapa, zero "
+            "quando nenhum). 'periodo' traz as datas de início e fim usadas, em formato ISO."
+        ),
+        parametros=(PERIODO,),
+    ),
+    "comercial_canais": Ferramenta(
+        consulta=comercial.canais,
+        titulo="Desempenho dos canais",
+        descricao=(
+            f"Os cinco canais pelos quais os leads chegam ({_enumerados(Canal, 'e')}) com o "
+            "desempenho de cada um em um período, já "
+            "ordenados da maior conversão para a menor. Use para responder qual canal traz os "
+            "leads que mais convertem, como os canais se comparam e quanto tempo um lead leva "
+            "para fechar em cada canal; o primeiro da lista é o de maior conversão, sem precisar "
+            "de conta. Cada item de 'canais' traz 'canal' (o nome), 'leads' (leads do canal "
+            "criados no período), 'novos_lojistas' (leads do canal que fecharam no período, "
+            "contados pela data de fechamento, mesmo que criados antes dele), 'conversao' e "
+            "'dias_ate_fechar' (média de dias entre a criação e o fechamento desses novos "
+            "lojistas; nulo se nenhum lead do canal fechou no período). 'conversao' já vem "
+            "calculada, não refaça a conta: novos lojistas do período ÷ leads criados no mesmo "
+            "período, do canal, de 0 em diante (nula no canal sem lead criado no período, que "
+            "fica no fim da lista). É uma razão entre dois movimentos do período, não a parcela "
+            "dos leads do período que fecharam. Não há mínimo de leads para um canal entrar na "
+            "ordem: ao responder, diga sempre os leads e os novos lojistas ao lado da conversão "
+            "e avise quando a base for pequena (poucos leads), como costuma acontecer em 30 "
+            "dias, porque aí a ordem pode mudar por um ou dois fechamentos. 'periodo' traz as "
+            "datas de início e fim usadas, em formato ISO."
+        ),
+        parametros=(PERIODO,),
+    ),
+    "comercial_leads": Ferramenta(
+        consulta=comercial.leads,
+        titulo="Leads recentes",
+        descricao=(
+            "Os leads mais recentes de um período, do mais novo para o mais antigo pela data de "
+            "criação. Use para ver exemplos concretos de leads: quais empresas chegaram por "
+            "último, por qual canal e em que etapa do funil estão. A lista é limitada aos 20 "
+            "leads mais recentes e não é o total do período: não some nem conte a partir dela; "
+            "para totais, conversão e principal canal, use comercial_indicadores; para a "
+            "contagem por etapa, comercial_funil; para os números de cada canal, "
+            "comercial_canais. Informe "
+            "'canal', 'etapa' ou os dois para listar só os leads de um recorte, ainda dentro do "
+            "período: por exemplo, canal 'Indicação' com etapa 'Proposta' responde quais leads "
+            "de Indicação estão em Proposta. Um recorte sem leads dá lista vazia. Cada item de "
+            "'leads' traz 'lead' (identificador do lead), 'empresa' (nome da empresa), 'canal' "
+            f"({_CANAIS}), 'etapa' (a etapa "
+            f"atual do funil: {_ETAPAS}; não há "
+            "histórico de etapas), 'data_criacao' (data ISO em que o lead entrou no funil) e "
+            "'data_fechamento' (data ISO em que virou lojista; nula em quem não fechou, e só a "
+            "etapa Fechado a tem). 'periodo' traz as datas de início e fim usadas, em formato "
+            "ISO."
+        ),
+        parametros=(PERIODO, CANAL_DO_LEAD, ETAPA_DO_LEAD),
     ),
 }
