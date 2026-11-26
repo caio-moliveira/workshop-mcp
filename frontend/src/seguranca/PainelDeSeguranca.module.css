@@ -1,0 +1,188 @@
+/* O painel de segurança (FE §9): console de auditoria elegante, não terminal. */
+
+.pilha {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco-8);
+}
+
+.dataDaExecucao {
+  color: var(--text-secondary);
+  font-size: var(--texto-label);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.dataDaExecucao time {
+  color: var(--text-primary);
+  font-weight: var(--peso-medio);
+}
+
+.secao {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco-3);
+}
+
+.tituloDaSecao {
+  color: var(--text-primary);
+  font-size: var(--texto-titulo-card);
+  font-weight: var(--peso-semibold);
+}
+
+.dataDaSecao {
+  color: var(--text-secondary);
+  font-weight: var(--peso-regular);
+}
+
+.carga {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espaco-2);
+  color: var(--text-secondary);
+  font-size: var(--texto-label);
+}
+
+.carga[data-confere="true"] svg {
+  color: var(--sucesso);
+}
+
+.carga[data-confere="false"] {
+  color: var(--erro);
+}
+
+/* A rolagem fica na moldura da matriz, nunca na página (FE §11). */
+.rolagem {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  border-radius: 0 0 var(--raio-card) var(--raio-card);
+}
+
+.tabela {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+  font-size: var(--texto-corpo);
+}
+
+.tabela thead th {
+  height: 40px;
+  padding: 0 var(--espaco-4);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-muted);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: var(--peso-semibold);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.linhaDoGrupo th {
+  height: 36px;
+  padding: 0 var(--espaco-4);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-app);
+  color: var(--brand-ink);
+  font-size: var(--texto-label);
+  font-weight: var(--peso-semibold);
+  letter-spacing: 0.02em;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.tabela td {
+  height: 58px;
+  padding: var(--espaco-2) var(--espaco-4);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-primary);
+  vertical-align: middle;
+  transition: background var(--transicao-rapida);
+}
+
+.tabela tbody tr:hover td {
+  background: var(--bg-app);
+}
+
+/* A linha divergente ganha um filete no tom do erro, além da marca com texto. */
+.tabela tr[data-divergencia="true"] td:first-child {
+  box-shadow: inset 3px 0 0 var(--erro);
+}
+
+.empilhado {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.secundario {
+  color: var(--text-tertiary);
+  font-size: var(--texto-label);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.resultado {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.desfecho {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: var(--peso-semibold);
+  white-space: nowrap;
+}
+
+.desfecho svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Permitido em verde-escuro; negado em vermelho discreto. O ícone e o texto dizem o mesmo. */
+.desfecho[data-desfecho="permitido"] {
+  color: var(--sucesso);
+}
+
+.desfecho[data-desfecho="negado"] {
+  color: var(--erro);
+}
+
+.divergencia {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 var(--espaco-2);
+  border: 1px solid var(--erro);
+  border-radius: 999px;
+  color: var(--erro);
+  font-size: var(--texto-label);
+  font-weight: var(--peso-medio);
+  white-space: nowrap;
+}
+
+.divergencia svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* No celular, a coluna do cenário fica à vista enquanto o resto rola. */
+@media (max-width: 767px) {
+  .tabela td:first-child,
+  .tabela thead th:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    max-width: 200px;
+    box-shadow: inset -1px 0 0 var(--border);
+  }
+
+  .tabela tr[data-divergencia="true"] td:first-child {
+    box-shadow:
+      inset 3px 0 0 var(--erro),
+      inset -1px 0 0 var(--border);
+  }
+}

@@ -5,12 +5,15 @@ import { AppShell } from "./componentes/AppShell";
 import { ErrorState } from "./componentes/ErrorState";
 import { LoadingSkeleton } from "./componentes/LoadingSkeleton";
 import { PainelDaDiretoria } from "./diretoria/PainelDaDiretoria";
+import { PAGINA_DE_SEGURANCA, usePagina } from "./navegacao";
 import { PainelDeProdutos } from "./produtos/PainelDeProdutos";
+import { PainelDeSeguranca } from "./seguranca/PainelDeSeguranca";
 import type { Sessao } from "./sessao/sessao";
 import { PainelDeVendas } from "./vendas/PainelDeVendas";
 
 export function Aplicacao({ sessao }: { sessao: Sessao }) {
   const estado = useSyncExternalStore(sessao.inscrever, sessao.obterEstado);
+  const pagina = usePagina();
 
   switch (estado.fase) {
     case "confirmando":
@@ -37,9 +40,14 @@ export function Aplicacao({ sessao }: { sessao: Sessao }) {
     case "pronta": {
       const { usuario } = estado;
       const primeiroNome = usuario.nome.split(" ")[0] ?? usuario.nome;
+      // Sem o interruptor de demonstração, /seguranca mostra o painel do perfil, como qualquer
+      // outro caminho.
+      const naSeguranca = usuario.painel_de_seguranca === true && pagina === PAGINA_DE_SEGURANCA;
       return (
         <AppShell usuario={usuario} assistente={sessao} aoSair={() => void sessao.sair()}>
-          {usuario.perfil === "vendas" ? (
+          {naSeguranca ? (
+            <PainelDeSeguranca fonte={sessao} />
+          ) : usuario.perfil === "vendas" ? (
             <PainelDeVendas fonte={sessao} primeiroNome={primeiroNome} />
           ) : usuario.perfil === "produtos" ? (
             <PainelDeProdutos fonte={sessao} primeiroNome={primeiroNome} />
