@@ -14,9 +14,12 @@ from execucao_de_aceite import (
     Contexto,
     cenarios,
     executar_cenario,
+    executar_matriz_completa,
     leitura_de_rota,
+    pares_da_matriz_completa,
     principal,
 )
+from registros import DONO_DA_FERRAMENTA, DONO_DA_ROTA
 
 from aceite import ARQUIVO_DA_ULTIMA_EXECUCAO, ExecucaoDeAceite, ler_ultima_execucao
 
@@ -131,6 +134,39 @@ def test_uma_nova_execucao_substitui_a_anterior(execucao, sem_o_limite):
 
     assert nova.executada_em > anterior.executada_em
     assert list(execucao["pasta"].iterdir()) == [execucao["pasta"] / ARQUIVO_DA_ULTIMA_EXECUCAO]
+
+
+def test_a_matriz_completa_roda_no_comando_e_bate_com_os_registros(execucao):
+    """Cada rota e cada ferramenta contra os quatro perfis: só o dono é permitido, sem
+    divergência, com a data da própria execução."""
+    gravada = ler_ultima_execucao(execucao["pasta"])
+    itens = len(DONO_DA_ROTA) + len(DONO_DA_FERRAMENTA)
+
+    matriz = gravada.matriz_completa
+
+    assert matriz is not None
+    assert (matriz.pares, matriz.permitidos, matriz.negados, matriz.divergencias) == (
+        itens * 4,
+        itens,
+        itens * 3,
+        0,
+    )
+    assert matriz.executada_em >= gravada.executada_em
+
+
+def test_um_par_diferente_do_esperado_conta_como_divergencia_na_matriz():
+    """Com o esperado trocado num par de rota e num de ferramenta, os dois divergem."""
+    pares = pares_da_matriz_completa()
+    rota = next(p for p in pares if p.tipo == "rota" and p.esperado == "negado")
+    ferramenta = next(p for p in pares if p.tipo == "ferramenta" and p.esperado == "permitido")
+    trocados = [replace(rota, esperado="permitido"), replace(ferramenta, esperado="negado")]
+    linhas: list[str] = []
+
+    with Contexto() as contexto:
+        matriz = executar_matriz_completa(contexto, trocados, linhas.append)
+
+    assert (matriz.pares, matriz.permitidos, matriz.negados, matriz.divergencias) == (2, 1, 1, 2)
+    assert sum("DIVERGÊNCIA" in linha for linha in linhas) == 2
 
 
 def test_um_resultado_diferente_do_esperado_e_gravado_como_divergencia(sem_o_limite):
