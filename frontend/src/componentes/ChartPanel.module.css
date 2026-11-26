@@ -65,6 +65,12 @@
   min-width: 0;
 }
 
+/* Vários gráficos pequenos: cada um mede a própria caixa, e esta só cresce com eles. */
+.graficos {
+  width: 100%;
+  min-width: 0;
+}
+
 @media (max-width: 767px) {
   .painel {
     padding: var(--espaco-3) var(--espaco-4) var(--espaco-4);
