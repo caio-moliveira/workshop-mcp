@@ -1,6 +1,6 @@
 /** As séries e as dicas dos gráficos dos fatores de recompra. */
 
-import { SO_NA_DICA, type SerieDoGrafico } from "../componentes/graficos";
+import { type LinhaDaDica, SO_NA_DICA, type SerieDoGrafico } from "../componentes/graficos";
 import { formatarNota, formatarNumero, formatarPercentual } from "../formatacao";
 import type { GrupoDeRecompra, GrupoDeSatisfacao } from "./fatores";
 
@@ -14,8 +14,6 @@ export const SATISFACAO: SerieDoGrafico = {
   cor: "var(--serie-2)",
   forma: "barra",
 };
-
-export type LinhaDaDica = SerieDoGrafico & { valor: string };
 
 /** A dica de um grupo de recompra: a taxa e o tamanho do grupo sobre o qual ela foi calculada. */
 export function linhasDaDicaDeRecompra(item: GrupoDeRecompra): LinhaDaDica[] {

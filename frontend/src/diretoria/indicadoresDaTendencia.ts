@@ -1,6 +1,6 @@
 /** Os quatro indicadores da tendência, como a tela os mostra: a série, o valor e a dica. */
 
-import { SO_NA_DICA, type SerieDoGrafico } from "../componentes/graficos";
+import { type LinhaDaDica, SO_NA_DICA, type SerieDoGrafico } from "../componentes/graficos";
 import {
   formatarMoeda,
   formatarMoedaCompacta,
@@ -9,8 +9,6 @@ import {
   formatarPercentual,
 } from "../formatacao";
 import type { PontoDaTendencia } from "./tendencia";
-
-export type LinhaDaDica = SerieDoGrafico & { valor: string };
 
 /** Um dos quatro indicadores da tendência: a série, como ler o valor e de que base ele saiu. */
 export interface IndicadorDaTendencia {

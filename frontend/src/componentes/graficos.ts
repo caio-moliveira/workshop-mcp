@@ -11,6 +11,9 @@ export interface SerieDoGrafico {
   forma: "barra" | "linha";
 }
 
+/** Uma linha da dica de um gráfico: a série e o valor já formatado. */
+export type LinhaDaDica = SerieDoGrafico & { valor: string };
+
 /** Só as linhas horizontais da grade, finas. */
 export const GRADE = {
   vertical: false,

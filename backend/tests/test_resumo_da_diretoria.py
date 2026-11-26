@@ -321,6 +321,8 @@ def test_a_descricao_diz_como_o_cliente_e_contado_no_canal(mcp, token_de):
     assert "do lead que originou o lojista" in descricao
     assert "não refaça a conta" in descricao
     assert "origem" not in descricao.lower()
+    # A descrição diz o que a ferramenta devolve e como as contas são feitas, não como responder.
+    assert "ao responder" not in descricao.lower()
 
 
 @pytest.mark.parametrize("periodo", PERIODOS)

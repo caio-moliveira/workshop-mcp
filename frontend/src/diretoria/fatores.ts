@@ -2,10 +2,10 @@
 
 import {
   type DatasDoPeriodo,
-  eContagem,
   eDatasDoPeriodo,
-  eNumero,
   eObjeto,
+  eSatisfacaoContada,
+  eTaxaContada,
 } from "../painel/contrato";
 
 /** Os grupos de cada bloco, na ordem em que a resposta os traz. Os grupos sem desfecho não vêm. */
@@ -42,29 +42,15 @@ export interface FatoresDeRecompra {
   faixa_de_atraso: GrupoDeSatisfacao[];
 }
 
-/** A medida é vazia exatamente quando o grupo não tem ninguém, e fica entre `minimo` e `maximo`. */
-function eMedidaDoGrupo(tamanho: number, medida: unknown, minimo: number, maximo: number): boolean {
-  if (tamanho === 0) return medida === null;
-  return eNumero(medida) && medida >= minimo && medida <= maximo;
-}
-
 function eGrupoDeRecompra(valor: unknown): boolean {
-  if (!eObjeto(valor)) return false;
-  const { clientes, clientes_com_recompra: comRecompra } = valor;
   return (
-    eContagem(clientes) &&
-    eContagem(comRecompra) &&
-    comRecompra <= clientes &&
-    eMedidaDoGrupo(clientes, valor.taxa_de_recompra, 0, 1)
+    eObjeto(valor) &&
+    eTaxaContada(valor.taxa_de_recompra, valor.clientes_com_recompra, valor.clientes)
   );
 }
 
 function eGrupoDeSatisfacao(valor: unknown): boolean {
-  return (
-    eObjeto(valor) &&
-    eContagem(valor.avaliacoes) &&
-    eMedidaDoGrupo(valor.avaliacoes, valor.satisfacao, 1, 5)
-  );
+  return eObjeto(valor) && eSatisfacaoContada(valor.satisfacao, valor.avaliacoes);
 }
 
 /** O bloco traz exatamente os grupos dele, cada um uma vez e na ordem, e todos válidos. */
