@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 import { AnuncioDeCarregamento, EstadosDoBloco } from "../componentes/EstadosDoBloco";
 import { EmptyState } from "../componentes/EmptyState";
 import { IconeAviso, IconeCadeado, IconeCheck } from "../componentes/icones";
@@ -18,6 +20,7 @@ import {
   type MatrizCompleta,
   type PainelDeSeguranca as Painel,
 } from "./contrato";
+import { GavetaDoCenario } from "./GavetaDoCenario";
 import estilos from "./PainelDeSeguranca.module.css";
 
 /** O comando que grava a execução de aceite, rodado dentro de `backend/`. */
@@ -148,8 +151,21 @@ function Perfil({ cenario }: { cenario: CenarioExecutado }) {
   );
 }
 
-/** A matriz dos cenários, um grupo por camada de defesa, rolando dentro da moldura (FE §11). */
-export function MatrizDeCenarios({ cenarios }: { cenarios: CenarioExecutado[] }) {
+interface Escolha {
+  /** O cenário aberto na gaveta lateral. */
+  escolhido?: string;
+  aoEscolher?: (cenario: CenarioExecutado, origem: HTMLElement) => void;
+}
+
+/**
+ * A matriz dos cenários, um grupo por camada de defesa, rolando dentro da moldura (FE §11). O
+ * cenário de cada linha é um botão que abre a gaveta lateral, alcançável pelo teclado.
+ */
+export function MatrizDeCenarios({
+  cenarios,
+  escolhido,
+  aoEscolher,
+}: { cenarios: CenarioExecutado[] } & Escolha) {
   return (
     <div
       className={estilos.rolagem}
@@ -175,12 +191,24 @@ export function MatrizDeCenarios({ cenarios }: { cenarios: CenarioExecutado[] })
               </th>
             </tr>
             {doGrupo.map((cenario) => (
-              <tr key={cenario.id} data-divergencia={cenario.divergencia || undefined}>
+              <tr
+                key={cenario.id}
+                data-divergencia={cenario.divergencia || undefined}
+                data-escolhido={cenario.id === escolhido || undefined}
+              >
                 <td>
-                  <span className={estilos.empilhado}>
-                    <span>{cenario.descricao}</span>
-                    <span className={estilos.secundario}>{cenario.alvo.nome}</span>
-                  </span>
+                  <button
+                    type="button"
+                    className={estilos.abrirCenario}
+                    aria-haspopup="dialog"
+                    aria-expanded={cenario.id === escolhido}
+                    onClick={(evento) => aoEscolher?.(cenario, evento.currentTarget)}
+                  >
+                    <span className={estilos.empilhado}>
+                      <span>{cenario.descricao}</span>
+                      <span className={estilos.secundario}>{cenario.alvo.nome}</span>
+                    </span>
+                  </button>
                 </td>
                 <td>
                   <Perfil cenario={cenario} />
@@ -204,6 +232,9 @@ export function MatrizDeCenarios({ cenarios }: { cenarios: CenarioExecutado[] })
 }
 
 function Execucao({ execucao }: { execucao: ExecucaoDeAceite }) {
+  // O cenário aberto na gaveta e a linha que a abriu, que recebe o foco de volta ao fechar.
+  const [aberto, setAberto] = useState<{ id: string; origem: HTMLElement } | null>(null);
+  const escolhido = aberto && execucao.cenarios.find((cenario) => cenario.id === aberto.id);
   return (
     <>
       <Cartoes execucao={execucao} />
@@ -217,8 +248,19 @@ function Execucao({ execucao }: { execucao: ExecucaoDeAceite }) {
         </p>
       )}
       <MolduraDeTabela {...MOLDURA}>
-        <MatrizDeCenarios cenarios={execucao.cenarios} />
+        <MatrizDeCenarios
+          cenarios={execucao.cenarios}
+          escolhido={escolhido ? escolhido.id : undefined}
+          aoEscolher={(cenario, origem) => setAberto({ id: cenario.id, origem })}
+        />
       </MolduraDeTabela>
+      {aberto && escolhido && (
+        <GavetaDoCenario
+          cenario={escolhido}
+          origem={aberto.origem}
+          aoFechar={() => setAberto(null)}
+        />
+      )}
     </>
   );
 }
