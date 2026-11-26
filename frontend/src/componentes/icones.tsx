@@ -137,6 +137,24 @@ export function IconeEmBreve() {
   );
 }
 
+export function IconeCheck() {
+  return (
+    <Icone>
+      <path d="M5 12.5l4.5 4.5L19 7.5" />
+    </Icone>
+  );
+}
+
+/** O escudo do painel de segurança, na sidebar. */
+export function IconeEscudo() {
+  return (
+    <Icone>
+      <path d="M12 3l7 3v5.5c0 4.3-2.9 8.1-7 9.5-4.1-1.4-7-5.2-7-9.5V6l7-3Z" />
+      <path d="M9 12l2 2 4-4" />
+    </Icone>
+  );
+}
+
 export function IconeCadeado() {
   return (
     <Icone>

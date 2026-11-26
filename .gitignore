@@ -5,3 +5,5 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 .token-da-demonstracao
+# O resultado da execução de aceite, que a API lê para o painel de segurança.
+backend/execucao-de-aceite/

@@ -14,6 +14,7 @@ Consulta de dados por perfil com servidor MCP. Os requisitos estão em `docs/PRD
 │   ├── api/          # API das telas (FastAPI)
 │   ├── servidor_mcp/ # servidor MCP: as consultas como ferramentas (FastMCP)
 │   ├── assistente/   # assistente da aplicação: agente (PydanticAI) que usa as ferramentas do servidor MCP
+│   ├── aceite/       # a forma do resultado da execução de aceite, que a API lê para o painel de segurança
 │   └── tests/
 ├── frontend/         # aplicação no navegador (React + TypeScript + Vite), servida por nginx
 ├── keycloak/realm/   # configuração versionada do provedor de identidade
@@ -85,6 +86,7 @@ O perfil vem do grupo do usuário no realm e viaja no token como a claim `perfil
 - Cada rota de dados só responde ao perfil dono; os outros perfis recebem `403 {"erro": "Acesso negado."}`, a mesma negação em toda rota, antes de o parâmetro ser validado (RF-11).
 - `POST /assistente`: uma pergunta ao assistente. Veja a seção Assistente.
 - `GET /conversas`, `GET /conversas/{id}` e `DELETE /conversas/{id}`: o histórico do assistente, só do próprio usuário. Veja a seção Assistente.
+- `GET /seguranca`: a última execução de aceite, para o painel de segurança, igual para os quatro perfis. Só existe com o interruptor de demonstração ligado. Veja a seção Painel de segurança.
 
 ## Servidor MCP
 
@@ -170,7 +172,23 @@ npm test
 npm run build
 ```
 
-`npm test` roda o Vitest nas funções puras: formatação, período da URL, variação, validação das respostas da API de Vendas, de Produtos, do Comercial e da Diretoria e, do assistente, a leitura do fluxo de eventos, o estado da conversa, a lista de conversas, o Markdown com tabelas, o painel (lateral e expandido), o teto de caracteres e a rede.
+`npm test` roda o Vitest nas funções puras: formatação, período da URL, variação, validação das respostas da API de Vendas, de Produtos, do Comercial, da Diretoria e do painel de segurança e, do assistente, a leitura do fluxo de eventos, o estado da conversa, a lista de conversas, o Markdown com tabelas, o painel (lateral e expandido), o teto de caracteres e a rede.
+
+## Painel de segurança
+
+O painel de segurança é a tela que mostra a última execução de aceite: os cenários de segurança, agrupados pela camada de defesa, com o resultado de cada um (permitido ou negado), a marca de divergência quando o resultado difere do esperado e os cartões-resumo (executados, permitidos, negados e divergências). Abra-o pelo item **Segurança** da barra lateral, em `http://localhost:5173/seguranca`, logado como qualquer um dos usuários de demonstração: a tela é igual para os quatro perfis.
+
+**O comando.** A execução de aceite roda no terminal, contra o ambiente no ar, dentro de `backend/`:
+
+```
+uv run python tests/execucao_de_aceite.py
+```
+
+Ela mostra o andamento e o resumo e grava o resultado em `backend/execucao-de-aceite/ultima-execucao.json`, no lugar do anterior; a pasta não é versionada e o contêiner da API a monta só para leitura. Recarregue o painel para ver a nova execução. O comando termina com código 1 se algum cenário divergiu. O esperado de cada cenário vem dos registros de donos das rotas e das ferramentas; um resultado diferente é gravado como divergência, nunca escondido. Rode o comando a partir do checkout em que o compose foi subido: é a pasta dele que a API lê.
+
+**O interruptor de demonstração.** A variável `PAINEL_DE_SEGURANCA=ligado` liga o painel; o `compose.yaml` a define no serviço `api`, porque o ambiente local é o do workshop. Desligado, o padrão fora do compose, a rota `/seguranca` responde exatamente como uma rota inexistente (`404`), o `GET /eu` não diz nada sobre ela e o frontend não mostra o item **Segurança**.
+
+**Ressalva.** O painel revela a qualquer usuário logado os nomes das rotas e das ferramentas de todos os perfis, o que o resto do projeto esconde de propósito (RF-11, RS-08). É um recurso de demonstração e não existiria em produção. Ele nunca mostra token, segredo nem dado de negócio: um cenário permitido traz só o status e a quantidade de linhas.
 
 ## Credenciais do banco
 
