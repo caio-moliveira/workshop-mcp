@@ -2,17 +2,20 @@
 
 Os valores esperados vêm de consultas independentes, feitas com o papel dono nos dados de origem:
 o período filtra pela data de criação e a etapa é a atual de cada lead (glossário). O banco é o da
-carga padrão (data de referência 30/11/2026).
+carga padrão (data de referência 30/11/2026). A ferramenta `comercial_funil` devolve o mesmo
+conteúdo; ela é chamada no servidor MCP criado dentro do processo.
 """
 
 from datetime import date
 
 import pytest
+from cliente_mcp import chamar, listar_ferramentas
 from recusa import pedir
 
 from acesso import Perfil
 
 ROTA = "/comercial/funil"
+FERRAMENTA = "comercial_funil"
 
 # Os períodos que terminam em 30/11/2026, como em Vendas.
 PERIODOS = {
@@ -88,3 +91,36 @@ def test_sem_periodo_vale_o_de_12_meses(api, token_de, respostas):
 
 def test_resposta_tem_so_o_periodo_e_as_etapas(respostas):
     assert set(respostas["12m"].json()) == {"periodo", "etapas"}
+
+
+@pytest.fixture(scope="module")
+def mcp(criar_mcp):
+    return criar_mcp()
+
+
+@pytest.mark.parametrize("periodo", PERIODOS)
+def test_a_ferramenta_devolve_o_mesmo_conteudo_da_rota(mcp, respostas, token_de, periodo):
+    """Tela e agente nunca divergem: a mesma consulta, pelo mesmo mecanismo (RF-13)."""
+    resultado = chamar(mcp, token_de(Perfil.COMERCIAL), FERRAMENTA, {"periodo": periodo})
+
+    assert not resultado.is_error
+    assert resultado.structured_content == respostas[periodo].json()
+
+
+@pytest.mark.parametrize("perfil", Perfil)
+def test_a_ferramenta_aparece_so_para_o_comercial(mcp, token_de, perfil):
+    nomes = {ferramenta.name for ferramenta in listar_ferramentas(mcp, token_de(perfil))}
+
+    assert (FERRAMENTA in nomes) == (perfil is Perfil.COMERCIAL)
+
+
+def test_a_ferramenta_recebe_so_o_periodo_e_diz_o_que_a_etapa_e_o_periodo_sao(mcp, token_de):
+    publicada = next(
+        ferramenta
+        for ferramenta in listar_ferramentas(mcp, token_de(Perfil.COMERCIAL))
+        if ferramenta.name == FERRAMENTA
+    )
+
+    assert set(publicada.input_schema["properties"]) == {"periodo"}
+    assert "etapa atual" in publicada.description
+    assert "data de criação" in publicada.description
