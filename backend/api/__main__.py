@@ -21,9 +21,7 @@ def execucao_de_aceite_do_ambiente() -> Path | None:
     (PAINEL_DE_SEGURANCA=ligado). Desligado, o padrão, o painel de segurança não existe."""
     if os.environ.get("PAINEL_DE_SEGURANCA", "").strip().lower() != "ligado":
         return None
-    return Path(
-        os.environ.get("PASTA_DA_EXECUCAO_DE_ACEITE") or PASTA_PADRAO_DA_EXECUCAO_DE_ACEITE
-    )
+    return Path(os.environ.get("PASTA_DA_EXECUCAO_DE_ACEITE") or PASTA_PADRAO_DA_EXECUCAO_DE_ACEITE)
 
 
 if __name__ == "__main__":
