@@ -4,6 +4,7 @@ import {
   type Comparacao,
   type DatasDoPeriodo,
   eComparacao,
+  eContagem,
   eDatasDoPeriodo,
   eNumero,
   eNumeroOuNulo,
@@ -41,7 +42,7 @@ export function eIndicadoresDoComercial(valor: unknown): valor is IndicadoresDoC
     eObjeto(valor) &&
     eDatasDoPeriodo(valor.periodo) &&
     eComparacao(valor.leads, false) &&
-    eNumero(valor.leads_em_negociacao) &&
+    eContagem(valor.leads_em_negociacao) &&
     eComparacao(valor.novos_lojistas, false) &&
     eNumeroOuNulo(valor.dias_ate_fechar) &&
     eComparacao(valor.conversao, true) &&

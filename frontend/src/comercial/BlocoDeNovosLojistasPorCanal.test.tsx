@@ -1,7 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import type { FonteDeDados } from "../useBloco";
 import { BlocoDeNovosLojistasPorCanal, NovosLojistasPorCanal } from "./BlocoDeNovosLojistasPorCanal";
 import type { DesempenhoDoCanal } from "./desempenhoDosCanais";
 import { linhasDaDica } from "./dicaDosCanais";
@@ -72,11 +71,9 @@ describe("o bloco de novos lojistas por canal", () => {
 });
 
 describe("o bloco de novos lojistas por canal enquanto carrega", () => {
-  const semResposta: FonteDeDados = { consultar: () => new Promise(() => {}) };
-
   it("anuncia o carregamento aos leitores de tela", () => {
     const html = renderToStaticMarkup(
-      <BlocoDeNovosLojistasPorCanal fonte={semResposta} periodo="30d" />,
+      <BlocoDeNovosLojistasPorCanal estado={{ fase: "carregando" }} tentarDeNovo={() => {}} />,
     );
 
     expect(html).toMatch(/role="status"[^>]*>.*Carregando os novos lojistas por canal…/);

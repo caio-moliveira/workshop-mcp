@@ -1,7 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import type { FonteDeDados } from "../useBloco";
 import {
   BlocoDeDesempenhoDosCanais,
   TabelaDeDesempenhoDosCanais,
@@ -90,9 +89,8 @@ describe("tabela de desempenho dos canais", () => {
 });
 
 describe("o bloco de desempenho dos canais enquanto carrega", () => {
-  const semResposta: FonteDeDados = { consultar: () => new Promise(() => {}) };
   const html = renderToStaticMarkup(
-    <BlocoDeDesempenhoDosCanais fonte={semResposta} periodo="30d" />,
+    <BlocoDeDesempenhoDosCanais estado={{ fase: "carregando" }} tentarDeNovo={() => {}} />,
   );
 
   it("mantém a moldura com o título e anuncia o carregamento", () => {

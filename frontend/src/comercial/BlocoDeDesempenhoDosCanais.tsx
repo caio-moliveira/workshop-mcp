@@ -3,25 +3,9 @@ import { AnuncioDeCarregamento, EstadosDoBloco } from "../componentes/EstadosDoB
 import { LoadingSkeleton } from "../componentes/LoadingSkeleton";
 import { formatarNumero, formatarPercentual } from "../formatacao";
 import { MolduraDeTabela } from "../painel/MolduraDeTabela";
-import type { Periodo } from "../painel/periodo";
-import { useBloco, type FonteDeDados } from "../useBloco";
+import estilos from "./BlocoDeDesempenhoDosCanais.module.css";
 import { CANAIS } from "./canais";
-import { eDesempenhoDosCanais, type DesempenhoDoCanal } from "./desempenhoDosCanais";
-
-interface Propriedades {
-  fonte: FonteDeDados;
-  periodo: Periodo;
-}
-
-/** A célula sem valor: o travessão para a vista e o motivo para leitores de tela. */
-function Vazio({ motivo }: { motivo: string }) {
-  return (
-    <>
-      <span aria-hidden="true">—</span>
-      <span className="visualmente-oculto">{motivo}</span>
-    </>
-  );
-}
+import type { BuscaDosCanais, DesempenhoDoCanal } from "./desempenhoDosCanais";
 
 const COLUNAS: Coluna<DesempenhoDoCanal>[] = [
   { titulo: "Canal", celula: (c) => c.canal },
@@ -32,7 +16,12 @@ const COLUNAS: Coluna<DesempenhoDoCanal>[] = [
     alinhamento: "fim",
     celula: (c) =>
       c.conversao === null ? (
-        <Vazio motivo="Sem leads no período" />
+        <>
+          <span className={estilos.secundario} aria-hidden="true">
+            —
+          </span>
+          <span className="visualmente-oculto">Sem leads no período</span>
+        </>
       ) : (
         formatarPercentual(c.conversao)
       ),
@@ -42,7 +31,12 @@ const COLUNAS: Coluna<DesempenhoDoCanal>[] = [
     alinhamento: "fim",
     celula: (c) =>
       c.dias_ate_fechar === null ? (
-        <Vazio motivo="Nenhum lead fechou no período" />
+        <>
+          <span className={estilos.secundario} aria-hidden="true">
+            —
+          </span>
+          <span className="visualmente-oculto">Nenhum lead fechou no período</span>
+        </>
       ) : (
         formatarNumero(Math.round(c.dias_ate_fechar))
       ),
@@ -69,17 +63,11 @@ export function TabelaDeDesempenhoDosCanais({ canais }: { canais: DesempenhoDoCa
 }
 
 /**
- * A tabela de desempenho dos canais do período, com estados próprios (FE §6, §10). A resposta traz
- * sempre os cinco canais: não há estado vazio, e o canal sem lead ou sem fechamento fica na linha
- * com a célula vazia.
+ * A tabela de desempenho dos canais do período, com os estados da busca que o painel faz e divide
+ * com o gráfico de novos lojistas (FE §6, §10). A resposta traz sempre os cinco canais: não há
+ * estado vazio, e o canal sem lead ou sem fechamento fica na linha com a célula vazia.
  */
-export function BlocoDeDesempenhoDosCanais({ fonte, periodo }: Propriedades) {
-  const { estado, tentarDeNovo } = useBloco(
-    fonte,
-    `/comercial/canais?periodo=${periodo}`,
-    eDesempenhoDosCanais,
-  );
-
+export function BlocoDeDesempenhoDosCanais({ estado, tentarDeNovo }: BuscaDosCanais) {
   return (
     <EstadosDoBloco
       estado={estado}

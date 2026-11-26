@@ -1,6 +1,6 @@
 /** O contrato de `GET /produtos/notas`: números crus e datas ISO. */
 
-import { type DatasDoPeriodo, eDatasDoPeriodo, eObjeto } from "../painel/contrato";
+import { type DatasDoPeriodo, eContagem, eDatasDoPeriodo, eObjeto } from "../painel/contrato";
 
 /** As notas de uma avaliação, de 1 a 5, na ordem em que a API as devolve. */
 export const NOTAS = [1, 2, 3, 4, 5] as const;
@@ -16,10 +16,6 @@ export interface NotasDasAvaliacoes {
   periodo: DatasDoPeriodo;
   /** Sempre as cinco notas, de 1 a 5, com zero onde não há avaliação. */
   notas: AvaliacoesNaNota[];
-}
-
-function eContagem(valor: unknown): valor is number {
-  return Number.isInteger(valor) && (valor as number) >= 0;
 }
 
 export function eNotasDasAvaliacoes(valor: unknown): valor is NotasDasAvaliacoes {
