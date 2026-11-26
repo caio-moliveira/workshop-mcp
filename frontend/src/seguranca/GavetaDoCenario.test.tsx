@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import type { CenarioExecutado } from "./contrato";
+import type { CenarioDeSeguranca } from "./contrato";
 import { cenario, execucao, PERMITIDO } from "./exemplos";
 import { GavetaDoCenario } from "./GavetaDoCenario";
 import { VisaoDoPainelDeSeguranca } from "./PainelDeSeguranca";
@@ -28,7 +28,7 @@ const DE_OUTRO_PERFIL = cenario({
   duracao_em_ms: 16,
 });
 
-function gaveta(escolhido: CenarioExecutado): string {
+function gaveta(escolhido: CenarioDeSeguranca): string {
   return renderToStaticMarkup(<GavetaDoCenario cenario={escolhido} aoFechar={() => {}} />);
 }
 
@@ -106,6 +106,48 @@ describe("gaveta de um cenário permitido e sem chamada", () => {
   it("diz que nenhuma camada barrou e que não há linha da auditoria", () => {
     expect(marcacao).toContain("Nenhuma camada barrou");
     expect(marcacao).toContain("Sem linha na auditoria");
+  });
+});
+
+describe("gaveta do cenário negado do assistente", () => {
+  const marcacao = texto(
+    gaveta(
+      cenario({
+        id: "assistente-ferramenta-de-outro-perfil",
+        grupo: "assistente",
+        alvo: {
+          tipo: "assistente",
+          nome: "/assistente",
+          parametros: { ferramenta: "comercial_indicadores", periodo: "30d" },
+        },
+        camadas_de_defesa: ["lista_de_ferramentas", "chamada"],
+        resposta: { status: 200, mensagem: "Ferramenta desconhecida.", linhas: null },
+      }),
+    ),
+  );
+
+  it("explica que a recusa aconteceu no assistente, antes de chegar ao servidor MCP", () => {
+    expect(marcacao).toContain(
+      "Sem linha na auditoria: a recusa aconteceu no assistente, antes de chegar ao servidor MCP, por isso não há chamada registrada.",
+    );
+    expect(marcacao).not.toContain("só as chamadas de ferramenta");
+  });
+});
+
+describe("gaveta de um cenário da lista de ferramentas", () => {
+  it("conta as ferramentas listadas, não linhas", () => {
+    const lista = cenario({
+      id: "lista-de-vendas",
+      grupo: "lista_de_ferramentas",
+      alvo: { tipo: "lista_de_ferramentas", nome: "tools/list", parametros: {} },
+      camadas_de_defesa: ["lista_de_ferramentas"],
+      esperado: "permitido",
+      obtido: "permitido",
+      resposta: { status: 200, mensagem: null, linhas: 5 },
+    });
+    const marcacao = texto(gaveta(lista));
+    expect(marcacao).toContain("5 ferramentas");
+    expect(marcacao).not.toContain("5 linhas");
   });
 });
 

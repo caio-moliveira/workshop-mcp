@@ -107,6 +107,22 @@ describe("painel de segurança com a última execução", () => {
   });
 });
 
+describe("painel de segurança com a lista de ferramentas", () => {
+  it("o detalhe conta as ferramentas listadas, não linhas", () => {
+    const lista = cenario({
+      id: "lista-de-vendas",
+      grupo: "lista_de_ferramentas",
+      alvo: { tipo: "lista_de_ferramentas", nome: "tools/list", parametros: {} },
+      camadas_de_defesa: ["lista_de_ferramentas"],
+      esperado: "permitido",
+      obtido: "permitido",
+      resposta: { status: 200, mensagem: null, linhas: 5 },
+    });
+    const [linha] = linhas(pronto({ execucao: execucao([lista]) }));
+    expect(linha).toContain("200 · 5 ferramentas");
+  });
+});
+
 describe("painel de segurança com uma divergência", () => {
   const marcacao = pronto({ execucao: execucao([PERMITIDO, DIVERGENTE]) });
 

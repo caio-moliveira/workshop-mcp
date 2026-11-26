@@ -1,0 +1,48 @@
+/* O resultado de um cenário de segurança, igual na matriz do painel e na gaveta lateral. */
+
+.resultado {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.desfecho {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: var(--peso-semibold);
+  white-space: nowrap;
+}
+
+.desfecho svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Permitido em verde-escuro; negado em vermelho discreto. O ícone e o texto dizem o mesmo. */
+.desfecho[data-desfecho="permitido"] {
+  color: var(--sucesso);
+}
+
+.desfecho[data-desfecho="negado"] {
+  color: var(--erro);
+}
+
+.divergencia {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 var(--espaco-2);
+  border: 1px solid var(--erro);
+  border-radius: 999px;
+  color: var(--erro);
+  font-size: var(--texto-label);
+  font-weight: var(--peso-medio);
+  white-space: nowrap;
+}
+
+.divergencia svg {
+  width: 14px;
+  height: 14px;
+}
