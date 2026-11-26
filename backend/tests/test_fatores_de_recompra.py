@@ -156,6 +156,22 @@ def test_os_tres_blocos_trazem_os_grupos_da_enumeracao_na_ordem(respostas, perio
 
 
 @pytest.mark.parametrize("periodo", PERIODOS)
+def test_na_view_cada_bloco_tem_exatamente_os_grupos_dele(conexao_dono, periodo):
+    """O contrato da camada só confere o grupo contra a união dos grupos; aqui, bloco a bloco."""
+    linhas = conexao_dono.execute(
+        "select bloco, grupo from diretoria.fatores_de_recompra where periodo = %s",
+        (periodo,),
+    ).fetchall()
+    grupos_na_view: dict[str, list[str]] = {}
+    for bloco, grupo in linhas:
+        grupos_na_view.setdefault(bloco, []).append(grupo)
+
+    assert set(grupos_na_view) == set(GRUPOS)
+    for bloco, grupos in GRUPOS.items():
+        assert sorted(grupos_na_view[bloco]) == sorted(grupos), bloco
+
+
+@pytest.mark.parametrize("periodo", PERIODOS)
 def test_os_blocos_de_recompra_batem_com_os_dados_de_origem(respostas, conexao_dono, periodo):
     corpo = respostas[periodo].json()
     na_origem = _na_origem(conexao_dono, PERIODOS[periodo])
