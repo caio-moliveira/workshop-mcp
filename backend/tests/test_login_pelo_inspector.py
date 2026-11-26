@@ -144,7 +144,7 @@ def test_token_do_inspector_e_aceito_pelo_servidor_mcp():
 
 
 def test_token_do_inspector_de_outro_perfil_recebe_a_lista_vazia():
-    token = login_pelo_inspector(Perfil.COMERCIAL)["access_token"]
+    token = login_pelo_inspector(Perfil.DIRETORIA)["access_token"]
 
     assert listar_ferramentas(MCP_DO_AMBIENTE, token) == []
 
