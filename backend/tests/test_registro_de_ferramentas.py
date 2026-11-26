@@ -42,6 +42,7 @@ PARAMETROS_PREVISTOS = {
     "comercial_funil": {"periodo"},
     "comercial_canais": {"periodo"},
     "comercial_leads": {"periodo", "canal", "etapa"},
+    "diretoria_indicadores": {"periodo"},
 }
 # Os valores de cada parâmetro, também repetidos: a enumeração é fechada.
 VALORES_PREVISTOS = {

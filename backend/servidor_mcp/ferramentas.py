@@ -16,6 +16,7 @@ from consultas import (
     ParametroInvalido,
     Periodo,
     comercial,
+    diretoria,
     produtos,
     vendas,
 )
@@ -489,5 +490,34 @@ FERRAMENTAS: dict[str, Ferramenta] = {
             "ISO."
         ),
         parametros=(PERIODO, CANAL_DO_LEAD, ETAPA_DO_LEAD),
+    ),
+    "diretoria_indicadores": Ferramenta(
+        consulta=diretoria.indicadores,
+        titulo="Indicadores da Diretoria",
+        descricao=(
+            "Indicadores consolidados do marketplace em um período, que cruzam vendas, "
+            "avaliações e clientes: receita, taxa de recompra, satisfação e retenção. Use para "
+            "saber quanto o marketplace vendeu, se os clientes voltam a comprar e se estão "
+            "satisfeitos, e se isso melhorou ou piorou. Todos os números já vêm calculados, não "
+            "refaça a conta. 'receita' é a soma dos pagamentos aprovados dos pedidos do período, "
+            "com itens e frete, contados pelo dia da compra no horário de Brasília (o mesmo valor "
+            "que Vendas vê). 'taxa_de_recompra' é, de 0 a 1, a parte dos clientes com pedido "
+            "aprovado no período ('clientes') que fez uma recompra nele, isto é, um pedido "
+            "aprovado que não é o primeiro do cliente ('clientes_com_recompra'). Ela é maior em "
+            "períodos curtos, porque quem compra de novo pesa mais entre os poucos clientes de "
+            "um período curto: a taxa de 30 dias acima da de 12 meses não é melhora. "
+            "'satisfacao' é a nota média, de 1 a 5, das avaliações feitas no período "
+            "('avaliacoes'), o mesmo número que Produtos vê como nota média. 'retencao' é, de 0 "
+            "a 1, a parte dos clientes com pedido aprovado no período anterior de mesmo tamanho "
+            "('clientes_do_periodo_anterior') que teve outro pedido aprovado no período "
+            "('retidos'); é nula em 24 meses, que não tem período anterior nos dados. Cada "
+            "indicador traz 'atual' (o valor do período) e 'anterior' (o valor do período "
+            "imediatamente anterior, de mesmo tamanho), para a variação: 'anterior' é nulo em "
+            "todos no período de 24 meses e, na retenção, também em 12 meses, porque a retenção "
+            "do período anterior precisaria de dois períodos para trás. Nenhum número é de um "
+            "cliente, pedido ou avaliação individual. 'periodo' traz as datas de início e fim "
+            "usadas, em formato ISO."
+        ),
+        parametros=(PERIODO,),
     ),
 }
