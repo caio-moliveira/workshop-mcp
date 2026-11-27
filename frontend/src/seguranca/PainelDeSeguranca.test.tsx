@@ -168,7 +168,7 @@ describe("painel de segurança com os grupos Banco, Limite de frequência e Assi
   });
   const assistente = cenario({
     id: "assistente-ferramenta-de-outro-perfil",
-    descricao: "O modelo tenta uma ferramenta de outro perfil e é negado na chamada",
+    descricao: "O modelo tenta uma ferramenta de outro perfil: não listada e recusada",
     grupo: "assistente",
     quem: { tipo: "usuario", nome: "bruno.produtos" },
     perfil: "produtos",

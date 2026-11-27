@@ -284,6 +284,10 @@ def test_o_assistente_chama_o_mcp_com_o_token_do_usuario(execucao):
     # A recusa que o assistente devolveu ao modelo cita as ferramentas do perfil: fica gravada a
     # mensagem genérica, a mesma do servidor MCP para a ferramenta desconhecida.
     assert negado.resposta.mensagem == mensagens.FERRAMENTA_DESCONHECIDA
+    # O 200 é o do `/assistente`, que respondeu à pergunta, não o da negação: como nas
+    # ferramentas, a negação não tem status.
+    assert negado.resposta.status is None
+    assert permitido.resposta.status == 200
 
 
 def test_no_assistente_so_a_recusa_da_ferramenta_desconhecida_e_negada():
