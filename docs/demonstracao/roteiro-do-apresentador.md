@@ -6,7 +6,7 @@ A tese do workshop é uma só: cada usuário vê só o que pertence ao perfil de
 
 Os comandos rodam na raiz do checkout principal (o do compose), salvo quando o passo indica `backend/`. A máquina do workshop é Windows: os comandos estão no PowerShell e, onde o bash difere, ele vem em seguida. No PowerShell, use `curl.exe`, nunca `curl` (que no Windows PowerShell é outro comando).
 
-**O que foi conferido e como.** Em 26/11/2026, os comandos dos blocos 1 a 4, 6 e 8 foram executados uma vez, como estão escritos, contra o compose no ar, nos dois terminais quando diferem; o resultado observado está em cada bloco. O compose estava com o servidor MCP no **limite alto** da suíte (100000 chamadas por minuto), porque outros trabalhos usavam o mesmo ambiente. Por isso ficaram **para o fechamento da entrega 11**, com o limite padrão: o laço do limite de frequência (bloco 5) e os números da execução de aceite no limite padrão (bloco 8). O túnel e os assistentes externos (bloco 7) seguem a verificação V1 e não foram ligados aqui. A parte de navegador (a aplicação, o Inspector pela interface, o painel de segurança) não foi conferida por este roteiro: ela é a dos roteiros das entregas, e o painel é conferido no fechamento.
+**O que foi conferido e como.** Em 26/11/2026, os comandos dos blocos 1 a 4, 6 e 8 foram executados uma vez, como estão escritos, contra o compose no ar, nos dois terminais quando diferem; o resultado observado está em cada bloco. O compose estava com o servidor MCP no **limite alto** da suíte (100000 chamadas por minuto), porque outros trabalhos usavam o mesmo ambiente. Por isso o laço do limite de frequência (bloco 5) e a execução de aceite no limite padrão (bloco 8) ficaram para o fechamento da entrega 11 e foram executados em 27/11/2026, num ambiente subido do zero com o limite padrão (roteiro de aceite, `entrega-11.md`, passos 2 e 5b); o resultado observado está nos dois blocos. O túnel e os assistentes externos (bloco 7) foram usados no CA-06, pelo túnel nomeado, com o usuário (`entrega-11.md`, passo 6). A parte de navegador (a aplicação, o Inspector pela interface, o painel de segurança) não foi conferida por este roteiro: ela é a dos roteiros das entregas, e a do painel está no passo 3 do roteiro de aceite.
 
 ## Os blocos
 
@@ -115,7 +115,7 @@ A rede pode falhar no dia. O ambiente é local e quase tudo funciona sem interne
 | O assistente de `bruno.produtos` com a pergunta da avaliação maliciosa, a resposta e o bloco "Como esta resposta foi obtida" aberto | 6 | Depende do provedor do modelo, pela internet |
 | O assistente de `ana.vendas` com o pedido para ignorar as regras | 6 | Idem |
 | O Claude: adicionar o conector, o login de `carla.comercial`, o consentimento, a lista de ferramentas do Comercial e a resposta à pergunta sugerida, com o painel do Comercial ao lado | 7 | Depende do túnel, do Claude e da rede do local |
-| O ChatGPT, o mesmo fluxo, se o roteiro de aceite da 11 o tiver verificado | 7 | Idem |
+| O ChatGPT, o mesmo fluxo (declarado funcionando pelo usuário no CA-06, sem verificação na auditoria) | 7 | Idem |
 | A execução de aceite no terminal, o painel de segurança recarregado e a gaveta de um cenário aberta | 8 | Reserva do bloco final |
 
 Além das gravações, o `backend/execucao-de-aceite/reserva.json` do passo 6: se a execução ao vivo falhar, copie-o de volta para `ultima-execucao.json` e recarregue o painel; ele mostra a data do ensaio, não a da hora.
@@ -388,7 +388,7 @@ Logo em seguida, a Ana, do mesmo perfil, continua passando: emita o token de `an
 docker compose exec postgres psql -U dono -d auditoria -c "select nome_do_usuario, resultado, count(*) from auditoria.chamada where horario > now() - interval '1 minute' group by nome_do_usuario, resultado order by 1, 2"
 ```
 
-**O que a plateia deve ver:** as 30 primeiras chamadas do Vitor passam (`False`) e a 31ª é barrada (`True`); a seguinte mostra `Muitas chamadas em pouco tempo. Tente de novo em instantes.`, um erro de ferramenta, não um HTTP 429, para o assistente explicar ao usuário o que houve; a chamada da Ana passa; na auditoria, `Vitor Nunes | limitada | 2`, `Vitor Nunes | permitida | 30` e a linha `permitida` da Ana. **Fica para o fechamento:** este laço exige o limite padrão e não foi executado em 26/11/2026, com o compose no limite alto. A forma dos comandos é a do passo 5 do roteiro da 4b, conferida em 24/11/2026, com a Ana no lugar do Vitor.
+**O que a plateia deve ver:** as 30 primeiras chamadas do Vitor passam (`False`) e a 31ª é barrada (`True`); a seguinte mostra `Muitas chamadas em pouco tempo. Tente de novo em instantes.`, um erro de ferramenta, não um HTTP 429, para o assistente explicar ao usuário o que houve; a chamada da Ana passa; na auditoria, `Vitor Nunes | limitada | 2`, `Vitor Nunes | permitida | 30` e a linha `permitida` da Ana. **Executado em 27/11/2026,** no PowerShell, com o limite padrão, mais de um minuto depois de uma execução de aceite: `1 False` a `30 False` e `31 True`, o laço em 2,9 s; a chamada seguinte, `{"content":[{"text":"Muitas chamadas em pouco tempo. Tente de novo em instantes.","type":"text"}],"isError":true}`; a da Ana, `False`; na auditoria do último minuto, `Vitor Nunes | limitada | 2`, `Vitor Nunes | permitida | 30` e `Ana Ribeiro | permitida | 1` (e uma linha de Bruno Costa, de uma pergunta feita no minuto anterior: a consulta conta todo mundo). Se houver chamadas de outros usuários no minuto anterior, elas aparecem também.
 
 **Roteiro da entrega:** `entrega-4b.md`, passos 2 a 5 e 7.
 
@@ -474,7 +474,7 @@ Qual canal traz os leads que mais convertem?
 
 Ao lado, a aplicação como `carla.comercial` (o login agora passa pelo túnel), no painel do Comercial, em 12 meses. No terminal 1, a auditoria, com a consulta do bloco 5.
 
-**O que a plateia deve ver:** o registro automático e a tela de login do pulso aberta pelo Claude; o conector com só as quatro ferramentas do Comercial; a resposta com Mídia paga à frente (222 leads, 57 novos lojistas, conversão de 25,7% em 12 meses, passo 2 do roteiro da 9), os mesmos números do painel; na auditoria, as chamadas com Carla Mendes e o perfil `comercial`. Se houver tempo e o ChatGPT tiver sido verificado no roteiro de aceite da 11, o mesmo pelo ChatGPT (passo 7 da V1). Se a rede ou o túnel falharem, mostre a gravação de reserva e pule para a volta ao modo local.
+**O que a plateia deve ver:** o registro automático e a tela de login do pulso aberta pelo Claude; o conector com só as quatro ferramentas do Comercial; a resposta com Mídia paga à frente (222 leads, 57 novos lojistas, conversão de 25,7% em 12 meses, passo 2 do roteiro da 9), os mesmos números do painel; na auditoria, as chamadas com Carla Mendes e o perfil `comercial`. Se houver tempo, o mesmo pelo ChatGPT (passo 7 da V1), que o usuário declarou funcionando no CA-06, sem verificação na auditoria: ensaie-o antes de mostrá-lo. Se a rede ou o túnel falharem, mostre a gravação de reserva e pule para a volta ao modo local.
 
 **Voltar ao modo local**, antes do bloco 8 (cerca de 1 minuto): ponha o `backend/.env` local de volta, desligue o túnel e suba de novo:
 
@@ -483,7 +483,7 @@ docker compose stop tunel
 docker compose up -d --wait
 ```
 
-Remova o conector no Claude depois do workshop: os clientes registrados somem a cada reinício do provedor. Enquanto o servidor sobe, entre de novo na aplicação, com qualquer usuário, para o bloco 8. **Não executado em 26/11/2026:** o bloco segue `verificacao-v1.md`, passos 3 a 8, conferido com o Claude em 24/11/2026; o CA-06 com os quatro perfis é o do roteiro de aceite da 11.
+Remova o conector no Claude depois do workshop: os clientes registrados somem a cada reinício do provedor. Enquanto o servidor sobe, entre de novo na aplicação, com qualquer usuário, para o bloco 8. **Não executado como bloco:** ele segue `verificacao-v1.md`, passos 3 a 8, conferido com o Claude em 24/11/2026. No CA-06 (26/11/2026, túnel nomeado, `entrega-11.md`, passo 6), o Claude foi verificado na auditoria com `diego.diretoria` e `ana.vendas`; `carla.comercial`, o perfil deste bloco, e o ChatGPT foram só declarados pelo usuário, sem linha na auditoria. Ensaie o bloco com a Carla na véspera.
 
 ## Bloco 8. O painel de segurança, com a execução de aceite ao vivo (10 min)
 
@@ -499,7 +499,7 @@ uv run python tests/execucao_de_aceite.py
 
 O terminal mostra os 24 cenários um a um, a matriz completa, a conferência da carga e o resumo. Recarregue o painel.
 
-**Executado em 26/11/2026,** com o limite alto, duas vezes, em 35,6 s e 34,9 s pela medida do próprio comando (cerca de 50 s e 38 s no relógio, com a partida do `uv`): `24 executados, 10 permitidos, 14 negados, 1 divergências`, a divergência sendo o cenário do limite (o Vitor passou, porque o limite era 100000), como o README prevê; `Matriz completa: 140 pares, 35 permitidos, 105 negados, 0 divergências`; `Carga: o banco está no estado da carga (data de referência 2026-11-30, contagens de referência conferidas).` **Fica para o fechamento:** a execução no limite padrão, em que o esperado é `24 executados, 9 permitidos, 15 negados, 0 divergências`.
+**Executado em 26/11/2026,** com o limite alto, duas vezes, em 35,6 s e 34,9 s pela medida do próprio comando (cerca de 50 s e 38 s no relógio, com a partida do `uv`): `24 executados, 10 permitidos, 14 negados, 1 divergências`, a divergência sendo o cenário do limite (o Vitor passou, porque o limite era 100000), como o README prevê; `Matriz completa: 140 pares, 35 permitidos, 105 negados, 0 divergências`; `Carga: o banco está no estado da carga (data de referência 2026-11-30, contagens de referência conferidas).` **Executado em 27/11/2026, no limite padrão,** num ambiente subido do zero, a partir do checkout principal: `24 executados, 9 permitidos, 15 negados, 0 divergências, em 35.3 s` (38,2 s no relógio, com a partida do `uv`); o Vitor barrado na 31ª chamada, em 1,15 s, e a Ana passando logo depois; `Matriz completa: 140 pares, 35 permitidos, 105 negados, 0 divergências`; a carga conferida. Os mais lentos são os dois cenários do assistente, 2,2 s e 2,1 s. A saída inteira está no passo 2 do roteiro de aceite (`entrega-11.md`).
 
 **O que a plateia deve ver**, nesta ordem:
 
@@ -514,7 +514,7 @@ O terminal mostra os 24 cenários um a um, a matriz completa, a conferência da 
    | API | O dono lê a própria rota; Vendas lê uma rota da Diretoria e Produtos uma do Comercial, com o mesmo 403; o período inválido numa rota alheia; a conversa de outro usuário, como inexistente | 3 |
    | Banco | O papel `vendas` lê a própria camada de leitura e é recusado na da Diretoria; o papel `diretoria` é recusado nos dados de origem; o papel `comercial` não escreve | 4 |
    | Limite de frequência | `vitor.vendas` passa do limite e é barrado; `ana.vendas`, logo depois, continua passando | 5 |
-   | Assistente | O assistente chama o servidor MCP com o token do usuário; o modelo roteirizado tenta uma ferramenta de outro perfil e é negado na chamada | 6 |
+   | Assistente | O assistente chama o servidor MCP com o token do usuário; o modelo roteirizado tenta uma ferramenta de outro perfil: não listada e recusada | 6 |
 
 3. A gaveta de "Vendas chama uma ferramenta da Diretoria": o pedido (quem, o quê, com quais parâmetros), a resposta genérica `Ferramenta desconhecida.`, as duas camadas de defesa que o barram (Lista de ferramentas e Chamada: uma não depende da outra), a linha da auditoria com `negada` (bloco 5) e a duração. Feche com Esc: o foco volta à linha.
 4. A gaveta de "vitor.vendas faz 31 chamadas seguidas e é barrado", com a linha `limitada` da auditoria.
