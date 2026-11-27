@@ -1,5 +1,5 @@
 import type { UsuarioAutenticado } from "../api";
-import { DESCRICAO_DOS_PERFIS } from "../perfis";
+import { rotuloDaPagina, usePagina } from "../navegacao";
 import { IconeAssistente, IconeMenu, IconeSair } from "./icones";
 import { ProfileIndicator } from "./ProfileIndicator";
 import estilos from "./Topbar.module.css";
@@ -13,7 +13,7 @@ interface Propriedades {
   aoSair: () => void;
 }
 
-/** Barra superior: contexto do perfil à esquerda; assistente, perfil e saída à direita (FE §5). */
+/** Barra superior: a página aberta (o painel do perfil ou Segurança) à esquerda; assistente, perfil e saída à direita (FE §5). */
 export function Topbar({
   usuario,
   navegacaoAberta,
@@ -22,6 +22,7 @@ export function Topbar({
   aoAlternarAssistente,
   aoSair,
 }: Propriedades) {
+  const pagina = usePagina();
   return (
     <header className={estilos.topbar}>
       <div className={estilos.contexto}>
@@ -38,7 +39,7 @@ export function Topbar({
         <nav aria-label="Você está em" className={estilos.trilha}>
           <span>pulso.</span>
           <span aria-hidden="true">/</span>
-          <span className={estilos.atual}>{DESCRICAO_DOS_PERFIS[usuario.perfil].nome}</span>
+          <span className={estilos.atual}>{rotuloDaPagina(usuario, pagina)}</span>
         </nav>
       </div>
 

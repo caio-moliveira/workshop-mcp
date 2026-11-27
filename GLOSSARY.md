@@ -219,3 +219,21 @@ _Avoid_: Taxa de recompra (que olha quem comprou agora, não quem comprou antes)
 **Satisfação**:
 A nota média das avaliações de um período. É o mesmo número que Produtos vê como nota média.
 _Avoid_: NPS, índice de satisfação, CSAT
+
+### Demonstração
+
+**Cenário de segurança**:
+Um pedido concreto de um usuário, de um papel ou de um token a uma rota, ferramenta, camada de leitura ou ao assistente, com o desfecho esperado: permitido ou negado.
+_Avoid_: Teste, caso de teste, cenário (sozinho)
+
+**Camada de defesa**:
+Um dos pontos que pode barrar um pedido: o token, a lista de ferramentas, a chamada, a API, o banco e o limite de frequência. Um mesmo pedido pode ser barrado por mais de uma.
+_Avoid_: Camada (sozinho, que se confunde com a camada de leitura), barreira, camada de segurança
+
+**Execução de aceite**:
+Uma rodada de todos os cenários de segurança contra o ambiente no ar, com data e hora.
+_Avoid_: Suíte (que é o conjunto dos testes automatizados), execução dos testes
+
+**Painel de segurança**:
+A tela que mostra a última execução de aceite. Não mostra dado de negócio.
+_Avoid_: Painel de demonstração (que é o nome da entrega), dashboard de segurança

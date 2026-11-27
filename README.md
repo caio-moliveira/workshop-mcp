@@ -14,6 +14,7 @@ Consulta de dados por perfil com servidor MCP. Os requisitos estão em `docs/PRD
 │   ├── api/          # API das telas (FastAPI)
 │   ├── servidor_mcp/ # servidor MCP: as consultas como ferramentas (FastMCP)
 │   ├── assistente/   # assistente da aplicação: agente (PydanticAI) que usa as ferramentas do servidor MCP
+│   ├── aceite/       # a forma do resultado da execução de aceite, que a API lê para o painel de segurança
 │   └── tests/
 ├── frontend/         # aplicação no navegador (React + TypeScript + Vite), servida por nginx
 ├── keycloak/realm/   # configuração versionada do provedor de identidade
@@ -85,6 +86,7 @@ O perfil vem do grupo do usuário no realm e viaja no token como a claim `perfil
 - Cada rota de dados só responde ao perfil dono; os outros perfis recebem `403 {"erro": "Acesso negado."}`, a mesma negação em toda rota, antes de o parâmetro ser validado (RF-11).
 - `POST /assistente`: uma pergunta ao assistente. Veja a seção Assistente.
 - `GET /conversas`, `GET /conversas/{id}` e `DELETE /conversas/{id}`: o histórico do assistente, só do próprio usuário. Veja a seção Assistente.
+- `GET /seguranca`: a última execução de aceite, para o painel de segurança, igual para os quatro perfis. Só existe com o interruptor de demonstração ligado. Veja a seção Painel de segurança.
 
 ## Servidor MCP
 
@@ -100,6 +102,7 @@ O serviço `mcp` do compose expõe as consultas de Vendas, de Produtos, do Comer
 - **Conteúdo não confiável:** o comentário das avaliações é texto escrito por clientes. A descrição de `produtos_avaliacoes` e o campo `aviso` do resultado dizem que ele é dado, não instrução; o texto vai inteiro, cortado só em 500 caracteres, sem filtro nem detecção de texto suspeito (ADR 0010).
 - **Token:** só aceita tokens do realm cujo destinatário inclui `pulso-mcp`. O token da aplicação (`pulso-web`) traz `pulso-api` e `pulso-mcp` (ADR 0006); o do cliente `pulso-inspector`, só `pulso-mcp`. Sem token ou com token recusado: `401`, com o `WWW-Authenticate` apontando os metadados de recurso protegido em `/.well-known/oauth-protected-resource/mcp`.
 - **Endereço público:** `ENDERECO_PUBLICO_DO_MCP` no `backend/.env` (sem o `/mcp`), o recurso anunciado nos metadados. Precisa ser o endereço digitado no cliente do protocolo MCP (o Inspector, um assistente externo).
+- **Túnel, para os assistentes externos:** dois modos, os dois atrás do proxy reverso, que só deixa passar o realm, o tema, o servidor MCP e os metadados. O **túnel rápido** (perfil `tunel`) não exige conta e ganha um endereço `*.trycloudflare.com` novo a cada subida (`docs/demonstracao/verificacao-v1.md`). O **túnel nomeado** (perfil `tunel-nomeado`) usa um túnel criado na sua conta da Cloudflare, com endereço fixo num domínio seu; o token fica no arquivo `backend/token-do-tunel`, fora do git e fora do `backend/.env`, para o contêiner do túnel não receber as senhas do projeto. Os passos estão no `backend/.env.example`. Troque as senhas de demonstração antes de ligar qualquer um dos dois.
 - **Auditoria:** toda chamada de ferramenta vira uma linha na tabela `auditoria.chamada`, no banco `auditoria`, com usuário, perfil, ferramenta, parâmetros, resultado e horário. A recarga não a apaga, e só o papel dono a lê (ADR 0008).
 - **Limite de frequência:** 30 chamadas por usuário por minuto; `LIMITE_DE_CHAMADAS_POR_USUARIO` e `JANELA_DO_LIMITE_EM_SEGUNDOS`, no shell que roda o compose, trocam os valores.
 - **Saúde:** `GET /saude`, sem token.
@@ -170,7 +173,40 @@ npm test
 npm run build
 ```
 
-`npm test` roda o Vitest nas funções puras: formatação, período da URL, variação, validação das respostas da API de Vendas, de Produtos, do Comercial e da Diretoria e, do assistente, a leitura do fluxo de eventos, o estado da conversa, a lista de conversas, o Markdown com tabelas, o painel (lateral e expandido), o teto de caracteres e a rede.
+`npm test` roda o Vitest nas funções puras: formatação, período da URL, variação, validação das respostas da API de Vendas, de Produtos, do Comercial, da Diretoria e do painel de segurança e, do assistente, a leitura do fluxo de eventos, o estado da conversa, a lista de conversas, o Markdown com tabelas, o painel (lateral e expandido), o teto de caracteres e a rede.
+
+## Painel de segurança
+
+O painel de segurança é a tela que mostra a última execução de aceite: os cenários de segurança, agrupados pela camada de defesa, com o resultado de cada um (permitido ou negado), a marca de divergência quando o resultado difere do esperado e os cartões-resumo (executados, permitidos, negados e divergências). Abra-o pelo item **Segurança** da barra lateral, em `http://localhost:5173/seguranca`, logado como qualquer um dos usuários de demonstração: a tela é igual para os quatro perfis.
+
+**O comando.** A execução de aceite roda no terminal, contra o ambiente no ar, dentro de `backend/`:
+
+```
+uv run python tests/execucao_de_aceite.py
+```
+
+Ela mostra o andamento e o resumo e grava o resultado em `backend/execucao-de-aceite/ultima-execucao.json`, no lugar do anterior; a pasta não é versionada e o contêiner da API a monta só para leitura. Recarregue o painel para ver a nova execução. O comando termina com código 1 se algum cenário divergiu. O esperado de cada cenário vem dos registros de donos das rotas e das ferramentas; um resultado diferente é gravado como divergência, nunca escondido. Rode o comando a partir do checkout em que o compose foi subido: é a pasta dele que a API lê. Como a pasta é do checkout, e não um volume, `docker compose down -v` não apaga a última execução; para ver o estado vazio do painel, tire o arquivo da pasta.
+
+**Banco, limite de frequência e assistente.** Os cenários do Banco conectam ao Postgres com a credencial de cada papel, lida do `backend/.env`, e nenhuma senha vai para o resultado. O do assistente cria a API dentro do processo com um modelo roteirizado, que chama o serviço `mcp` do compose com o token do usuário; a ferramenta de outro perfil é recusada dentro da API, sem chegar ao servidor MCP, e por isso não deixa linha na auditoria. O cenário só conta como negado se houver essa recusa de ferramenta desconhecida para o nome pedido; qualquer outra falha (o servidor MCP fora do ar, um argumento inválido) é divergência. O texto da recusa que o assistente devolve ao modelo lista as ferramentas do perfil, então o resultado grava no lugar dele a mensagem genérica, `Ferramenta desconhecida.` A execução também confere que o banco está no estado da carga (a data de referência da configuração da carga e as contagens de referência de cada tabela dos dados de origem) e avisa no terminal e no painel quando não está; nesse caso, rode a recarga.
+
+**O limite padrão e o limite alto.** O cenário do limite de frequência faz `vitor.vendas` passar de 30 chamadas por minuto e mostra `ana.vendas` passando logo depois. Ele exige o servidor MCP no limite padrão, o da execução de aceite e do workshop; a suíte precisa do limite alto. Na raiz do projeto, a partir do checkout principal:
+
+```
+# limite padrão (execução de aceite e workshop)
+docker compose up -d --wait mcp
+# limite alto (suíte)
+LIMITE_DE_CHAMADAS_POR_USUARIO=100000 docker compose up -d --wait mcp
+```
+
+Com o limite alto, o cenário do limite aparece como divergência, e o comando termina com código 1: é o comportamento certo. Depois de rodar a execução de aceite no limite padrão, espere um minuto antes de demonstrar o `vitor.vendas`, que fica barrado até a janela passar.
+
+**A matriz completa.** Depois dos cenários, o mesmo comando percorre todos os pares de rotas e de ferramentas contra os quatro perfis, lidos dos registros de donos (hoje 17 rotas e 18 ferramentas, 140 pares): só o dono é permitido, e um par com resultado diferente do esperado, inclusive uma negação com outra resposta que não a genérica, conta como divergência e aparece no terminal. Os tokens são os dos cenários, e as ferramentas de cada perfil são chamadas numa sessão só do cliente MCP. Os cartões da matriz completa, no painel, mostram os pares executados, os permitidos, os negados e as divergências, para mostrar que os cenários da tela são uma amostra de uma verificação exaustiva. O comando termina com código 1 também se a matriz divergiu.
+
+Tempo do comando completo, os 24 cenários e a matriz completa, medido contra o compose com o servidor MCP no limite alto da suíte (entrega 11, revisão de código, 26/11/2026): 35,0 s. Os cenários mais lentos são os dois do assistente, cerca de 2,1 s cada, e o do limite, 1,2 s (com o limite alto, ele aparece como divergência). A medição anterior, do ticket #108, só com os cinco cenários da API, foi de 24,4 s com a matriz e 13,3 s sem ela: a matriz em si leva cerca de 2,6 s, e o resto da diferença é o login dos perfis que só ela usa, cerca de 4 s cada. No limite padrão, num ambiente subido do zero (fechamento da entrega 11, 27/11/2026): 35,3 s, com 24 executados, 9 permitidos, 15 negados e 0 divergências. Como cabe com folga nos 2 minutos, a matriz roda sempre, sem opção, e a data dela é a da própria execução. No limite padrão, de 30 chamadas por minuto, a matriz faz 18 chamadas por usuário: espere um minuto entre duas execuções seguidas, senão o limite barra as chamadas da segunda e elas aparecem como divergência.
+
+**O interruptor de demonstração.** A variável `PAINEL_DE_SEGURANCA=ligado` liga o painel; o `compose.yaml` a define no serviço `api`, porque o ambiente local é o do workshop. Desligado, o padrão fora do compose, a rota `/seguranca` responde exatamente como uma rota inexistente (`404`), o `GET /eu` não diz nada sobre ela e o frontend não mostra o item **Segurança**.
+
+**Ressalva.** O painel revela a qualquer usuário logado os nomes das rotas e das ferramentas de todos os perfis, o que o resto do projeto esconde de propósito (RF-11, RS-08). É um recurso de demonstração e não existiria em produção. Ele nunca mostra token, segredo nem dado de negócio: um cenário permitido traz só o status e a quantidade de linhas.
 
 ## Credenciais do banco
 
@@ -231,6 +267,9 @@ Os roteiros, com comandos e resultados esperados, estão em `docs/demonstracao/`
 - Entrega 8, perfil Produtos: `docs/demonstracao/entrega-8.md`.
 - Entrega 9, perfil Comercial: `docs/demonstracao/entrega-9.md`.
 - Entrega 10, perfil Diretoria: `docs/demonstracao/entrega-10.md`.
+- Entrega 11, painel de segurança e aceite final (CA-01 a CA-08, com o ambiente subido do zero): `docs/demonstracao/entrega-11.md`.
+
+O roteiro do apresentador, para o workshop de 90 minutos, em oito blocos na ordem dos conceitos, com a preparação e o que gravar como reserva: `docs/demonstracao/roteiro-do-apresentador.md`.
 
 ## Parar o ambiente
 

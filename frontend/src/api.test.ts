@@ -1,6 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { AcessoNegado, ApiIndisponivel, apagarNaApi, buscarDaApi, TokenRecusado } from "./api";
+import {
+  AcessoNegado,
+  ApiIndisponivel,
+  apagarNaApi,
+  buscarDaApi,
+  buscarEu,
+  TokenRecusado,
+} from "./api";
 
 const eNumero = (valor: unknown): valor is number => typeof valor === "number";
 
@@ -85,5 +92,30 @@ describe("pedido para apagar", () => {
     responderCom(status, { erro: "..." });
 
     await expect(apagarNaApi("http://api", "abc", "/conversas/c1")).rejects.toBeInstanceOf(erro);
+  });
+});
+
+describe("GET /eu", () => {
+  it("sem o interruptor de demonstração, vem só o nome e o perfil", async () => {
+    responderCom(200, { nome: "Ana Ribeiro", perfil: "vendas" });
+
+    await expect(buscarEu("http://api", "abc")).resolves.toEqual({
+      nome: "Ana Ribeiro",
+      perfil: "vendas",
+    });
+  });
+
+  it("com o interruptor ligado, anuncia o painel de segurança", async () => {
+    responderCom(200, { nome: "Ana Ribeiro", perfil: "vendas", painel_de_seguranca: true });
+
+    const usuario = await buscarEu("http://api", "abc");
+
+    expect(usuario.painel_de_seguranca).toBe(true);
+  });
+
+  it("um anúncio do painel que não é booleano está fora do contrato", async () => {
+    responderCom(200, { nome: "Ana Ribeiro", perfil: "vendas", painel_de_seguranca: "sim" });
+
+    await expect(buscarEu("http://api", "abc")).rejects.toBeInstanceOf(ApiIndisponivel);
   });
 });

@@ -4,6 +4,8 @@ import { ePerfil, type Perfil } from "./perfis";
 export interface UsuarioAutenticado {
   nome: string;
   perfil: Perfil;
+  /** Só presente com o interruptor de demonstração ligado: o painel de segurança existe. */
+  painel_de_seguranca?: boolean;
 }
 
 /** A API recusou o token (401). O que fazer depende de quando: veja `Sessao.aoRecusarToken`. */
@@ -95,8 +97,12 @@ async function pedirDaApi(
 
 function eUsuarioAutenticado(valor: unknown): valor is UsuarioAutenticado {
   if (typeof valor !== "object" || valor === null) return false;
-  const { nome, perfil } = valor as Record<string, unknown>;
-  return typeof nome === "string" && ePerfil(perfil);
+  const { nome, perfil, painel_de_seguranca: painel } = valor as Record<string, unknown>;
+  return (
+    typeof nome === "string" &&
+    ePerfil(perfil) &&
+    (painel === undefined || typeof painel === "boolean")
+  );
 }
 
 /** Pede `GET /eu` com o token no cabeçalho Authorization. */

@@ -91,6 +91,10 @@ services:
   # MODELO_DO_ASSISTENTE e a chave, da variável do provedor (ANTHROPIC_API_KEY), as duas do
   # .env. Sem a chave, a API sobe assim mesmo e só o assistente fica indisponível. Grava e lê as
   # conversas no banco do histórico com o papel `historico` (SENHA_DO_PAPEL_HISTORICO, do .env).
+  # O interruptor de demonstração fica ligado: o ambiente local é o do workshop. Com ele, a rota
+  # /seguranca devolve a última execução de aceite, gravada pelo comando em
+  # backend/execucao-de-aceite/ (uv run python tests/execucao_de_aceite.py). O painel revela os
+  # nomes das rotas e das ferramentas de todos os perfis: fora de uma demonstração, desligue.
   api:
     build:
       context: backend
@@ -100,6 +104,11 @@ services:
       ENDERECO_INTERNO_DO_PROVEDOR: http://keycloak:8080
       ENDERECO_INTERNO_DO_MCP: http://mcp:8001/mcp
       POSTGRES_HOST: postgres
+      PAINEL_DE_SEGURANCA: ligado
+      PASTA_DA_EXECUCAO_DE_ACEITE: /execucao-de-aceite
+    volumes:
+      # Só leitura: quem grava é o comando da execução de aceite, na máquina local.
+      - ./backend/execucao-de-aceite:/execucao-de-aceite:ro
     ports:
       - "127.0.0.1:${API_PORT:-8000}:8000"
     depends_on:
@@ -210,6 +219,20 @@ services:
     image: cloudflare/cloudflared:2026.10.7
     profiles: [tunel]
     command: ["tunnel", "--no-autoupdate", "--url", "http://proxy:80"]
+    depends_on:
+      proxy:
+        condition: service_healthy
+
+  # Túnel nomeado: o mesmo papel do túnel rápido, com endereço fixo (um nome no domínio do
+  # usuário, configurado no painel da Cloudflare apontando para http://proxy:80). Só sobe com o
+  # perfil tunel-nomeado. O token vem do arquivo backend/token-do-tunel, fora do git e fora do
+  # backend/.env, para que este contêiner não receba as senhas do projeto.
+  tunel-nomeado:
+    image: cloudflare/cloudflared:2026.10.7
+    profiles: [tunel-nomeado]
+    command: ["tunnel", "--no-autoupdate", "run", "--token-file", "/etc/cloudflared/token"]
+    volumes:
+      - ./backend/token-do-tunel:/etc/cloudflared/token:ro
     depends_on:
       proxy:
         condition: service_healthy
