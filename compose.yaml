@@ -25,8 +25,8 @@ services:
 
   # Roda uma vez e termina; sobe o Postgres antes, pela dependência. Também cria o banco, o papel
   # e a tabela da auditoria, se faltarem, sem nunca apagá-los (ADR 0008), e o mesmo para o banco
-  # do histórico das conversas (ADR 0009); as senhas dos papéis, SENHA_DO_PAPEL_AUDITORIA e
-  # SENHA_DO_PAPEL_HISTORICO, vêm do .env.
+  # do histórico das conversas (ADR 0009); as senhas dos papéis, SENHA_DO_PAPEL_AUDITORIA,
+  # SENHA_DO_PAPEL_LEITURA_DA_AUDITORIA e SENHA_DO_PAPEL_HISTORICO, vêm do .env.
   carga:
     build:
       context: backend
@@ -95,6 +95,8 @@ services:
   # /seguranca devolve a última execução de aceite, gravada pelo comando em
   # backend/execucao-de-aceite/ (uv run python tests/execucao_de_aceite.py). O painel revela os
   # nomes das rotas e das ferramentas de todos os perfis: fora de uma demonstração, desligue.
+  # Ligado, a rota /seguranca/chamadas lê as últimas chamadas da auditoria com o papel
+  # `leitura_da_auditoria`, que só lê (SENHA_DO_PAPEL_LEITURA_DA_AUDITORIA, do .env; ADR 0012).
   api:
     build:
       context: backend
