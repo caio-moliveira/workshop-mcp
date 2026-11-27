@@ -194,6 +194,18 @@ def test_a_ferramenta_de_outro_perfil_declara_as_duas_camadas_de_defesa():
         assert cenario.camadas_de_defesa == ("lista_de_ferramentas", "chamada"), cenario.id
 
 
+def test_o_titulo_de_um_negado_nas_duas_camadas_diz_as_duas():
+    """A ferramenta de outro perfil é barrada pela lista e pela chamada, e o título diz as duas,
+    seja ela pedida direto ao servidor MCP ou pelo assistente."""
+    duas = ("lista_de_ferramentas", "chamada")
+    barrados_nas_duas = [
+        c for c in cenarios() if c.esperado == "negado" and c.camadas_de_defesa == duas
+    ]
+    assert {c.grupo for c in barrados_nas_duas} == {"chamada", "assistente"}
+    for cenario in barrados_nas_duas:
+        assert cenario.descricao.endswith(": não listada e recusada"), cenario.id
+
+
 # --- A matriz completa ---
 
 

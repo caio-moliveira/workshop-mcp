@@ -905,7 +905,7 @@ def cenarios_do_assistente() -> list[CenarioAExecutar]:
         ),
         pergunta_ao_assistente(
             "assistente-ferramenta-de-outro-perfil",
-            "O modelo tenta uma ferramenta de outro perfil e é negado na chamada",
+            "O modelo tenta uma ferramenta de outro perfil: não listada e recusada",
             "bruno.produtos",
             "comercial_indicadores",
         ),
