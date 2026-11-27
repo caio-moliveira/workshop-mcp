@@ -258,3 +258,42 @@ export function agruparPorGrupo(
     cenarios: cenarios.filter((cenario) => cenario.grupo === grupo),
   })).filter(({ cenarios: doGrupo }) => doGrupo.length > 0);
 }
+
+/** Os desfechos que a auditoria grava (backend/auditoria/registro.py, `Resultado`). */
+export const RESULTADOS_DA_AUDITORIA = [
+  "permitida",
+  "negada",
+  "parametro_invalido",
+  "limitada",
+  "falha",
+] as const;
+export type ResultadoDaAuditoria = (typeof RESULTADOS_DA_AUDITORIA)[number];
+
+/** Uma chamada ao servidor MCP lida da auditoria, sem o `sub` e sem os parâmetros. */
+export interface ChamadaAoVivo {
+  horario: string;
+  usuario: string;
+  perfil: Perfil;
+  ferramenta: string;
+  resultado: ResultadoDaAuditoria;
+}
+
+/** A resposta de `GET /seguranca/chamadas`: da mais recente para a mais antiga. */
+export interface ChamadasAoVivo {
+  chamadas: ChamadaAoVivo[];
+}
+
+function eChamadaAoVivo(valor: unknown): valor is ChamadaAoVivo {
+  return (
+    eObjeto(valor) &&
+    eInstante(valor.horario) &&
+    eTexto(valor.usuario) &&
+    ePerfil(valor.perfil) &&
+    eTexto(valor.ferramenta) &&
+    eUmDe(RESULTADOS_DA_AUDITORIA, valor.resultado)
+  );
+}
+
+export function eChamadasAoVivo(valor: unknown): valor is ChamadasAoVivo {
+  return eObjeto(valor) && Array.isArray(valor.chamadas) && valor.chamadas.every(eChamadaAoVivo);
+}

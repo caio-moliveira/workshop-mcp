@@ -1,0 +1,66 @@
+/* As chamadas ao vivo do painel de segurança: a tabela usa a mesma base da matriz dos cenários. */
+
+.tabela {
+  min-width: 620px;
+}
+
+.horario {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ferramenta {
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: var(--texto-label);
+  overflow-wrap: anywhere;
+}
+
+.desfecho {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: var(--peso-semibold);
+  white-space: nowrap;
+}
+
+.desfecho svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Permitida em verde-escuro; negada e barrada pelo limite em vermelho discreto; o resto neutro.
+   O ícone e o texto dizem o mesmo que a cor. */
+.desfecho[data-resultado="permitida"] {
+  color: var(--sucesso);
+}
+
+.desfecho[data-resultado="negada"],
+.desfecho[data-resultado="limitada"] {
+  color: var(--erro);
+}
+
+.desfecho[data-resultado="parametro_invalido"],
+.desfecho[data-resultado="falha"] {
+  color: var(--text-secondary);
+}
+
+/* A linha barrada ganha um filete no tom do erro, como a divergência na matriz. */
+.tabela tr[data-resultado="negada"] td:first-child,
+.tabela tr[data-resultado="limitada"] td:first-child {
+  box-shadow: inset 3px 0 0 var(--erro);
+}
+
+.aviso {
+  display: flex;
+  align-items: center;
+  gap: var(--espaco-2);
+  padding: var(--espaco-3) var(--espaco-4);
+  color: var(--text-secondary);
+  font-size: var(--texto-label);
+}
+
+.aviso svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}

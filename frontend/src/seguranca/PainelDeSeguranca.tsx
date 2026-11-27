@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 import { AnuncioDeCarregamento, EstadosDoBloco } from "../componentes/EstadosDoBloco";
 import { EmptyState } from "../componentes/EmptyState";
@@ -19,6 +19,7 @@ import {
   type MatrizCompleta,
   type PainelDeSeguranca as Painel,
 } from "./contrato";
+import { ChamadasAoVivo } from "./ChamadasAoVivo";
 import { GavetaDoCenario } from "./GavetaDoCenario";
 import estilos from "./PainelDeSeguranca.module.css";
 import { nomeDoPerfil, quantidadePorExtenso } from "./porExtenso";
@@ -246,20 +247,22 @@ function Execucao({ execucao }: { execucao: ExecucaoDeAceite }) {
 interface Busca {
   estado: EstadoDoBloco<Painel>;
   tentarDeNovo: () => void;
+  /** As chamadas ao vivo, logo abaixo do título, antes da execução de aceite. */
+  aoVivo?: ReactNode;
 }
 
 /**
  * O painel de segurança (FE §9): a última execução de aceite, igual para os quatro perfis e sem
  * seletor de período. Nunca mostra token, segredo nem dado de negócio.
  */
-export function VisaoDoPainelDeSeguranca({ estado, tentarDeNovo }: Busca) {
+export function VisaoDoPainelDeSeguranca({ estado, tentarDeNovo, aoVivo }: Busca) {
   const execucao = estado.fase === "pronto" ? estado.dados.execucao : null;
   return (
     <>
       <PageHeading
         contexto="Demonstração"
         titulo="Segurança"
-        subtitulo="A última execução de aceite: cada cenário de segurança, permitido ou negado, e a camada de defesa que o barra."
+        subtitulo="As chamadas ao servidor MCP enquanto acontecem e a última execução de aceite: cada cenário de segurança, permitido ou negado, e a camada de defesa que o barra."
         controles={
           execucao && (
             <p className={estilos.dataDaExecucao}>
@@ -271,6 +274,7 @@ export function VisaoDoPainelDeSeguranca({ estado, tentarDeNovo }: Busca) {
           )
         }
       />
+      {aoVivo}
       <EstadosDoBloco
         estado={estado}
         tentarDeNovo={tentarDeNovo}
@@ -304,8 +308,8 @@ export function VisaoDoPainelDeSeguranca({ estado, tentarDeNovo }: Busca) {
   );
 }
 
-/** O painel de segurança buscando `GET /seguranca`. */
+/** O painel de segurança buscando `GET /seguranca`, com as chamadas ao vivo acima. */
 export function PainelDeSeguranca({ fonte }: { fonte: FonteDeDados }) {
   const busca = useBloco(fonte, "/seguranca", ePainelDeSeguranca);
-  return <VisaoDoPainelDeSeguranca {...busca} />;
+  return <VisaoDoPainelDeSeguranca {...busca} aoVivo={<ChamadasAoVivo fonte={fonte} />} />;
 }
