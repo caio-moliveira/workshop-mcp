@@ -460,10 +460,9 @@ FERRAMENTAS: dict[str, Ferramenta] = {
             "período, do canal, de 0 em diante (nula no canal sem lead criado no período, que "
             "fica no fim da lista). É uma razão entre dois movimentos do período, não a parcela "
             "dos leads do período que fecharam. Não há mínimo de leads para um canal entrar na "
-            "ordem: ao responder, diga sempre os leads e os novos lojistas ao lado da conversão "
-            "e avise quando a base for pequena (poucos leads), como costuma acontecer em 30 "
-            "dias, porque aí a ordem pode mudar por um ou dois fechamentos. 'periodo' traz as "
-            "datas de início e fim usadas, em formato ISO."
+            "ordem: 'leads' e 'novos_lojistas' dão o tamanho da base de cada conversão, e com "
+            "poucos leads, como costuma acontecer em 30 dias, um ou dois fechamentos mudam a "
+            "ordem. 'periodo' traz as datas de início e fim usadas, em formato ISO."
         ),
         parametros=(PERIODO,),
     ),
