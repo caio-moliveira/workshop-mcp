@@ -32,6 +32,7 @@ from assistente import Assistente, ItemDaConversa, Limites
 from assistente.limites import ITENS_DA_CONVERSA
 from assistente.limites import PADRAO as LIMITES_PADRAO
 from assistente.resposta import ConversaDaPergunta, RespostaEmCurso
+from auditoria import AuditoriaIndisponivel, LeituraDaAuditoria, Resultado
 from consultas import (
     PERIODO_PADRAO,
     AcessoNegado,
@@ -74,9 +75,16 @@ CONVERSA_INEXISTENTE = {"erro": mensagens.CONVERSA_INEXISTENTE}
 # O histórico também não: cada usuário só alcança as próprias conversas, com o perfil que tinha
 # ao criá-las (RF-18). O painel de segurança é igual para os quatro perfis e não tem dono: fica
 # fora do registro das rotas de dados e da matriz de isolamento, e só existe com o interruptor de
-# demonstração ligado.
+# demonstração ligado, com as chamadas ao vivo dele.
 ROTAS_SO_AUTENTICADAS = frozenset(
-    {"/eu", "/assistente", "/conversas", "/conversas/{id_da_conversa}", "/seguranca"}
+    {
+        "/eu",
+        "/assistente",
+        "/conversas",
+        "/conversas/{id_da_conversa}",
+        "/seguranca",
+        "/seguranca/chamadas",
+    }
 )
 
 
@@ -247,6 +255,23 @@ class PainelDeSeguranca(BaseModel):
     execucao: ExecucaoDeAceite | None
 
 
+class ChamadaAoVivo(BaseModel):
+    """Uma chamada ao servidor MCP lida da auditoria: quando, quem, com que perfil, que
+    ferramenta e o desfecho. Sem o `sub` e sem os parâmetros."""
+
+    horario: Horario
+    usuario: str
+    perfil: str
+    ferramenta: str
+    resultado: Resultado
+
+
+class ChamadasAoVivo(BaseModel):
+    """As últimas chamadas da auditoria, da mais recente para a mais antiga."""
+
+    chamadas: list[ChamadaAoVivo]
+
+
 class ConversaLida(BaseModel):
     id: uuid.UUID
     titulo: str
@@ -267,6 +292,7 @@ def criar_aplicacao(
     historico: Historico,
     limites: Limites = LIMITES_PADRAO,
     execucao_de_aceite: Path | None = None,
+    leitura_da_auditoria: LeituraDaAuditoria | None = None,
 ) -> FastAPI:
     """A API valida tokens pela configuração dada, lê o banco só pelo executor de consultas e só
     aceita o navegador vindo do frontend.
@@ -278,7 +304,9 @@ def criar_aplicacao(
 
     Com a pasta da execução de aceite dada (o interruptor de demonstração ligado), o painel de
     segurança existe: a rota `/seguranca` devolve a última execução gravada nela, e o `/eu` o
-    anuncia. Sem a pasta, a rota não existe, e o `/eu` não diz nada sobre ela.
+    anuncia. Sem a pasta, a rota não existe, e o `/eu` não diz nada sobre ela. Com a pasta e a
+    leitura da auditoria dadas, existe também `/seguranca/chamadas`, com as últimas chamadas ao
+    servidor MCP (ADR 0012).
     """
     assistente = Assistente(modelo, endereco_do_mcp, limites)
     # Sem /docs, /redoc nem /openapi.json: a API não descreve as próprias rotas a ninguém.
@@ -326,6 +354,11 @@ def criar_aplicacao(
     @aplicacao.exception_handler(HistoricoIndisponivel)
     def historico_indisponivel(_: Request, erro: HistoricoIndisponivel) -> JSONResponse:
         registro.error("histórico indisponível: %s", erro)
+        return JSONResponse(INDISPONIVEL, status_code=503)
+
+    @aplicacao.exception_handler(AuditoriaIndisponivel)
+    def auditoria_indisponivel(_: Request, erro: AuditoriaIndisponivel) -> JSONResponse:
+        registro.error("auditoria indisponível: %s", erro)
         return JSONResponse(INDISPONIVEL, status_code=503)
 
     @aplicacao.exception_handler(AssistenteIndisponivel)
@@ -418,6 +451,26 @@ def criar_aplicacao(
         def painel_de_seguranca(_: Autenticado) -> PainelDeSeguranca:
             # Lida a cada pedido: a execução seguinte substitui o arquivo, sem reiniciar a API.
             return PainelDeSeguranca(execucao=ler_ultima_execucao(execucao_de_aceite))
+
+        if leitura_da_auditoria is not None:
+
+            @aplicacao.get("/seguranca/chamadas")
+            def chamadas_ao_vivo(_: Autenticado) -> ChamadasAoVivo:
+                # Todas as chamadas, de todos os usuários: o painel é da demonstração, igual
+                # para os quatro perfis.
+                chamadas = leitura_da_auditoria.ultimas_chamadas()
+                return ChamadasAoVivo(
+                    chamadas=[
+                        ChamadaAoVivo(
+                            horario=c.horario,
+                            usuario=c.usuario,
+                            perfil=c.perfil,
+                            ferramenta=c.ferramenta,
+                            resultado=c.resultado,
+                        )
+                        for c in chamadas
+                    ]
+                )
 
     # Validações antes do fluxo, como erro JSON: token (401), assistente (503), corpo (400),
     # conversa (404) e a gravação da pergunta (503). Só depois a resposta 200 começa, em eventos,
