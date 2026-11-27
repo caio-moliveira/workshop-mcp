@@ -13,6 +13,7 @@ COPY aceite ./aceite
 COPY acesso ./acesso
 COPY api ./api
 COPY assistente ./assistente
+COPY auditoria ./auditoria
 COPY consultas ./consultas
 COPY historico ./historico
 

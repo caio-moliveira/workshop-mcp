@@ -7,7 +7,7 @@ Uma mudança na estrutura da tabela só chega a um ambiente já criado com `dock
 import psycopg
 from psycopg import sql
 
-from auditoria import BANCO, PAPEL, Resultado
+from auditoria import BANCO, PAPEL, PAPEL_DE_LEITURA, VARIAVEL_DA_SENHA_DE_LEITURA, Resultado
 from carga.banco_permanente import criar_banco_se_faltar, preparar_papel
 from carga.conexao import conectar
 
@@ -33,12 +33,13 @@ create table if not exists auditoria.chamada (
 
 
 def preparar_auditoria(conexao: psycopg.Connection) -> None:
-    """Cria o banco, o papel e a tabela da auditoria, se faltarem, e reaplica a senha do papel.
+    """Cria o banco, os dois papéis e a tabela da auditoria, se faltarem, e reaplica as senhas.
 
     `conexao` é do papel dono, em autocommit, fora do banco da auditoria.
     """
     criar_banco_se_faltar(conexao, BANCO)
     preparar_papel(conexao, PAPEL, VARIAVEL_DA_SENHA, BANCO)
+    preparar_papel(conexao, PAPEL_DE_LEITURA, VARIAVEL_DA_SENHA_DE_LEITURA, BANCO)
     with conectar(BANCO, autocommit=True) as no_banco:
         no_banco.execute(ESTRUTURA)
         # Só inserir: o papel não lê, não altera e não apaga (RF-32). A gravação não usa
@@ -49,3 +50,8 @@ def preparar_auditoria(conexao: psycopg.Connection) -> None:
         no_banco.execute(
             sql.SQL("grant insert on auditoria.chamada to {}").format(sql.Identifier(PAPEL))
         )
+        # O papel de leitura só lê: é o das chamadas ao vivo do painel de segurança, usado só
+        # pela API (ADR 0012). Nenhuma ferramenta o alcança.
+        leitura = sql.Identifier(PAPEL_DE_LEITURA)
+        no_banco.execute(sql.SQL("grant usage on schema auditoria to {}").format(leitura))
+        no_banco.execute(sql.SQL("grant select on auditoria.chamada to {}").format(leitura))

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   formatarData,
   formatarDataHora,
+  formatarHora,
   formatarDiferencaDeNota,
   formatarMoeda,
   formatarMoedaCompacta,
@@ -59,6 +60,11 @@ describe("formatação em pt-BR", () => {
   it("instante ISO como data e hora de Brasília, venha com o fuso que vier", () => {
     expect(formatarDataHora("2026-11-30T14:05:09-03:00")).toBe("30/11/2026, 14:05");
     expect(formatarDataHora("2026-11-30T17:05:09+00:00")).toBe("30/11/2026, 14:05");
+  });
+
+  it("instante ISO só como hora de Brasília, com os segundos", () => {
+    expect(formatarHora("2026-11-30T17:05:09+00:00")).toBe("14:05:09");
+    expect(formatarHora("2026-11-01T02:30:00+00:00")).toBe("23:30:00");
   });
 
   it("instante da madrugada em UTC cai na noite anterior em Brasília", () => {

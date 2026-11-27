@@ -33,7 +33,13 @@ from starlette.applications import Starlette
 
 from acesso import ChavesDoProvedor, ConfiguracaoDeAcesso, Perfil
 from auditoria import PAPEL as PAPEL_DA_AUDITORIA
-from auditoria import Auditoria, AuditoriaNoBanco
+from auditoria import (
+    PAPEL_DE_LEITURA,
+    VARIAVEL_DA_SENHA_DE_LEITURA,
+    Auditoria,
+    AuditoriaNoBanco,
+    LeituraDaAuditoriaNoBanco,
+)
 from consultas import Credencial, ExecutorDeConsultas, credenciais_do_ambiente
 from historico import PAPEL as PAPEL_DO_HISTORICO
 from historico import Historico, HistoricoNoBanco
@@ -91,6 +97,15 @@ def auditoria_local() -> Iterator[AuditoriaNoBanco]:
 
 
 @pytest.fixture(scope="session")
+def leitura_da_auditoria_local() -> Iterator[LeituraDaAuditoriaNoBanco]:
+    """A leitura da auditoria do ambiente, com a credencial do papel `leitura_da_auditoria`."""
+    banco = replace(banco_local(), nome=BANCO_DA_AUDITORIA)
+    credencial = Credencial(PAPEL_DE_LEITURA, variavel(VARIAVEL_DA_SENHA_DE_LEITURA))
+    with LeituraDaAuditoriaNoBanco(banco, credencial) as leitura:
+        yield leitura
+
+
+@pytest.fixture(scope="session")
 def historico_local() -> Iterator[HistoricoNoBanco]:
     """O histórico do ambiente, com a credencial do papel `historico`, pela máquina local."""
     banco = replace(banco_local(), nome=BANCO_DO_HISTORICO)
@@ -109,8 +124,9 @@ def criar_api(executor_de_consultas, historico_local) -> Callable[..., TestClien
     que o assistente chama, com `endereco_do_mcp=` (sem ele, o serviço `mcp` do compose), e os
     tetos da pergunta, com `limites=` (sem ele, os padrões), e o histórico das conversas, com
     `historico=` (sem ele, o banco `historico` do compose), e a pasta da execução de aceite, com
-    `execucao_de_aceite=` (sem ela, o interruptor de demonstração desligado). A origem do
-    frontend liberada pelo CORS é a do ambiente.
+    `execucao_de_aceite=` (sem ela, o interruptor de demonstração desligado), e a leitura da
+    auditoria das chamadas ao vivo, com `leitura_da_auditoria=`. A origem do frontend liberada
+    pelo CORS é a do ambiente.
     """
 
     def criar(

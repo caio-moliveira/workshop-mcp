@@ -87,6 +87,7 @@ O perfil vem do grupo do usuário no realm e viaja no token como a claim `perfil
 - `POST /assistente`: uma pergunta ao assistente. Veja a seção Assistente.
 - `GET /conversas`, `GET /conversas/{id}` e `DELETE /conversas/{id}`: o histórico do assistente, só do próprio usuário. Veja a seção Assistente.
 - `GET /seguranca`: a última execução de aceite, para o painel de segurança, igual para os quatro perfis. Só existe com o interruptor de demonstração ligado. Veja a seção Painel de segurança.
+- `GET /seguranca/chamadas`: as 20 chamadas mais recentes ao servidor MCP, lidas da auditoria, para as chamadas ao vivo do painel de segurança. Só existe com o interruptor ligado (ADR 0012).
 
 ## Servidor MCP
 
@@ -179,6 +180,8 @@ npm run build
 
 O painel de segurança é a tela que mostra a última execução de aceite: os cenários de segurança, agrupados pela camada de defesa, com o resultado de cada um (permitido ou negado), a marca de divergência quando o resultado difere do esperado e os cartões-resumo (executados, permitidos, negados e divergências). Abra-o pelo item **Segurança** da barra lateral, em `http://localhost:5173/seguranca`, logado como qualquer um dos usuários de demonstração: a tela é igual para os quatro perfis.
 
+**As chamadas ao vivo.** No topo do painel, uma tabela mostra as 20 chamadas mais recentes ao servidor MCP, de qualquer usuário e de qualquer assistente (o do pulso., o Claude, o ChatGPT, o Inspector), com o horário de Brasília, quem chamou e o perfil, a ferramenta e o desfecho: permitida, negada, barrada pelo limite, parâmetro inválido ou falha. A tela busca a lista de novo a cada 3 segundos, enquanto a aba está visível. A API lê a auditoria com o papel `leitura_da_auditoria`, que só lê e só se conecta ao banco da auditoria (ADR 0012); nenhuma ferramenta a alcança. Os parâmetros e o identificador do usuário não aparecem.
+
 **O comando.** A execução de aceite roda no terminal, contra o ambiente no ar, dentro de `backend/`:
 
 ```
@@ -204,9 +207,9 @@ Com o limite alto, o cenário do limite aparece como divergência, e o comando t
 
 Tempo do comando completo, os 24 cenários e a matriz completa, medido contra o compose com o servidor MCP no limite alto da suíte (entrega 11, revisão de código, 26/11/2026): 35,0 s. Os cenários mais lentos são os dois do assistente, cerca de 2,1 s cada, e o do limite, 1,2 s (com o limite alto, ele aparece como divergência). A medição anterior, do ticket #108, só com os cinco cenários da API, foi de 24,4 s com a matriz e 13,3 s sem ela: a matriz em si leva cerca de 2,6 s, e o resto da diferença é o login dos perfis que só ela usa, cerca de 4 s cada. No limite padrão, num ambiente subido do zero (fechamento da entrega 11, 27/11/2026): 35,3 s, com 24 executados, 9 permitidos, 15 negados e 0 divergências. Como cabe com folga nos 2 minutos, a matriz roda sempre, sem opção, e a data dela é a da própria execução. No limite padrão, de 30 chamadas por minuto, a matriz faz 18 chamadas por usuário: espere um minuto entre duas execuções seguidas, senão o limite barra as chamadas da segunda e elas aparecem como divergência.
 
-**O interruptor de demonstração.** A variável `PAINEL_DE_SEGURANCA=ligado` liga o painel; o `compose.yaml` a define no serviço `api`, porque o ambiente local é o do workshop. Desligado, o padrão fora do compose, a rota `/seguranca` responde exatamente como uma rota inexistente (`404`), o `GET /eu` não diz nada sobre ela e o frontend não mostra o item **Segurança**.
+**O interruptor de demonstração.** A variável `PAINEL_DE_SEGURANCA=ligado` liga o painel; o `compose.yaml` a define no serviço `api`, porque o ambiente local é o do workshop. Desligado, o padrão fora do compose, as rotas `/seguranca` e `/seguranca/chamadas` respondem exatamente como uma rota inexistente (`404`), o `GET /eu` não diz nada sobre elas, a API não abre conexão com a auditoria e o frontend não mostra o item **Segurança**. Ligado, a API exige `SENHA_DO_PAPEL_LEITURA_DA_AUDITORIA` no `backend/.env`; quem já tinha o ambiente no ar acrescenta a linha, refaz a carga (`docker compose run --rm --build carga`) e recria a API.
 
-**Ressalva.** O painel revela a qualquer usuário logado os nomes das rotas e das ferramentas de todos os perfis, o que o resto do projeto esconde de propósito (RF-11, RS-08). É um recurso de demonstração e não existiria em produção. Ele nunca mostra token, segredo nem dado de negócio: um cenário permitido traz só o status e a quantidade de linhas.
+**Ressalva.** O painel revela a qualquer usuário logado os nomes das rotas e das ferramentas de todos os perfis, o que o resto do projeto esconde de propósito (RF-11, RS-08), e, nas chamadas ao vivo, quem chamou o quê. É um recurso de demonstração e não existiria em produção. Ele nunca mostra token, segredo nem dado de negócio: um cenário permitido traz só o status e a quantidade de linhas.
 
 ## Credenciais do banco
 

@@ -17,6 +17,7 @@ from pydantic_ai.models import Model
 from acesso import ChavesDoProvedor, ConfiguracaoDeAcesso
 from api import criar_aplicacao
 from assistente import Limites
+from auditoria import LeituraDaAuditoria
 from consultas import ExecutorDeConsultas
 from historico import Historico
 
@@ -28,6 +29,7 @@ def api_no_processo(
     endereco_do_mcp: str = MCP_DO_AMBIENTE + CAMINHO_DO_MCP,
     limites: Limites | None = None,
     execucao_de_aceite: Path | None = None,
+    leitura_da_auditoria: LeituraDaAuditoria | None = None,
     **sobreposicoes,
 ) -> TestClient:
     """A API com a configuração de acesso do provedor real, em que cada parâmetro pode ser
@@ -47,5 +49,6 @@ def api_no_processo(
         limites=limites or Limites(),
         historico=historico,
         execucao_de_aceite=execucao_de_aceite,
+        leitura_da_auditoria=leitura_da_auditoria,
     )
     return TestClient(aplicacao)
