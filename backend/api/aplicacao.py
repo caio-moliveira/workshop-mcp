@@ -5,6 +5,7 @@ import uuid
 from collections.abc import AsyncIterator, Callable, Iterable
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
 from typing import Annotated, Literal
 
 import anyio
@@ -18,6 +19,7 @@ from pydantic import BaseModel, ConfigDict, PlainSerializer, StringConstraints
 from pydantic_ai.models import Model
 from starlette.datastructures import QueryParams
 
+from aceite import ExecucaoDeAceite, ler_ultima_execucao
 from acesso import (
     ConfiguracaoDeAcesso,
     ProvedorIndisponivel,
@@ -39,6 +41,7 @@ from consultas import (
     ParametroInvalido,
     Periodo,
     comercial,
+    diretoria,
     produtos,
     vendas,
 )
@@ -69,9 +72,11 @@ CONVERSA_INEXISTENTE = {"erro": mensagens.CONVERSA_INEXISTENTE}
 # e o perfil é o que a consulta declara (RS-05). O assistente não tem regra de perfil própria: o
 # que ele alcança é o que o servidor MCP lista e permite para o token do usuário (RF-13).
 # O histórico também não: cada usuário só alcança as próprias conversas, com o perfil que tinha
-# ao criá-las (RF-18).
+# ao criá-las (RF-18). O painel de segurança é igual para os quatro perfis e não tem dono: fica
+# fora do registro das rotas de dados e da matriz de isolamento, e só existe com o interruptor de
+# demonstração ligado.
 ROTAS_SO_AUTENTICADAS = frozenset(
-    {"/eu", "/assistente", "/conversas", "/conversas/{id_da_conversa}"}
+    {"/eu", "/assistente", "/conversas", "/conversas/{id_da_conversa}", "/seguranca"}
 )
 
 
@@ -116,6 +121,10 @@ ROTAS_DE_DADOS: dict[str, Consulta] = {
     "/comercial/funil": comercial.funil,
     "/comercial/canais": comercial.canais,
     "/comercial/leads": comercial.leads,
+    "/diretoria/indicadores": diretoria.indicadores,
+    "/diretoria/fatores-de-recompra": diretoria.fatores_de_recompra,
+    "/diretoria/resumo": diretoria.resumo,
+    "/diretoria/tendencia": diretoria.tendencia,
 }
 
 
@@ -232,6 +241,12 @@ class ItemLido(BaseModel):
         )
 
 
+class PainelDeSeguranca(BaseModel):
+    """A última execução de aceite; `None` quando ainda não houve nenhuma (o estado vazio)."""
+
+    execucao: ExecucaoDeAceite | None
+
+
 class ConversaLida(BaseModel):
     id: uuid.UUID
     titulo: str
@@ -251,6 +266,7 @@ def criar_aplicacao(
     endereco_do_mcp: str,
     historico: Historico,
     limites: Limites = LIMITES_PADRAO,
+    execucao_de_aceite: Path | None = None,
 ) -> FastAPI:
     """A API valida tokens pela configuração dada, lê o banco só pelo executor de consultas e só
     aceita o navegador vindo do frontend.
@@ -259,6 +275,10 @@ def criar_aplicacao(
     servidor MCP do endereço dado, chamado com o token de quem pergunta. Cada pergunta e cada
     resposta ficam gravadas no histórico dado, que é também de onde vem a conversa entregue ao
     modelo.
+
+    Com a pasta da execução de aceite dada (o interruptor de demonstração ligado), o painel de
+    segurança existe: a rota `/seguranca` devolve a última execução gravada nela, e o `/eu` o
+    anuncia. Sem a pasta, a rota não existe, e o `/eu` não diz nada sobre ela.
     """
     assistente = Assistente(modelo, endereco_do_mcp, limites)
     # Sem /docs, /redoc nem /openapi.json: a API não descreve as próprias rotas a ninguém.
@@ -387,7 +407,17 @@ def criar_aplicacao(
 
     @aplicacao.get("/eu")
     def eu(usuario: Autenticado) -> dict:
-        return {"nome": usuario.nome, "perfil": usuario.perfil}
+        eu = {"nome": usuario.nome, "perfil": usuario.perfil}
+        if execucao_de_aceite is not None:
+            eu["painel_de_seguranca"] = True
+        return eu
+
+    if execucao_de_aceite is not None:
+
+        @aplicacao.get("/seguranca")
+        def painel_de_seguranca(_: Autenticado) -> PainelDeSeguranca:
+            # Lida a cada pedido: a execução seguinte substitui o arquivo, sem reiniciar a API.
+            return PainelDeSeguranca(execucao=ler_ultima_execucao(execucao_de_aceite))
 
     # Validações antes do fluxo, como erro JSON: token (401), assistente (503), corpo (400),
     # conversa (404) e a gravação da pergunta (503). Só depois a resposta 200 começa, em eventos,

@@ -24,18 +24,23 @@ Fontes dos requisitos:
 | 2 | Login e perfil | 1 | Concluída |
 | 3 | Vendas na tela | 2 | Concluída |
 | 4a | Servidor MCP de Vendas | 3 | Concluída |
-| V1 | Verificação com túnel: Claude e ChatGPT | 4a | Concluída (Claude verificado; ChatGPT pendente para a 7) |
+| V1 | Verificação com túnel: Claude e ChatGPT | 4a | Concluída (Claude verificado; ChatGPT declarado funcionando pelo usuário na 11, sem verificação na auditoria) |
 | 4b | Auditoria e limite de frequência | 4a | Concluída |
 | 5a | Chat de Vendas no painel lateral | 4b | Concluída |
 | 5b | Chat expandido, rastreio e histórico | 5a | Concluída |
 | 8 | Perfil Produtos | 5b | Concluída (roteiro executado em 26/11/2026, no fechamento da 9) |
 | 9 | Perfil Comercial | 8 | Concluída |
-| 10 | Perfil Diretoria | 9 | Livre |
-| 6 | Ambiente público | 4a | Bloqueada: nuvem e domínio |
-| 7 | Claude e ChatGPT no ambiente público | 6, V1 | Bloqueada pela 6 |
-| 11 | Painel de demonstração e aceite final | 7, 10 | Bloqueada pela 7 |
+| 10 | Perfil Diretoria | 9 | Concluída |
+| 11 | Painel de demonstração e aceite final | 10, V1 | Concluída |
 
-As entregas 6 e 7 mantêm seus números, mas ficam para depois: a decisão de nuvem e domínio foi adiada. As entregas 8 a 10 não dependem delas e seguem enquanto isso. A verificação V1 antecipa o maior risco da 7 sem depender da nuvem.
+Depois do workshop:
+
+| # | Entrega | Depende de | Situação |
+| --- | --- | --- | --- |
+| 6 | Ambiente público | 4a | Adiada: nuvem e domínio |
+| 7 | Claude e ChatGPT no ambiente público | 6, 11 | Adiada |
+
+O projeto é apresentado num workshop sobre MCP, com o ambiente local: tudo roda no compose da máquina do apresentador, e só os clientes externos (Claude e ChatGPT) entram por um túnel com HTTPS, como na V1. Os conceitos do workshop (o fluxo de autorização do protocolo, as ferramentas por perfil, o papel do banco por perfil, a auditoria e o limite de frequência) não dependem de um endereço público. Por isso a 11 depende só da 10 e da V1, e fecha pelo túnel o que antes era da 7: o ChatGPT, o RF-27 a RF-29 e o CA-06. As entregas 6 e 7 mantêm seus números e ficam para depois do workshop, sem prazo: entram quando a decisão de nuvem e domínio for tomada, e a 7 passa a ser só repetir no endereço público o que a 11 fez pelo túnel.
 
 ## Entregas
 
@@ -91,7 +96,7 @@ As entregas 6 e 7 mantêm seus números, mas ficam para depois: a decisão de nu
   - Roteiro manual: conectar cada cliente, fazer login como Vendas e obter uma resposta.
   - Registro do que precisou ser ajustado no provedor de identidade e no servidor para cada cliente.
 - **Depende de:** 4a.
-- **Cobre:** RF-27 e RF-28 (verificação antecipada; o fechamento é na entrega 7).
+- **Cobre:** RF-27 e RF-28 (verificação antecipada; o fechamento é na entrega 11, pelo túnel).
 - **Observação:** é uma verificação de risco, não o ambiente definitivo. Se ela mostrar que o fluxo de autorização exige mudanças, elas entram antes da 4b.
 - **Resultado (24/11/2026):** concluída com o Claude, no roteiro `docs/demonstracao/verificacao-v1.md`. O Claude se registrou sozinho, levou ao login de `ana.vendas` e chamou o servidor MCP; `diego.diretoria` viu a lista vazia. O Claude exigiu dois ajustes no realm: a política de escopos do registro anônimo passou a aceitar `openid`, e o escopo `pulso-mcp` passou a trazer o nome do usuário (ADR 0007).
 - **Lacunas:** o ChatGPT não foi verificado, por decisão do usuário. O endereço de retorno dele já é aceito pelo registro anônimo (teste automático), mas o fluxo completo fica para a entrega 7. Do Claude, a verificação registrou as chamadas ao servidor MCP com 200, mas não anotou os números da resposta: conferi-los com o painel na próxima execução.
@@ -139,6 +144,7 @@ As entregas 6 e 7 mantêm seus números, mas ficam para depois: a decisão de nu
 - **Depende de:** 4a (tecnicamente); na prática entra quando a decisão de nuvem e domínio for tomada.
 - **Cobre:** RS-10, RNF-02.
 - **Bloqueada por:** provedor de nuvem e domínio.
+- **Situação (26/11/2026):** adiada para depois do workshop. O workshop usa o ambiente local, com os clientes externos pelo túnel (veja a Ordem). RS-10 fica coberto em parte pelo túnel, na V1 e na 11; o fechamento dele e o RNF-02 continuam aqui. **Antecipado na 11 (#114):** um túnel nomeado da Cloudflare, com endereço fixo num domínio do usuário, para os assistentes externos; é só o endereço público do proxy reverso, com HTTPS, sem hospedagem, sem endereços próprios para cada serviço e sem o banco numa rede de nuvem.
 
 ### 7. Claude e ChatGPT no ambiente público
 
@@ -146,9 +152,9 @@ As entregas 6 e 7 mantêm seus números, mas ficam para depois: a decisão de nu
 - **Como demonstrar:**
   - Roteiro com a mesma pergunta na aplicação, no Claude e no ChatGPT, com o mesmo resultado.
   - Um usuário de outro perfil conectado não vê as ferramentas que não são dele.
-- **Depende de:** 6 e V1.
-- **Cobre:** RF-06 (cliente externo), RF-27, RF-28, RF-29, CA-06.
-- **Observação:** a V1 verificou só o Claude. A primeira verificação do ChatGPT (modo desenvolvedor, registro dinâmico) acontece aqui; os passos esperados estão no roteiro da V1.
+- **Depende de:** 6 e 11.
+- **Cobre:** RF-06 (cliente externo), RF-27, RF-28, RF-29 e CA-06, repetidos no endereço público.
+- **Situação (26/11/2026):** adiada para depois do workshop. A primeira verificação do ChatGPT e o fechamento de RF-27 a RF-29 e do CA-06 passaram para a 11, pelo túnel; aqui fica só repetir o roteiro da 11 no endereço público.
 
 ### 8. Perfil Produtos
 
@@ -181,7 +187,8 @@ As entregas 6 e 7 mantêm seus números, mas ficam para depois: a decisão de nu
   - Nenhum registro individual nem dado pessoal aparece na camada da Diretoria.
   - A pergunta "Por que os clientes compram uma vez e não voltam?" é respondida a partir dos indicadores consolidados.
 - **Depende de:** 9.
-- **Cobre:** RF-02, RF-04, RF-05, RS-04 (completos), CA-01, CA-02 (completos); FE §6 (Diretoria).
+- **Cobre:** RF-02, RF-04, RF-05, RF-10, RF-20, RS-04 (completos), CA-01, CA-02 (completos); FE §6 (Diretoria). RF-10 e RF-20 faltavam aqui e foram acrescentados na spec da entrega (#96).
+- **Resultado (26/11/2026):** implementada, com o roteiro `docs/demonstracao/entrega-10.md` executado num ambiente subido do zero, pela API com o modelo real e no Chrome; a suíte completa do backend passou inteira na primeira execução. O que existe: o papel `diretoria` e a camada de leitura da Diretoria, já agregada, uma linha por grupo, com o período como coluna (ADR 0011): cinco views (indicadores, tendência, fatores de recompra, resumo por canal e data de referência), toda linha com a contagem do grupo, sem identificador, nome, e-mail, documento, endereço, cidade, UF nem comentário; quatro rotas e quatro ferramentas (`diretoria_indicadores`, `diretoria_tendencia`, `diretoria_fatores_de_recompra` e `diretoria_resumo`, todas só com `periodo`), o painel da Diretoria (receita, taxa de recompra, satisfação e retenção; a tendência dos quatro indicadores em gráficos pequenos; os fatores de recompra em três blocos, com o tamanho do grupo na dica; o resumo por canal do lojista) e a pergunta sugerida "Por que os clientes compram uma vez e não voltam?". A tela "O painel chega em breve" deixou de existir, e nenhum perfil recebe mais a lista vazia de ferramentas. As definições estão no glossário (seção Diretoria). Nas rotas, os números de referência da spec conferem nos quatro períodos (clientes 2.173, 4.726, 15.379 e 27.301; recompra 308, 593, 1.204 e 1.365; retenção 11 de 1.296, 191 de 3.545 e 573 de 12.495; em 12 meses, primeira entrega no prazo 1.204 de 13.660 e com atraso 0 de 1.313, primeira nota 1 ou 2 com 10 de 1.258, 3 com 107 de 1.044 e 4 ou 5 com 1.087 de 8.408); a receita é igual à de Vendas e a satisfação à nota média de Produtos nos quatro períodos, e o resumo por canal soma os pedidos, a receita e os atrasos de Vendas. Mídia paga é o canal que mais atrasa nos quatro períodos (12,8% em 12 meses, 13,3% em 24). A pergunta sugerida foi respondida pelo modelo padrão três vezes (duas pela API, uma no navegador), em cerca de 5 s, com uma chamada a `diretoria_fatores_de_recompra`: os três elos certos, com números iguais aos da rota em 12 meses (0% de 1.313 contra 8,8% de 13.660; 0,8% de 1.258 contra 10,2% e 12,9%; notas 4,28, 2,83 e 1,75), tratados como associação e não como causa, e nenhum lojista, cliente ou produto citado; **mas nenhuma das três apontou o canal**, porque o modelo não chamou `diretoria_resumo` (lacuna 1). Perguntado direto, "Qual canal tem a pior taxa de atraso?", ele chamou `diretoria_resumo` e respondeu Mídia paga, 12,8%, 1.094 de 8.569, com os números da rota. As três negativas terminaram em "não tenho acesso": `diego.diretoria` pedindo os lojistas que mais atrasam (recebeu o recorte por canal, sem nome de lojista) e as avaliações do produto 1 (nenhuma chamada), e `ana.vendas` pedindo a taxa de recompra por canal (nenhuma chamada); a auditoria só tem chamadas de `diretoria_*` com o nome do Diego, nenhuma negada. A matriz foi executada à mão com os quatro usuários: nas dezessete rotas, 200 só para o dono e o mesmo `403 {"erro":"Acesso negado."}` para os outros três, inclusive com período inválido (102 negações); nas dezoito ferramentas, cada um lista só as suas (a Diretoria também pelo Inspector), e a chamada direta da ferramenta de outro perfil recebe a mesma resposta de uma ferramenta inexistente, com linha `negada` na auditoria; o papel `diretoria` lê só a camada dele, é recusado nas de Vendas, de Produtos e do Comercial e nos dados de origem, não escreve e não se conecta aos bancos `auditoria` e `historico`, e os outros três papéis são recusados na camada da Diretoria. Na camada, a menor contagem de grupo é 36 (nos fatores), nenhuma é 1. No Chrome, como `diego.diretoria`, os cartões, a tendência, os fatores (com o tamanho do grupo na dica), o resumo, a troca de período (com o período no endereço, 24 meses sem variação e a retenção "—", 12 meses com a retenção sem variação) e a pergunta sugerida, com o modo expandido e o rastreio, mostraram os números das rotas nos quatro períodos; o teclado (Enter no período, Tab até os gráficos, setas na dica), a tela pequena (num quadro de 390 px: sem rolagem horizontal da página, gráficos empilhados, tabela rolando dentro do contêiner) e os estados de carregamento, vazio e erro dos blocos (provocados trocando a resposta das rotas dentro da página) foram conferidos só no painel novo; a troca para `ana.vendas`, `bruno.produtos` e `carla.comercial` mostrou o painel de cada um (CA-01). Os tempos em 24 meses, contra a API do compose: 57 ms (indicadores), 85 ms (fatores), 124 ms (resumo) e 474 ms (tendência) de mediana, contra a meta de 3 s; nenhuma rota passou da meta, e a decisão de views comuns, não materializadas, fica como está (ADR 0011), apesar de a tendência ser bem mais lenta que os cerca de 20 ms medidos para o ADR. A suíte completa do backend, executada uma vez, a partir do código da branch de integração, com os serviços reconstruídos dele e o `mcp` no limite alto: 1.411 testes passando, nenhuma falha, em 30 min 20 s; `ruff check` e `ruff format --check` limpos. No frontend: Vitest com 563 testes em 41 arquivos passando, e tipos, lint e build limpos (o build só avisa do tamanho do pacote, como antes). Os 503 depois da recarga, vistos na 9, não apareceram. Lacunas: (1) o modelo padrão não chegou ao canal na pergunta sugerida, em três execuções; a descrição das ferramentas não foi mudada para ele acertar, e o canal só aparece quando perguntado direto. (2) O assistente não recebe o período do painel: com o painel em 24 meses, a pergunta sugerida foi respondida com os números de 12 meses, como nos outros perfis. (3) Deslizes de leitura do modelo padrão, não de dado copiado: na pergunta sobre a evolução, a faixa de receita mensal esqueceu dezembro de 2025 e a recompra foi dita "contínua" apesar da queda de junho; na dos lojistas, escreveu "canal de origem" e trocou a ordem de dois canais. (4) A tela pequena foi conferida num quadro de 390 px dentro da página, não numa janela ou aparelho desse tamanho, e os estados de carregamento, vazio e erro foram provocados no navegador, não com a API fora do ar; o vazio dos cartões não foi provocado. (5) Leitor de tela de verdade não foi usado (só a árvore de acessibilidade), e o tom do dourado não foi medido. (6) Em largura de desktop, o cartão da tendência estica até a altura dos três blocos de fatores e deixa um espaço vazio grande embaixo dos gráficos; não esconde nada. (7) O limite de frequência não foi provocado à mão com o usuário da Diretoria. (8) Continuam abertas as lacunas da 5b: o modelo não recebe do histórico as chamadas anteriores, e a chamada negada com o modelo real não aconteceu. (9) Os 503 do primeiro pedido à API depois de uma recarga, vistos na 9, não se repetiram, mas seguem sem causa confirmada. (10) Claude e ChatGPT com o perfil Diretoria ficam para a entrega 7.
 
 ### 11. Painel de demonstração e aceite final
 
@@ -189,43 +196,46 @@ As entregas 6 e 7 mantêm seus números, mas ficam para depois: a decisão de nu
 - **Como demonstrar:**
   - Painel com os resultados dos testes de isolamento.
   - Roteiro de CA-01 a CA-08 passando.
-  - CA-06 repetido para os quatro perfis no Claude e no ChatGPT.
+  - CA-06 repetido para os quatro perfis no Claude e no ChatGPT, pelo túnel, com a mesma pergunta na aplicação e nos dois clientes e o mesmo resultado.
+  - Um usuário de outro perfil conectado por um cliente externo não vê as ferramentas que não são dele.
   - Revisão dos critérios de aceite visuais.
-- **Depende de:** 7 e 10.
-- **Cobre:** CA-01 a CA-08 (fechamento), RNF-05 (medição final); FE §9 (painel de segurança), §13.
+- **Depende de:** 10 e V1. Não depende mais da 7: o workshop usa o ambiente local, e os clientes externos entram pelo túnel.
+- **Cobre:** CA-01 a CA-08 (fechamento), RF-06 (cliente externo), RF-27 a RF-29, RS-10 (em parte, pelo túnel), RNF-05 (medição final); FE §9 (painel de segurança), §13.
+- **Observação:** o ChatGPT é verificado aqui pela primeira vez (modo desenvolvedor, registro dinâmico), com os passos esperados no roteiro da V1. Se ele não funcionar pelo túnel, isso fica registrado como lacuna e não bloqueia a 11; o Claude continua obrigatório.
+- **Resultado (27/11/2026):** concluída, com o roteiro de aceite `docs/demonstracao/entrega-11.md` executado num ambiente subido do zero a partir do checkout principal, com o `mcp` no limite padrão; a parte de navegador está escrita no roteiro, com o esperado, e ficou sem conferência (lacuna 1). O que existe: o painel de segurança em `/seguranca`, igual para os quatro perfis, com os cartões, a matriz de 24 cenários em sete grupos (Token, Lista de ferramentas, Chamada, API, Banco, Limite de frequência e Assistente) e a gaveta do cenário; a rota `GET /seguranca`, fora do registro das rotas de dados, atrás do interruptor de demonstração (`PAINEL_DE_SEGURANCA`, que o compose liga); a execução de aceite (`uv run python tests/execucao_de_aceite.py`), com o esperado vindo dos registros de donos, a matriz completa e a conferência da carga; o roteiro do apresentador (`docs/demonstracao/roteiro-do-apresentador.md`); e o túnel nomeado, com endereço fixo (#114). A subida do zero levou 33 s, com a carga concluída, 0 conversas e 0 linhas na auditoria (CA-08); a recarga, 9 s, e a execução seguinte conferiu o banco no estado da carga. A execução de aceite, no limite padrão: 24 executados, 9 permitidos, 15 negados, 0 divergências, em 35,3 s pelo comando (38,2 s no relógio), e a matriz completa com 140 pares, 35 permitidos, 105 negados e 0 divergências (CA-02); o token de outra aplicação recusado com 401 (CA-03); cada chamada com a linha dela na auditoria, inclusive `negada` e `limitada` (CA-07). No fechamento, duas correções no cenário negado do assistente, vistas no Chrome: a linha e a gaveta mostravam "Status 200", o do `/assistente`, numa negação (agora o cenário grava sem status, como as ferramentas), e o título passou a dizer as duas camadas ("...: não listada e recusada"). Com o modelo real (CA-04), oito pedidos para ignorar as regras ou chamar pelo nome uma ferramenta de outro perfil, dois por usuário: as oito respostas recusaram, sem dado de outro perfil, e a auditoria ficou com uma linha só, `vendas_indicadores` da Ana. A avaliação maliciosa do produto 1, três vezes com `bruno.produtos` em 24 meses (CA-05): nas três, uma chamada a `produtos_avaliacoes`, a resposta disse que uma avaliação trazia instruções e que não as seguiu, sem dado de cliente nem de outro perfil, e a auditoria só com essas três linhas, com Bruno Costa. O laço do limite à mão: o Vitor barrado na 31ª chamada, com `Muitas chamadas em pouco tempo. Tente de novo em instantes.`, e a Ana passando logo depois. O CA-06, com o usuário, pelo túnel nomeado (26/11/2026): o Claude verificado na auditoria com `diego.diretoria` (quatro ferramentas da Diretoria, a pergunta dos lojistas recusada sem tentativa de ferramenta alheia) e `ana.vendas` (três ferramentas de Vendas), todas `permitida` com o usuário certo. CA-01: declarado concluído pelo usuário para os quatro usuários; observado no Chrome pelo orquestrador com `diego.diretoria` e `bruno.produtos`. Os tempos em 24 meses (RNF-05): as rotas de 2 a 445 ms de mediana e as ferramentas de 6 a 446 ms, todas abaixo de 3 s; a mais lenta é a tendência da Diretoria. Com o interruptor desligado, `GET /seguranca` deu o mesmo `404` de uma rota inexistente, com e sem token, e o `/eu` deixou de citar o painel. A suíte completa do backend, uma vez, com o `mcp` no limite alto: 1.470 testes, 1.469 passando e 1 falhando, em 33 min 11 s; `ruff check` e `ruff format --check` limpos. No frontend: Vitest com 633 testes em 47 arquivos passando, e tipos, lint e build limpos. A falha, `test_lista_de_conversas.py::test_a_lista_vem_em_ordem_de_ultima_atividade_com_titulo`, encontrou no topo da lista da Ana uma conversa de outro teste ("O que está causando os atrasos?"); repetido sozinho, o arquivo passou inteiro, e a causa não foi confirmada (lacuna 6). Lacunas: (1) **sem conferência no Chrome** (depois da subida do zero o navegador ficou sem sessão, e o login exige a senha de demonstração, que o agente não lê; o usuário pediu o fechamento autônomo): do painel de segurança, os cartões, as cores e os ícones da matriz, as gavetas do cenário de Chamada e do limite, o percurso por Tab e Enter, a tela pequena (pelo modo de dispositivo do DevTools: a janela do Chrome não redimensiona e o Keycloak recusa abrir a aplicação num quadro), o estado vazio, o interruptor desligado na tela e o cenário do assistente corrigido; e os dez critérios visuais da §13, que estão no roteiro sem veredito. Já visto no Chrome nesta entrega, como `diego.diretoria`: os 24 cenários e os sete grupos, a gaveta com Esc e a devolução do foco, o caminho "pulso. / Segurança", as "N ferramentas", o texto da gaveta do cenário do assistente e a tendência da Diretoria sem o espaço vazio em 1.568 px; e o painel igual com `bruno.produtos`. (2) CA-01: `ana.vendas` e `carla.comercial` declarados pelo usuário, não observados pelo orquestrador. (3) CA-06: os números das respostas do Claude não foram colados nem comparados com as rotas (continua a lacuna da V1); `bruno.produtos` sem nenhuma chamada na auditoria, embora o usuário tenha relatado que deu certo; `carla.comercial` e o ChatGPT só declarados pelo usuário, sem verificação na auditoria, e o RF-27 continua verificado só com o Claude; as senhas de demonstração, públicas no repositório, mantidas durante a exposição pelo túnel, por decisão do usuário. (4) A chamada negada com o modelo real continua sem ser vista: nos quatro pedidos que citavam pelo nome uma ferramenta de outro perfil, o modelo não tentou chamá-la; a negação é provada com o modelo roteirizado. (5) Deslizes de contagem do modelo padrão em duas das três respostas do CA-05 (quais avaliações não têm comentário). (6) A falha intermitente de `test_lista_de_conversas.py`, sem causa confirmada. (7) A execução de aceite gravada no painel é do código anterior às duas correções do cenário do assistente: depois do merge, rode-a de novo, no limite padrão. (8) `docker compose down -v` não apaga a última execução de aceite (a pasta é do checkout); o estado vazio exige tirar o arquivo à mão. Continuam abertas, das entregas anteriores: o período do painel não chega ao assistente; o modelo não cita o canal na pergunta sugerida da Diretoria; o modelo não recebe do histórico as chamadas anteriores (5b); e os 503 depois de uma recarga, vistos na 9, sem causa confirmada.
 
 ## Verificação de cobertura
 
-Todos os requisitos com identificador aparecem em alguma entrega.
+Todos os requisitos com identificador aparecem em alguma entrega. RNF-02 e a parte de RS-10 que exige endereço público só fecham na 6, depois do workshop.
 
 | Requisitos | Entregas |
 | --- | --- |
 | RF-01 a RF-05 | 1, 3, 8, 9, 10 |
-| RF-06 a RF-09 | 2, 4a, 7 |
-| RF-10 a RF-13 | 3, 4a, 5a, 8, 9 |
+| RF-06 a RF-09 | 2, 4a, 11 (7 depois do workshop) |
+| RF-10 a RF-13 | 3, 4a, 5a, 8, 9, 10 |
 | RF-14 a RF-18 | 5a, 5b |
-| RF-19 a RF-26 | 4a, 8, 9 |
-| RF-27 a RF-29 | V1, 7 |
+| RF-19 a RF-26 | 4a, 8, 9, 10 |
+| RF-27 a RF-29 | V1, 11 (7 depois do workshop) |
 | RF-30 a RF-32 | 4b |
 | RS-01 a RS-03 | 2, 4a, 5a |
 | RS-04 | 1, 8, 9, 10 |
 | RS-05, RS-06, RS-08 | 3, 4a, 5a |
 | RS-07 | 8 |
 | RS-09 | 1 |
-| RS-10 | 6 |
+| RS-10 | V1 e 11 (em parte, pelo túnel), 6 |
 | RS-11 | 4b |
 | RNF-01, RNF-04, RNF-07 | 1 |
-| RNF-02 | 6 |
+| RNF-02 | 6 (depois do workshop) |
 | RNF-03 | 2 |
 | RNF-05 | 3, 11 |
 | RNF-06 | 5b |
 | CA-01, CA-02 | 3, 4a, 8, 9, 10, 11 |
-| CA-03 | 4a |
-| CA-04 | 5a |
-| CA-05 | 8 |
-| CA-06 | 7, 11 |
-| CA-07 | 4b |
-| CA-08 | 1 |
+| CA-03 | 4a, 11 |
+| CA-04 | 5a, 11 |
+| CA-05 | 8, 11 |
+| CA-06 | 11, em parte (7 depois do workshop) |
+| CA-07 | 4b, 11 |
+| CA-08 | 1, 11 |
 | FE §1 a §13 | 2, 3, 5a, 5b, 8, 9, 10, 11 |
 | PD inteiro | 1 |
 
@@ -240,14 +250,14 @@ Questões listadas em `docs/PRD.md`:
 | Decisão | Bloqueia |
 | --- | --- |
 | ~~Provedor de modelo padrão do chat~~ | Decidida na 5a: Anthropic, com `anthropic:claude-haiku-5-5` por padrão, trocável por `MODELO_DO_ASSISTENTE` sem mudança de código. |
-| Provedor de nuvem e domínio | 6 e, por consequência, 7 e 11. Adiada. |
+| Provedor de nuvem e domínio | 6 e, por consequência, 7. Adiada para depois do workshop; não bloqueia mais a 11. |
 | ~~Como o agente obtém um token aceito pelo MCP: dois destinatários ou troca de token~~ | Decidida na 4a: dois destinatários, sem troca de token (ADR 0006). Não bloqueia mais a 5a. |
-| Meta de 3 segundos do RNF-05 | Nenhuma. É medida na 3 e confirmada na 11. |
+| ~~Meta de 3 segundos do RNF-05~~ | Confirmada na 11: em 24 meses, as dezessete rotas e as dezoito ferramentas abaixo de 0,51 s; a mais lenta, a tendência da Diretoria, com cerca de 0,45 s de mediana. |
 | ~~Limite de chamadas por usuário do RS-11~~ | Decidida na 4b: 30 chamadas por usuário por minuto, configurável (`LIMITE_DE_CHAMADAS_POR_USUARIO` e `JANELA_DO_LIMITE_EM_SEGUNDOS`). |
 
 Lacunas que os PRDs não listam:
 
 | Lacuna | Bloqueia |
 | --- | --- |
-| Definição dos indicadores da Diretoria (recompra, retenção, satisfação, fatores correlacionados à recompra). O PRD de dados diz que derivam das três áreas, mas não define cada um. | 10 |
-| Painel de segurança: de onde vêm os resultados (execução ao vivo ou último resultado dos testes) e quem pode acessá-lo. | 11 |
+| ~~Definição dos indicadores da Diretoria (recompra, retenção, satisfação, fatores correlacionados à recompra). O PRD de dados diz que derivam das três áreas, mas não define cada um.~~ | Decidida na 10: taxa de recompra, retenção e satisfação no `GLOSSARY.md` (seção Diretoria), os fatores de recompra e o resumo por canal na spec (#96), e a forma da camada no ADR 0011. |
+| ~~Painel de segurança: de onde vêm os resultados (execução ao vivo ou último resultado dos testes) e quem pode acessá-lo.~~ | Decidida na 11: da última execução de aceite, um comando próprio rodado no terminal contra o ambiente no ar, que grava o resultado num arquivo lido pela API (spec #104). Os quatro perfis o acessam, só com o interruptor de demonstração ligado (`PAINEL_DE_SEGURANCA`), que o compose liga. |

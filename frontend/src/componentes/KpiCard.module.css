@@ -11,6 +11,16 @@
   background: var(--surface);
 }
 
+/* Em destaque, a borda e o valor no tom do erro: o texto do rótulo já diz o que é. */
+.cartao[data-destaque="true"] {
+  border-color: var(--erro);
+  box-shadow: inset 3px 0 0 var(--erro);
+}
+
+.cartao[data-destaque="true"] .valor {
+  color: var(--erro);
+}
+
 .rotulo {
   color: var(--text-secondary);
   font-size: var(--texto-titulo-card);

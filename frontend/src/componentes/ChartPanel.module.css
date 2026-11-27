@@ -65,6 +65,16 @@
   min-width: 0;
 }
 
+/* Vários gráficos pequenos: cada um mede a própria caixa. Esta cresce com eles e, quando o painel
+   estica até a altura do bloco ao lado, ocupa a sobra, para os gráficos a distribuírem entre si. */
+.graficos {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+}
+
 @media (max-width: 767px) {
   .painel {
     padding: var(--espaco-3) var(--espaco-4) var(--espaco-4);

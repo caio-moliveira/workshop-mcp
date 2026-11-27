@@ -54,3 +54,28 @@ export function eComparacao(valor: unknown, atualPodeSerNulo: boolean): boolean 
   const atualValido = atualPodeSerNulo ? eNumeroOuNulo(valor.atual) : eNumero(valor.atual);
   return atualValido && eNumeroOuNulo(valor.anterior);
 }
+
+/** Uma fração de 0 a 1. */
+export function eFracao(valor: unknown): valor is number {
+  return eNumero(valor) && valor >= 0 && valor <= 1;
+}
+
+/** Uma taxa de 0 a 1 com a parte e o todo contados: vazia exatamente quando o todo é zero. */
+export function eTaxaContada(taxa: unknown, parte: unknown, todo: unknown): boolean {
+  if (!eContagem(parte) || !eContagem(todo) || parte > todo) return false;
+  return todo === 0 ? taxa === null : eFracao(taxa);
+}
+
+const NOTA_MINIMA = 1;
+const NOTA_MAXIMA = 5;
+
+/** Uma nota média de 1 a 5, ou `null`. */
+export function eNotaOuNula(valor: unknown): valor is number | null {
+  return valor === null || (eNumero(valor) && valor >= NOTA_MINIMA && valor <= NOTA_MAXIMA);
+}
+
+/** A nota média das avaliações contadas: vazia exatamente quando não há avaliação. */
+export function eSatisfacaoContada(nota: unknown, avaliacoes: unknown): boolean {
+  if (!eContagem(avaliacoes) || !eNotaOuNula(nota)) return false;
+  return (nota === null) === (avaliacoes === 0);
+}

@@ -11,6 +11,12 @@ interface Propriedades {
   series?: SerieDoGrafico[];
   /** O gráfico. Ocupa a largura do painel e a altura `--altura-do-grafico`. */
   children: ReactNode;
+  /**
+   * `livre` quando o conteúdo são vários gráficos pequenos, cada um com a própria altura, e a
+   * área cresce com eles em vez de ter a altura fixa de um gráfico só. Se o painel for mais alto
+   * que o conteúdo (esticado ao lado de outro bloco), a área ocupa a sobra, e o conteúdo a reparte.
+   */
+  altura?: "fixa" | "livre";
 }
 
 /** A marca de uma série: quadrado para barras, traço para linhas. */
@@ -25,7 +31,7 @@ export function MarcaDaSerie({ cor, forma }: Pick<SerieDoGrafico, "cor" | "forma
 }
 
 /** Moldura de gráfico: fundo branco, borda fina, título, legenda discreta e o gráfico (FE §7, §12). */
-export function ChartPanel({ titulo, descricao, series, children }: Propriedades) {
+export function ChartPanel({ titulo, descricao, series, children, altura = "fixa" }: Propriedades) {
   const idDoTitulo = useId();
   return (
     <section className={estilos.painel} aria-labelledby={idDoTitulo}>
@@ -45,7 +51,7 @@ export function ChartPanel({ titulo, descricao, series, children }: Propriedades
           </ul>
         )}
       </header>
-      <div className={estilos.grafico}>{children}</div>
+      <div className={altura === "fixa" ? estilos.grafico : estilos.graficos}>{children}</div>
     </section>
   );
 }

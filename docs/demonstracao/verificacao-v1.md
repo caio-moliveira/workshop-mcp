@@ -4,7 +4,7 @@ Este roteiro mostra a verificação V1: o ambiente local publicado por um túnel
 
 Pré-requisitos: Docker com Docker Compose, um navegador, acesso à internet e uma conta em cada assistente: no Claude (claude.ai), uma conta que permita adicionar conector personalizado; no ChatGPT, uma conta com o modo desenvolvedor (plano pago). O túnel não exige conta na Cloudflare.
 
-**O que foi conferido e como.** Em 24/11/2026, com cloudflared 2026.10.7, Keycloak 26.4.2 e nginx 1.30.7, pelo endereço do túnel: os metadados de recurso protegido e os do realm (passo 4), a tela de login com o tema do pulso e, no **Claude**, o conector personalizado completo: registro automático, login de `ana.vendas`, consentimento, conector conectado e chamadas ao servidor MCP respondidas com 200 (passo 5); `diego.diretoria` conectado com a lista de ferramentas vazia (passo 6). Os números da resposta do Claude à pergunta do passo 5 não foram anotados (ver Lacunas). O plano da conta do Claude usada não foi registrado. A aplicação local também foi conferida pelo túnel, sem navegador: o login de `ana.vendas` pelo fluxo de código com o cliente `pulso-web`, contra o emissor do túnel, deu um token que a API aceitou em `GET /eu`, com a resposta `{"nome": "Ana Ribeiro", "perfil": "vendas"}`, e o `/configuracao.json` do frontend apontava o provedor para o túnel. O **ChatGPT não foi verificado**, por decisão do usuário: o passo 7 traz os passos esperados, e a verificação fica para a entrega 7 (ver Lacunas).
+**O que foi conferido e como.** Em 24/11/2026, com cloudflared 2026.10.7, Keycloak 26.4.2 e nginx 1.30.7, pelo endereço do túnel: os metadados de recurso protegido e os do realm (passo 4), a tela de login com o tema do pulso e, no **Claude**, o conector personalizado completo: registro automático, login de `ana.vendas`, consentimento, conector conectado e chamadas ao servidor MCP respondidas com 200 (passo 5); `diego.diretoria` conectado com a lista de ferramentas vazia (passo 6). Os números da resposta do Claude à pergunta do passo 5 não foram anotados (ver Lacunas). O plano da conta do Claude usada não foi registrado. A aplicação local também foi conferida pelo túnel, sem navegador: o login de `ana.vendas` pelo fluxo de código com o cliente `pulso-web`, contra o emissor do túnel, deu um token que a API aceitou em `GET /eu`, com a resposta `{"nome": "Ana Ribeiro", "perfil": "vendas"}`, e o `/configuracao.json` do frontend apontava o provedor para o túnel. O **ChatGPT não foi verificado**, por decisão do usuário: o passo 7 traz os passos esperados, e a verificação fica para a entrega 11, pelo túnel (ver Lacunas).
 
 ## Ambiente da verificação
 
@@ -146,7 +146,7 @@ Esperado: o conector conecta, mas a lista de ferramentas vem vazia: ainda não h
 
 ## 7. ChatGPT: modo desenvolvedor (não verificado)
 
-**Este passo não foi executado na V1.** São os passos esperados, a conferir na entrega 7. O endereço de retorno do ChatGPT, `https://chatgpt.com/connector_platform_oauth_redirect`, já está nos hosts confiáveis do registro anônimo, e o registro com ele é coberto por teste automático (`test_registro_dinamico.py`), sem o ChatGPT.
+**Este passo não foi executado na V1.** São os passos esperados, a conferir na entrega 11, pelo túnel. O endereço de retorno do ChatGPT, `https://chatgpt.com/connector_platform_oauth_redirect`, já está nos hosts confiáveis do registro anônimo, e o registro com ele é coberto por teste automático (`test_registro_dinamico.py`), sem o ChatGPT.
 
 1. Saia da sessão do pulso no navegador, como no passo 5.
 2. No ChatGPT, **Settings** → **Apps & Connectors** → **Advanced** → ligue o **Developer mode**.
@@ -179,6 +179,16 @@ Se o ChatGPT recusar algum passo, anote a mensagem que ele mostra e o que aparec
 
 **Reiniciar o provedor ou trocar o endereço do túnel apaga os clientes registrados.** O realm é reimportado a cada subida (ADR 0004), e o endereço do túnel muda a cada execução dele. Nos dois casos o conector do assistente deixa de funcionar: remova-o e adicione-o de novo.
 
+## Variante: túnel nomeado, com endereço fixo
+
+Na entrega 11, o compose ganhou o perfil `tunel-nomeado`: o mesmo papel do túnel rápido, com um túnel criado na conta da Cloudflare do usuário e um endereço fixo num domínio dele. No painel da Cloudflare (Zero Trust → Networks → Tunnels), crie o túnel e um "Public hostname" com o serviço `HTTP` em `proxy:80`; copie o token do túnel, sozinho, para o arquivo `backend/token-do-tunel` (fora do git e fora do `backend/.env`). Ponha o endereço fixo nas duas variáveis do passo 3 e suba:
+
+```
+docker compose --profile tunel-nomeado up -d --wait
+```
+
+Os passos 4 a 7 valem iguais, com `$TUNEL` no endereço fixo. Como o endereço não muda, o conector do assistente continua valendo de uma sessão para outra, enquanto o provedor não reiniciar. Para voltar ao modo local, como no passo 8, com `docker compose stop tunel-nomeado`.
+
 ## Ajustes por assistente
 
 ### Claude
@@ -198,7 +208,7 @@ Nenhum ajuste registrado: o ChatGPT não foi verificado (ver Lacunas). O endere�
 
 ## Lacunas
 
-- **ChatGPT não verificado.** Por decisão do usuário, a V1 fecha só com o Claude. Os passos esperados estão no passo 7; a verificação com o ChatGPT fica para a entrega 7, junto com os ajustes que ele exigir. O que já se sabe: o retorno `https://chatgpt.com/connector_platform_oauth_redirect` é aceito pelo registro anônimo (teste automático).
+- **ChatGPT não verificado.** Por decisão do usuário, a V1 fecha só com o Claude. Os passos esperados estão no passo 7; a verificação com o ChatGPT fica para a entrega 11, pelo túnel, junto com os ajustes que ele exigir. O que já se sabe: o retorno `https://chatgpt.com/connector_platform_oauth_redirect` é aceito pelo registro anônimo (teste automático).
 - **Plano da conta do Claude não registrado.** Anote-o na próxima verificação.
 - **Números da resposta do Claude.** A verificação registrou as chamadas ao servidor MCP com 200, mas não anotou os números da resposta. Na próxima execução, confira-os com o painel, como no passo 5.
 - **Client ID Metadata Document.** O Keycloak 26.4 não o suporta. Hoje o Claude oferece o registro dinâmico como alternativa; se um assistente passar a exigir só o CIMD, será preciso outro servidor de autorização (fora do escopo da V1).
