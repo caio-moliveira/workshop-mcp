@@ -214,6 +214,18 @@ def test_a_descricao_diz_como_a_conversao_e_calculada(mcp, token_de):
     assert "origem" not in descricao.lower()
 
 
+def test_a_descricao_diz_o_tamanho_da_base_sem_ditar_a_resposta(mcp, token_de):
+    """A descrição diz o que a ferramenta devolve; como responder fica com o assistente."""
+    [publicada] = [
+        f for f in listar_ferramentas(mcp, token_de(Perfil.COMERCIAL)) if f.name == FERRAMENTA
+    ]
+    descricao = publicada.description
+
+    assert "'leads' e 'novos_lojistas' dão o tamanho da base de cada conversão" in descricao
+    assert "ao responder" not in descricao.lower()
+    assert "avise" not in descricao.lower()
+
+
 @pytest.mark.parametrize("periodo", PERIODOS)
 def test_a_ferramenta_devolve_o_mesmo_conteudo_da_rota(mcp, respostas, token_de, periodo):
     """Tela e agente nunca divergem: a mesma consulta, pelo mesmo mecanismo (RF-13)."""

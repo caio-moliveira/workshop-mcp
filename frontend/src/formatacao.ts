@@ -84,6 +84,18 @@ export function formatarDataHora(iso: string): string {
   return DATA_HORA.format(new Date(iso));
 }
 
+const HORA = new Intl.DateTimeFormat("pt-BR", {
+  timeZone: "America/Sao_Paulo",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+});
+
+/** Um instante ISO com fuso só na hora de Brasília, com os segundos ("14:05:09"). */
+export function formatarHora(iso: string): string {
+  return HORA.format(new Date(iso));
+}
+
 /** Uma data ISO ("2026-11-30") no formato brasileiro, sem passar por fuso horário. */
 export function formatarData(iso: string): string {
   const [ano, mes, dia] = iso.slice(0, 10).split("-");

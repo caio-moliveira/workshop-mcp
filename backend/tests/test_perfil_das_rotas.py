@@ -15,13 +15,14 @@ from consultas import consulta
 # O assistente não tem regra de perfil própria: o que ele alcança é o que o servidor MCP lista e
 # permite para o token do usuário (RF-13). O histórico também não: cada usuário só alcança as
 # próprias conversas, de qualquer perfil (RF-18). O painel de segurança é igual para os quatro
-# perfis, e só existe com o interruptor de demonstração ligado.
+# perfis, e só existe com o interruptor de demonstração ligado, com as chamadas ao vivo dele.
 ROTAS_QUE_SO_EXIGEM_AUTENTICACAO = {
     "/eu",
     "/assistente",
     "/conversas",
     "/conversas/{id_da_conversa}",
     "/seguranca",
+    "/seguranca/chamadas",
 }
 
 
@@ -30,10 +31,12 @@ def test_a_lista_de_rotas_so_autenticadas_e_a_esperada():
 
 
 @pytest.fixture(params=["desligado", "ligado"])
-def api(request, criar_api, tmp_path):
-    """A API com o interruptor de demonstração desligado e ligado: com ele, há uma rota a mais."""
+def api(request, criar_api, tmp_path, leitura_da_auditoria_local):
+    """A API com o interruptor de demonstração desligado e ligado: com ele, há duas rotas a mais."""
     if request.param == "ligado":
-        return criar_api(execucao_de_aceite=tmp_path)
+        return criar_api(
+            execucao_de_aceite=tmp_path, leitura_da_auditoria=leitura_da_auditoria_local
+        )
     return criar_api()
 
 

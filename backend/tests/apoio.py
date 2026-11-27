@@ -108,6 +108,14 @@ def conectar_como_auditoria(banco: str = BANCO_DA_AUDITORIA) -> psycopg.Connecti
     return _conectar(auditoria.PAPEL, variavel("SENHA_DO_PAPEL_AUDITORIA"), banco)
 
 
+def conectar_como_leitura_da_auditoria(banco: str = BANCO_DA_AUDITORIA) -> psycopg.Connection:
+    """Abre uma conexão com a credencial do papel `leitura_da_auditoria` (por padrão, no banco
+    da auditoria)."""
+    return _conectar(
+        auditoria.PAPEL_DE_LEITURA, variavel(auditoria.VARIAVEL_DA_SENHA_DE_LEITURA), banco
+    )
+
+
 def ultima_chamada_de(id_do_usuario: str) -> dict | None:
     """A linha mais recente da auditoria de um usuário (o `sub` do token), lida com o papel dono.
 

@@ -1,4 +1,8 @@
-"""A auditoria protegida contra leitura e alteração e preservada pela recarga (RF-32, ADR 0008)."""
+"""A auditoria protegida contra leitura e alteração e preservada pela recarga (RF-32, ADR 0008).
+
+Só o papel `leitura_da_auditoria`, das chamadas ao vivo do painel de segurança, lê; ele não grava,
+não altera e não apaga, e não alcança os outros bancos (ADR 0012).
+"""
 
 import uuid
 from dataclasses import replace
@@ -7,12 +11,15 @@ import psycopg
 import pytest
 from apoio import (
     BANCO_DA_AUDITORIA,
+    BANCO_DO_HISTORICO,
     banco_local,
     compose,
     conectar_como_auditoria,
     conectar_como_dono,
+    conectar_como_leitura_da_auditoria,
     ultima_chamada_de,
     valor,
+    variavel,
 )
 from psycopg.types.json import Jsonb
 
@@ -101,3 +108,42 @@ def test_o_papel_de_cada_perfil_nao_se_conecta_ao_banco_da_auditoria(credencial)
             password=credencial.senha,
             connect_timeout=5,
         ).close()
+
+
+def test_o_papel_de_leitura_le_a_chamada_gravada():
+    usuario = _gravar_como_auditoria()
+
+    with conectar_como_leitura_da_auditoria() as conexao:
+        linha = conexao.execute(
+            "select resultado from auditoria.chamada where id_do_usuario = %s", (usuario,)
+        ).fetchone()
+
+    assert linha == ("permitida",)
+
+
+@pytest.mark.parametrize(
+    "comando",
+    [
+        GRAVACAO,
+        "update auditoria.chamada set resultado = 'negada'",
+        "delete from auditoria.chamada",
+        "truncate auditoria.chamada",
+    ],
+)
+def test_o_papel_de_leitura_nao_grava_nao_altera_nem_apaga(comando):
+    usuario = _gravar_como_auditoria()
+    argumentos = (f"teste-protecao-{uuid.uuid4()}", Jsonb({})) if comando is GRAVACAO else None
+
+    with (
+        conectar_como_leitura_da_auditoria() as conexao,
+        pytest.raises(psycopg.errors.InsufficientPrivilege),
+    ):
+        conexao.execute(comando, argumentos)
+    assert ultima_chamada_de(usuario)["resultado"] == "permitida"
+
+
+@pytest.mark.parametrize("banco", [None, BANCO_DO_HISTORICO], ids=["carregado", "historico"])
+def test_o_papel_de_leitura_nao_se_conecta_aos_outros_bancos(banco):
+    # `None` é o banco carregado, o do ambiente.
+    with pytest.raises(psycopg.OperationalError, match="permission denied"):
+        conectar_como_leitura_da_auditoria(banco or variavel("BANCO")).close()

@@ -345,7 +345,7 @@ bash: o mesmo, com `echo` no começo. **Executado em 26/11/2026:** as quatro lin
 
 **O conceito.** Toda chamada de ferramenta vira uma linha na auditoria, com usuário, perfil, ferramenta, parâmetros, resultado e horário, permitida ou negada, antes de a resposta sair (CA-07). Nenhuma ferramenta lê a auditoria, e o papel de um perfil nem se conecta ao banco dela (ADR 0008). **Camada de defesa: Limite de frequência.** Quem passa de 30 chamadas por minuto é barrado, e só ele.
 
-**O que abrir:** o terminal 1 e o terminal 2.
+**O que abrir:** o terminal 1 e o terminal 2. Se preferir a tela ao terminal, as **chamadas ao vivo**, no topo do painel de segurança (`http://localhost:5173/seguranca`), mostram as mesmas linhas, sem os parâmetros, e se atualizam a cada 3 segundos (ADR 0012). Deixe essa aba aberta ao lado nos blocos 5 a 7: cada chamada aparece ali enquanto acontece.
 
 **O que rodar.** As chamadas dos blocos anteriores, na auditoria, com o papel dono (terminal 1):
 
@@ -472,7 +472,7 @@ No claude.ai, **Configurações** → **Conectores** → **Adicionar conector pe
 Qual canal traz os leads que mais convertem?
 ```
 
-Ao lado, a aplicação como `carla.comercial` (o login agora passa pelo túnel), no painel do Comercial, em 12 meses. No terminal 1, a auditoria, com a consulta do bloco 5.
+Ao lado, a aplicação como `carla.comercial` (o login agora passa pelo túnel), no painel do Comercial, em 12 meses. No terminal 1, a auditoria, com a consulta do bloco 5, ou, numa aba, as chamadas ao vivo do painel de segurança: as chamadas do Claude aparecem ali, com Carla Mendes e o perfil `comercial`, segundos depois de ele responder.
 
 **O que a plateia deve ver:** o registro automático e a tela de login do pulso aberta pelo Claude; o conector com só as quatro ferramentas do Comercial; a resposta com Mídia paga à frente (222 leads, 57 novos lojistas, conversão de 25,7% em 12 meses, passo 2 do roteiro da 9), os mesmos números do painel; na auditoria, as chamadas com Carla Mendes e o perfil `comercial`. Se houver tempo, o mesmo pelo ChatGPT (passo 7 da V1), que o usuário declarou funcionando no CA-06, sem verificação na auditoria: ensaie-o antes de mostrá-lo. Se a rede ou o túnel falharem, mostre a gravação de reserva e pule para a volta ao modo local.
 
@@ -489,7 +489,7 @@ Remova o conector no Claude depois do workshop: os clientes registrados somem a 
 
 **O conceito.** Uma execução de aceite roda todos os cenários de segurança contra o ambiente no ar e grava o resultado; o painel de segurança mostra a última. Cada cenário é um pedido concreto com o desfecho esperado, e o esperado das rotas e das ferramentas vem dos mesmos registros de donos que o código usa: um resultado diferente é gravado como divergência, nunca escondido. Os cenários são agrupados pela camada de defesa, na ordem em que um pedido as atravessa.
 
-**O que abrir:** o terminal 2 e a aplicação em `http://localhost:5173/seguranca` (item **Segurança** da barra lateral, igual para os quatro perfis).
+**O que abrir:** o terminal 2 e a aplicação em `http://localhost:5173/seguranca` (item **Segurança** da barra lateral, igual para os quatro perfis). No topo, as chamadas ao vivo dos blocos anteriores; abaixo, a última execução de aceite. Enquanto o comando roda, as chamadas dele passam pelas chamadas ao vivo.
 
 **O que rodar.** Não chame ferramentas com os usuários de demonstração no minuto anterior: a execução faz cerca de 20 chamadas por usuário, dentro do limite de 30. Terminal 2, em `backend/`, no checkout principal (é a pasta dele que a API lê):
 

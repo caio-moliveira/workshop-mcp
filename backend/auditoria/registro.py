@@ -73,25 +73,7 @@ class AuditoriaNoBanco:
     """
 
     def __init__(self, banco: BancoDeDados, credencial: Credencial) -> None:
-        self._pool = ConnectionPool(
-            kwargs={
-                "host": banco.host,
-                "port": banco.porta,
-                "dbname": banco.nome,
-                "user": credencial.papel,
-                "password": credencial.senha,
-                "connect_timeout": ESPERA_POR_CONEXAO_EM_SEGUNDOS,
-                "autocommit": True,
-            },
-            # Sem conexão aberta na subida: o servidor sobe mesmo com a auditoria fora, e é a
-            # chamada que é recusada.
-            min_size=0,
-            max_size=CONEXOES,
-            timeout=ESPERA_POR_CONEXAO_EM_SEGUNDOS,
-            check=ConnectionPool.check_connection,
-            name="auditoria",
-            open=True,
-        )
+        self._pool = pool_da_auditoria(banco, credencial, "auditoria")
 
     def registrar(self, chamada: Chamada) -> None:
         parametros, cortados = _parametros_para_gravar(chamada.argumentos)
@@ -126,6 +108,29 @@ class AuditoriaNoBanco:
         rastro: TracebackType | None,
     ) -> None:
         self.fechar()
+
+
+def pool_da_auditoria(banco: BancoDeDados, credencial: Credencial, nome: str) -> ConnectionPool:
+    """Um pool de conexões com o banco da auditoria, com a credencial dada."""
+    return ConnectionPool(
+        kwargs={
+            "host": banco.host,
+            "port": banco.porta,
+            "dbname": banco.nome,
+            "user": credencial.papel,
+            "password": credencial.senha,
+            "connect_timeout": ESPERA_POR_CONEXAO_EM_SEGUNDOS,
+            "autocommit": True,
+        },
+        # Sem conexão aberta na subida: o serviço sobe mesmo com a auditoria fora, e é o pedido
+        # que falha.
+        min_size=0,
+        max_size=CONEXOES,
+        timeout=ESPERA_POR_CONEXAO_EM_SEGUNDOS,
+        check=ConnectionPool.check_connection,
+        name=nome,
+        open=True,
+    )
 
 
 def _parametros_para_gravar(argumentos: dict[str, Any]) -> tuple[Any, bool]:

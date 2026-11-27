@@ -235,5 +235,9 @@ Uma rodada de todos os cenários de segurança contra o ambiente no ar, com data
 _Avoid_: Suíte (que é o conjunto dos testes automatizados), execução dos testes
 
 **Painel de segurança**:
-A tela que mostra a última execução de aceite. Não mostra dado de negócio.
+A tela que mostra a última execução de aceite e as chamadas ao vivo. Não mostra dado de negócio.
 _Avoid_: Painel de demonstração (que é o nome da entrega), dashboard de segurança
+
+**Chamadas ao vivo**:
+As últimas chamadas ao servidor MCP, de qualquer usuário, lidas da auditoria e mostradas no painel de segurança enquanto acontecem: quando, quem, com que perfil, que ferramenta e o desfecho.
+_Avoid_: Log, auditoria ao vivo (a auditoria é o registro inteiro), rastreio (que é o das chamadas de uma resposta do assistente)
