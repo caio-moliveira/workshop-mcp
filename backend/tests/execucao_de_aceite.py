@@ -868,8 +868,10 @@ def pergunta_ao_assistente(
         recusada = any(_recusa_de_ferramenta_desconhecida(r) for r in retornos)
         return Observado(
             "negado",
+            # O 200 é o do `/assistente`, que respondeu à pergunta; a negação, como nas
+            # ferramentas, não tem status.
             Resposta(
-                status=resposta.status_code,
+                status=None,
                 mensagem=mensagens.FERRAMENTA_DESCONHECIDA if recusada else None,
             ),
             # Recusada antes do servidor: nenhuma linha nova na auditoria. Qualquer outra falha
