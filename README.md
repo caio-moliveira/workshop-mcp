@@ -273,7 +273,7 @@ Os roteiros, com comandos e resultados esperados, estão em `docs/demonstracao/`
 - Entrega 10, perfil Diretoria: `docs/demonstracao/entrega-10.md`.
 - Entrega 11, painel de segurança e aceite final (CA-01 a CA-08, com o ambiente subido do zero): `docs/demonstracao/entrega-11.md`.
 
-O roteiro do apresentador e os slides do workshop são material do apresentador e ficam fora do repositório. O primeiro servidor MCP mostrado no workshop, uma ferramenta sem login, está em `backend/exemplos/primeiro_servidor.py`.
+Os slides do workshop (`apresentacao/index.html`), o roteiro do apresentador (`apresentacao/roteiro-do-apresentador.md`, também em PDF) e os comandos das demonstrações (`apresentacao/comandos.md`) estão na pasta `apresentacao/`. O primeiro servidor MCP mostrado no workshop, uma ferramenta sem login, está em `backend/exemplos/primeiro_servidor.py`.
 
 ## Parar o ambiente
 
