@@ -9,3 +9,8 @@ __pycache__/
 backend/execucao-de-aceite/
 # O token do túnel nomeado (dá acesso à conta da Cloudflare).
 backend/token-do-tunel
+# Cópias do .env para trocar entre o modo local e o modo túnel: têm as mesmas senhas.
+.env.*
+!.env.example
+# Os slides do workshop: material do apresentador, fora do repositório.
+apresentacao/
