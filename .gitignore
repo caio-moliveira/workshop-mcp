@@ -13,4 +13,3 @@ backend/token-do-tunel
 .env.*
 !.env.example
 # Os slides do workshop: material do apresentador, fora do repositório.
-apresentacao/
