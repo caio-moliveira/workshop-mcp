@@ -2,7 +2,7 @@
 
 Este roteiro fecha o projeto para o workshop: executa os oito critérios de aceite do PRD (CA-01 a CA-08) juntos, com os quatro perfis prontos, num ambiente subido do zero. A entrega acrescenta o painel de segurança e a execução de aceite (README, seção Painel de segurança); o resto é a conferência do que as entregas anteriores construíram. Os comandos rodam na raiz do projeto, salvo quando o passo indica `backend/`. Onde o PowerShell e o bash diferem, vale o que os roteiros da 5b e da 8 mostram.
 
-Pré-requisitos: Docker com Docker Compose, [uv](https://docs.astral.sh/uv/), o Chrome e uma chave da API da Anthropic (o provedor do modelo padrão) no `backend/.env`. Para o CA-06, o túnel nomeado e as contas do Claude e do ChatGPT (veja a preparação do roteiro do apresentador).
+Pré-requisitos: Docker com Docker Compose, [uv](https://docs.astral.sh/uv/), o Chrome e uma chave da API da Anthropic (o provedor do modelo padrão) no `backend/.env`. Para o CA-06, o túnel nomeado e as contas do Claude e do ChatGPT (o roteiro do apresentador, com a preparação, é material do apresentador e fica fora do repositório).
 
 **O que foi conferido e como.** Em 27/11/2026, a partir do checkout principal, na branch de integração da entrega (`feat/104-painel-de-seguranca`, em `da9f6b0`), o ambiente foi subido do zero, com o `mcp` no limite padrão de frequência (30 chamadas por usuário por minuto). Os passos 1, 2, 4, 5 e 7 foram executados pelo terminal, pela API e pelo servidor MCP; o CA-04 e o CA-05, com o modelo real (`anthropic:claude-haiku-5-5`, o padrão), em `POST /assistente`, como o painel faz, com o token de cada usuário emitido pelo mesmo login dos testes (fluxo de código com PKCE, `token_de_demonstracao`), sem digitar senha. O CA-06 foi executado com o usuário em 26/11/2026, pelo túnel nomeado (passo 6). A parte de navegador (CA-01, o painel de segurança e a revisão da §13 do PRD de frontend) **não foi executada por este roteiro**: os passos estão escritos, com o esperado, e o resultado de cada um ficou **sem conferência**: depois da subida do zero, o navegador não tinha mais sessão, e o login exige a senha de demonstração, que o orquestrador não lê (lacuna 1 do roadmap), que tem o login no Chrome. O que já foi visto no Chrome nesta entrega está anotado em cada passo, com quem viu. As respostas do modelo mudam a cada execução; o que este roteiro anota é o resultado observado. O que não foi conferido está na seção "Lacunas".
 
@@ -204,9 +204,9 @@ Nas três, o modelo disse que uma avaliação trazia instruções, não as segui
 
 Uma linha por execução, só `produtos_avaliacoes`, com o usuário de Produtos. Nenhuma chamada de outro perfil, nenhuma negada.
 
-### 5b. O limite de frequência, à mão (bloco 5 do roteiro do apresentador)
+### 5b. O limite de frequência, à mão (a demonstração do limite no workshop)
 
-O laço do roteiro do apresentador (31 chamadas de `vendas_situacao_das_entregas` com o token de `vitor.vendas` para `pulso-inspector`, e uma 32ª), no PowerShell, mais de um minuto depois do passo 2; em seguida a mesma chamada com o token de `ana.vendas`, e as chamadas do último minuto na auditoria.
+O laço da demonstração do workshop (31 chamadas de `vendas_situacao_das_entregas` com o token de `vitor.vendas` para `pulso-inspector`, e uma 32ª), no PowerShell, mais de um minuto depois do passo 2; em seguida a mesma chamada com o token de `ana.vendas`, e as chamadas do último minuto na auditoria.
 
 **Executado em 27/11/2026:** as 30 primeiras `False` e a 31ª `True`, em 2,9 s; a 32ª, `{"content":[{"text":"Muitas chamadas em pouco tempo. Tente de novo em instantes.","type":"text"}],"isError":true}` (um erro de ferramenta, não um HTTP 429); a da Ana, `False`. Na auditoria do último minuto: `Vitor Nunes | limitada | 2`, `Vitor Nunes | permitida | 30`, `Ana Ribeiro | permitida | 1` e `Bruno Costa | permitida | 1` (a última execução do passo 5, ainda dentro do minuto).
 

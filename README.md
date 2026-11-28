@@ -15,6 +15,7 @@ Consulta de dados por perfil com servidor MCP. Os requisitos estão em `docs/PRD
 │   ├── servidor_mcp/ # servidor MCP: as consultas como ferramentas (FastMCP)
 │   ├── assistente/   # assistente da aplicação: agente (PydanticAI) que usa as ferramentas do servidor MCP
 │   ├── aceite/       # a forma do resultado da execução de aceite, que a API lê para o painel de segurança
+│   ├── exemplos/     # o primeiro servidor MCP do workshop: uma ferramenta, sem login (fora da aplicação)
 │   └── tests/
 ├── frontend/         # aplicação no navegador (React + TypeScript + Vite), servida por nginx
 ├── keycloak/realm/   # configuração versionada do provedor de identidade
@@ -272,7 +273,7 @@ Os roteiros, com comandos e resultados esperados, estão em `docs/demonstracao/`
 - Entrega 10, perfil Diretoria: `docs/demonstracao/entrega-10.md`.
 - Entrega 11, painel de segurança e aceite final (CA-01 a CA-08, com o ambiente subido do zero): `docs/demonstracao/entrega-11.md`.
 
-O roteiro do apresentador, para o workshop de 90 minutos, em oito blocos na ordem dos conceitos, com a preparação e o que gravar como reserva: `docs/demonstracao/roteiro-do-apresentador.md`.
+O roteiro do apresentador e os slides do workshop são material do apresentador e ficam fora do repositório. O primeiro servidor MCP mostrado no workshop, uma ferramenta sem login, está em `backend/exemplos/primeiro_servidor.py`.
 
 ## Parar o ambiente
 

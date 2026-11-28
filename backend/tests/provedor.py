@@ -59,9 +59,18 @@ def emissor() -> str:
     return emissor_em(endereco_do_provedor())
 
 
+# Onde a máquina local alcança o provedor do compose, seja qual for o endereço público.
+ENDERECO_LOCAL_DO_PROVEDOR = "http://localhost:8080"
+
+
 def url_das_chaves() -> str:
-    """Onde o provedor publica as chaves públicas, alcançado da máquina local."""
-    return url_das_chaves_em(endereco_do_provedor())
+    """Onde o provedor publica as chaves públicas, alcançado da máquina local.
+
+    Pelo endereço local, e não pelo público: como os serviços do compose, que buscam as chaves
+    pela rede interna. No modo túnel, o endereço público passa pela Cloudflare, que recusa a
+    busca das chaves feita pela biblioteca de tokens.
+    """
+    return url_das_chaves_em(ENDERECO_LOCAL_DO_PROVEDOR)
 
 
 def realm_pelo_proxy() -> str:
